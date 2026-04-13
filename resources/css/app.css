@@ -5,9 +5,124 @@
 @source '../**/*.blade.php';
 @source '../**/*.js';
 
+/* ============================================================
+   THEME CONFIGURATION — Chỉnh màu chủ đạo tại đây
+   Cấu trúc: white + blue (trắng + xanh dương)
+   ============================================================ */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* ---- MÀU CHỦ ĐẠO (PRIMARY) ---- */
+    /* Đổi các giá trị HEX bên dưới để thay đổi màu toàn hệ thống */
+    --color-primary-50:  #eff6ff;
+    --color-primary-100: #dbeafe;
+    --color-primary-200: #bfdbfe;
+    --color-primary-300: #93c5fd;
+    --color-primary-400: #60a5fa;
+    --color-primary-500: #3b82f6;   /* ← Màu chính (blue-500) */
+    --color-primary-600: #2563eb;   /* ← Màu chính dark (blue-600) */
+    --color-primary-700: #1d4ed8;
+    --color-primary-800: #1e40af;
+    --color-primary-900: #1e3a8a;
+    --color-primary-950: #172554;
+
+    /* ---- ACCENT (NHẤN MẠNH) ---- */
+    --color-accent-50:  #f0f9ff;
+    --color-accent-100: #e0f2fe;
+    --color-accent-200: #bae6fd;
+    --color-accent-300: #7dd3fc;
+    --color-accent-400: #38bdf8;
+    --color-accent-500: #0ea5e9;   /* ← Accent (sky-500) */
+    --color-accent-600: #0284c7;
+    --color-accent-700: #0369a1;
+    --color-accent-800: #075985;
+    --color-accent-900: #0c4a6e;
+
+    /* ---- NEUTRAL (XÁM) ---- */
+    --color-neutral-50:  #fafafa;
+    --color-neutral-100:  #f5f5f5;
+    --color-neutral-200:  #e5e5e5;
+    --color-neutral-300:  #d4d4d4;
+    --color-neutral-400:  #a3a3a3;
+    --color-neutral-500:  #737373;
+    --color-neutral-600:  #525252;
+    --color-neutral-700:  #404040;
+    --color-neutral-800:  #262626;
+    --color-neutral-900:  #171717;
+    --color-neutral-950:  #0a0a0a;
+
+    /* ---- SEMANTIC TOKENS ---- */
+    /* Ánh xạ ngữ nghĩa sang màu cụ thể */
+    --color-brand:          var(--color-primary-500);
+    --color-brand-dark:      var(--color-primary-600);
+    --color-brand-light:     var(--color-primary-50);
+    --color-brand-ring:      var(--color-primary-500);
+
+    --color-bg-base:         #ffffff;
+    --color-bg-surface:      #ffffff;
+    --color-bg-elevated:     #ffffff;
+    --color-bg-muted:        var(--color-neutral-50);
+    --color-bg-overlay:      rgba(0, 0, 0, 0.4);
+
+    --color-text-primary:    var(--color-neutral-900);
+    --color-text-secondary:  var(--color-neutral-500);
+    --color-text-muted:      var(--color-neutral-400);
+    --color-text-inverse:    #ffffff;
+    --color-text-brand:      var(--color-primary-600);
+
+    --color-border-default:  var(--color-neutral-200);
+    --color-border-strong:    var(--color-neutral-300);
+    --color-border-brand:    var(--color-primary-500);
+    --color-border-muted:    var(--color-neutral-100);
+
+    /* ---- SHADOW ---- */
+    --shadow-brand:          0 4px 14px 0 rgb(59 130 246 / 0.25);
+    --shadow-brand-lg:       0 8px 30px 0 rgb(59 130 246 / 0.30);
+    --shadow-card:          0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.07);
+
+    /* ---- FONT ---- */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif,
+                 'Apple Color Emoji', 'Segoe UI Emoji',
+                 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* ---- BORDER RADIUS ---- */
+    --radius-sm:   0.25rem;
+    --radius-md:   0.5rem;
+    --radius-lg:   0.75rem;
+    --radius-xl:   1rem;
+    --radius-2xl:  1.5rem;
+    --radius-full: 9999px;
+
+    /* ---- TRANSITION ---- */
+    --transition-fast:   150ms;
+    --transition-normal: 200ms;
+    --transition-slow:   300ms;
 }
 
+/* ============================================================
+   BASE LAYER — Reset & Global Styles
+   ============================================================ */
 [x-cloak] { display: none !important; }
+
+/* Smooth scroll globally */
+html { scroll-behavior: smooth; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+    background: var(--color-neutral-300);
+    border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-400); }
+
+/* Text selection */
+::selection {
+    background-color: var(--color-primary-200);
+    color: var(--color-primary-900);
+}
+
+/* Focus visible ring */
+:focus-visible {
+    outline: 0px solid var(--color-brand-ring);
+    outline-offset: 0px;
+}

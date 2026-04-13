@@ -32,4 +32,7 @@ return [
 
     // Màu phụ (secondary color)
     'secondary_color' => env('SYSTEM_SECONDARY_COLOR', '#06B6D4'),
+
+    // Version của hệ thống (hiển thị ở footer)
+    'version' => env('SYSTEM_VERSION', '1.0'),
 ];

@@ -56,7 +56,8 @@ class Login extends Component
                 return;
             }
 
-            if ($user->status != 1) {
+            // Kiểm tra tài khoản có hoạt động không (hienthi = đang hiển thị/hoạt động)
+            if ($user->status !== 'hienthi') {
                 $this->errorMessage = 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.';
                 $this->isLoading = false;
                 return;
@@ -65,8 +66,8 @@ class Login extends Component
             // Đăng nhập
             Auth::login($user, $this->remember);
 
-            // Cập nhật last login
-            $user->update(['last_login' => now()]);
+            // Cập nhật last login (cột trong DB là lastlogin)
+            $user->update(['lastlogin' => now()]);
 
             // Chuyển hướng về dashboard hoặc intended URL
             return redirect()->intended(route('dashboard'));

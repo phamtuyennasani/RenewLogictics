@@ -43,6 +43,7 @@ return new class extends Migration
             }
             $table->string('name');
             $table->string('guard_name');
+            $table->string('full_name');
             $table->timestamps();
             if ($teams || config('permission.testing')) {
                 $table->unique([$columnNames['team_foreign_key'], 'name', 'guard_name']);

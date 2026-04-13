@@ -4,32 +4,40 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'VAU TRANS - Quản lý vận chuyển' }}</title>
+    <title>{{ $title ?? config('system.name', 'VAU TRANS') . ' — Quản lý vận chuyển' }}</title>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Icon -->
+    {{-- Favicon --}}
     <link rel="icon" href="{{ asset('favicon.ico') }}">
 
-    <!-- Styles / Scripts -->
-    @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @endif
+    {{-- Google Fonts: Inter --}}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    {{-- Vite / Livewire Styles --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
     @stack('styles')
 </head>
-<body class="h-full bg-slate-100 font-sans antialiased">
+<body class="h-full bg-neutral-50 font-sans antialiased">
     <div class="min-h-screen flex flex-col">
         <main class="flex-1">
-            @yield('content')
+            @if(!\Auth::check())
+                @yield('content')
+            @else
+                <div class="wrap-sidebar">
+                    
+                </div>
+                <div class="wrap-main-page">
+                    <div class="header-main-page"></div>
+                    <div class="content-main-page"></div>
+                    <div class="footer-main-page"></div>
+                </div>
+            @endif
         </main>
     </div>
 
     @livewireScripts
-
     @stack('scripts')
 </body>
 </html>

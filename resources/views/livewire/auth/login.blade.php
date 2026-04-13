@@ -43,7 +43,7 @@
                             placeholder="Nhập tên đăng nhập"
                             autocomplete="username"
                             @class([
-                                'w-full pl-12 pr-4 py-3 border-2 bg-gray-50 border-gray-100 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200',
+                                'w-full !outline-none pl-12 pr-4 py-3 border-2 bg-gray-50 border-gray-100 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200',
                                 'bg-gray-50 border-gray-100' => ! $errors->has('username'),
                                 'bg-red-50 border-red-300' => $errors->has('username'),
                             ])
@@ -71,7 +71,7 @@
                             placeholder="Nhập mật khẩu"
                             autocomplete="current-password"
                             @class([
-                                'w-full pl-12 pr-14 py-3 border-2 bg-gray-50 border-gray-100 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200',
+                                'w-full !outline-none pl-12 pr-14 py-3 border-2 bg-gray-50 border-gray-100 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all duration-200',
                                 'bg-gray-50 border-gray-100' => ! $errors->has('password'),
                                 'bg-red-50 border-red-300' => $errors->has('password'),
                             ])
