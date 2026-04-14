@@ -4,6 +4,7 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@import "primeicons/primeicons.css";
 
 /* ============================================================
    THEME CONFIGURATION — Chỉnh màu chủ đạo tại đây
@@ -111,7 +112,6 @@
 /* Smooth scroll globally */
 html { 
     scroll-behavior: smooth;
-    @apply 4xl:text-2xl;
 }
 
 /* Custom scrollbar */

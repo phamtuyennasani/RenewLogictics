@@ -7,6 +7,7 @@
     <title>{{ $title ?? config('system.name', 'VAU TRANS') . ' — Quản lý vận chuyển' }}</title>
 
     {{-- Favicon --}}
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <link rel="icon" href="{{ asset('favicon.ico') }}">
 
     {{-- Google Fonts: Inter --}}

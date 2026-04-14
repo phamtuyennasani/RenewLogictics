@@ -15,6 +15,7 @@ new class extends Component {
     public $type;
     public array $xCheck = [];
     public bool $xCheckAll = false;
+    public array $config;
 
     public function updatingKeyword()
     {
@@ -54,7 +55,8 @@ new class extends Component {
     }
 
     public function render()
-    {
+    {   
+        $this->config = config('dulieu.' . $this->type, []);
         return $this->view();
     }
 };
@@ -83,10 +85,10 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <p class="text-sm text-neutral-500 capitalize">
-                Dữ liệu / {{ $config['title_main'] ?? 'Danh sách' }}
+                Dữ liệu / {{ $this->config['title'] ?? 'Danh sách' }}
             </p>
             <h1 class="text-2xl font-bold text-neutral-900 capitalize mt-0.5">
-                Danh sách {{ $config['title_main'] ?? '' }}
+                Danh sách {{ $this->config['title'] ?? '' }}
             </h1>
         </div>
         <div class="flex items-center gap-3 shrink-0">
@@ -102,7 +104,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                     type="text"
                     wire:model.live.debounce.300ms="keyword"
                     placeholder="Tìm kiếm..."
-                    class="pl-9 pr-4 py-2 w-64 text-sm border border-neutral-300 rounded-xl
+                    class="pl-9 pr-4 py-2 w-64 text-sm border border-neutral-300 rounded-xl bg-white
                            focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500
                            placeholder:text-neutral-400 transition-all"
                 >
@@ -146,7 +148,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                 </span>
             </div>
 
-            <div class="flex items-center gap-2" x-show="xCheck.length > 0" x-transition>
+            <div class="flex items-center gap-2" x-cloak x-show="xCheck.length > 0" x-transition>
                 <button
                     wire:click="deleteSelected()"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
@@ -231,6 +233,11 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">
                             Tiêu đề
                         </th>
+                        @foreach (@$this->config['formOptions']??[] as $field => $label)
+                            <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide w-60 {{ $label['class'] ?? '' }}">
+                                {{ $label['label'] }}
+                            </th>
+                        @endforeach
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide w-44">
                             Người cập nhật
                         </th>
@@ -295,6 +302,11 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                     {{ $v->namevi }}
                                 </a>
                             </td>
+                            @foreach (@$this->config['formOptions']??[] as $field => $label)
+                            <td class="px-4 py-3.5 {{ $label['class'] ?? '' }}">
+                                {{ ($v->options2[$field]) ?? '' }} 
+                            </td>
+                         @endforeach
                             <td class="px-4 py-3.5">
                                 @if ($v->user)
                                     <div class="flex items-center gap-2">

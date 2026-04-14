@@ -36,7 +36,7 @@ class News extends Model
     ];
 
     protected $casts = [
-        'options2' => 'array',
+        'options2' => 'json',
         'id_country' => 'array',
         'id_dichvu' => 'array',
         'created_at' => 'datetime',
