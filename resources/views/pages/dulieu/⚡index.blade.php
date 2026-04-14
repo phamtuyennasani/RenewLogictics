@@ -384,7 +384,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                         <p class="text-sm font-medium text-neutral-600">Không có bản ghi nào</p>
                                         <p class="text-xs text-neutral-400 mt-0.5">Hãy thêm dữ liệu mới để bắt đầu</p>
                                     </div>
-                                    <a href=""
+                                    <a href="{{route('dichvu.add', ['type' => $type])}}" wire:navigate
                                        class="mt-1 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium
                                               text-white rounded-xl transition-all shadow-sm hover:shadow-md"
                                        style="background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});">

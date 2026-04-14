@@ -204,8 +204,8 @@ new class extends Component {
                 <button
                     type="button"
                     wire:click="goBack"
-                    class="px-5 py-2.5 text-sm font-medium text-neutral-600 bg-white border border-neutral-300
-                           rounded-xl hover:bg-neutral-50 hover:text-neutral-800
+                    class="px-5 py-2.5 text-sm font-medium text-red-600 bg-red-100 border border-red-300
+                           rounded-xl hover:bg-red-50 hover:text-red-800 cursor-pointer
                            transition-all flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
