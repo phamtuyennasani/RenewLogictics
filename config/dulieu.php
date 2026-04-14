@@ -16,12 +16,11 @@ return [
         'title'  => 'Dịch vụ chính',
         'columns'    => ['namevi' => 'Tên dịch vụ'],
         'formFields' => [
-            'namevi' => ['label' => 'Tên dịch vụ', 'type' => 'text', 'required' => true],
-            'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
+            'namevi' => ['label' => 'Tên dịch vụ', 'type' => 'text', 'required' => true,'placeholder' => 'Nhập tên dịch vụ'],
         ],
         'formOptions' => [
             'code' => ['label' => 'Mã dịch vụ', 'type' => 'text','name' => 'options2.code'],
-            'ngaygiao'   => ['label' => 'Số ngày giao dự kiến', 'type' => 'text','name' => 'options2.ngaygiao','class' => 'text-center'],
+            'ngaygiao'   => ['label' => 'Số ngày giao dự kiến', 'type' => 'number','name' => 'options2.ngaygiao','class' => 'text-center'],
         ],
         'canCreate' => true,
         'canEdit'   => true,

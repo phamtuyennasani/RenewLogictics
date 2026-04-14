@@ -3,9 +3,11 @@
 use Illuminate\Support\Js;
 use Livewire\Component;
 use Livewire\Attributes\Url;
+use Livewire\Attributes\On;
 use Livewire\WithPagination;
 use Livewire\Attributes\Computed;
 use App\Models\News;
+use Flux\Flux;
 
 new class extends Component {
     use WithPagination;
@@ -16,6 +18,10 @@ new class extends Component {
     public array $xCheck = [];
     public bool $xCheckAll = false;
     public array $config;
+
+    // Lưu action đang chờ confirm
+    public ?string $pendingAction = null;
+    public mixed $pendingId = null;
 
     public function updatingKeyword()
     {
@@ -36,26 +42,52 @@ new class extends Component {
             $this->dispatch('toast', ['type' => 'warning', 'message' => 'Vui lòng chọn dữ liệu cần xóa!']);
             return;
         }
-        News::whereIn('id', $this->xCheck)->delete();
-        $this->xCheck = [];
-        $this->xCheckAll = false;
-        $this->dispatch('toast', ['type' => 'success', 'message' => 'Xóa dữ liệu thành công!']);
+        $count = count($this->xCheck);
+        $this->pendingAction = 'deleteSelected';
+        $this->pendingId = null;
+        $this->dispatch('open-confirm', [
+            'title'       => 'Xác nhận xóa nhiều mục',
+            'message'      => "Bạn có chắc chắn muốn xóa {$count} bản ghi đã chọn? Hành động này không thể hoàn tác.",
+            'variant'      => 'danger',
+        ]);
     }
 
     public function deleteItem($id)
     {
-        News::findOrFail($id)->delete();
-        $this->dispatch('toast', ['type' => 'success', 'message' => 'Xóa dữ liệu thành công!']);
+        $this->pendingAction = 'deleteItem';
+        $this->pendingId = $id;
+        $this->dispatch('open-confirm', [
+            'title'   => 'Xác nhận xóa',
+            'message' => 'Bạn có chắc chắn muốn xóa bản ghi này? Hành động này không thể hoàn tác.',
+            'variant' => 'danger',
+        ]);
+    }
+
+    #[On('confirm-action')]
+    public function handleConfirmAction()
+    {
+        match ($this->pendingAction) {
+            'deleteItem' => News::findOrFail($this->pendingId)->delete(),
+            'deleteSelected' => News::whereIn('id', $this->xCheck)->delete(),
+            default => null,
+        };
+        if ($this->pendingAction === 'deleteSelected') {
+            $this->xCheck = [];
+            $this->xCheckAll = false;
+        }
+
+        $this->pendingAction = null;
+        $this->pendingId = null;
+        Flux::toast(duration: 2000,heading: 'Thành công', text: 'Xóa dữ liệu thành công!', variant: 'success');
     }
 
     public function changeNumb($id, $numb)
     {
         News::findOrFail($id)->update(['numb' => $numb]);
-        $this->dispatch('toast', ['type' => 'success', 'message' => 'Cập nhật số thứ tự thành công!']);
     }
 
     public function render()
-    {   
+    {
         $this->config = config('dulieu.' . $this->type, []);
         return $this->view();
     }
@@ -71,7 +103,10 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
 <div
     x-data="{
         xCheck: @entangle('xCheck'),
-        xCheckAll: @entangle('xCheckAll'),
+        _xCheckAll: {{ $this->xCheckAll ? 'true' : 'false' }},
+        get xCheckAll() {
+            return this.xCheck.length > 0 && this.xCheck.length === {{ $this->items()->count() }}
+        },
         get isAllSelected() {
             return this.xCheck.length > 0 && this.xCheck.length === {{ $this->items()->count() }}
         },
@@ -85,7 +120,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
             <p class="text-sm text-neutral-500 capitalize">
-                Dữ liệu / {{ $this->config['title'] ?? 'Danh sách' }}
+                Dữ liệu / {{ $this->config['group']  }}
             </p>
             <h1 class="text-2xl font-bold text-neutral-900 capitalize mt-0.5">
                 Danh sách {{ $this->config['title'] ?? '' }}
@@ -120,7 +155,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
             </div>
 
             {{-- Add button --}}
-            <a href=""
+            <a href="{{route('dichvu.add', ['type' => $type])}}" wire:navigate
                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
                       rounded-xl transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
                style="background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});">
@@ -157,7 +192,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                     </svg>
-                    Xóa (<span x-text="xCheck.length"></span>)
+                    Xóa <span x-text="`(${xCheck.length})`"></span>
                 </button>
             </div>
         </div>
@@ -173,12 +208,12 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                 <label class="relative flex items-center justify-center cursor-pointer select-none">
                                     <input
                                         type="checkbox"
-                                        x-model="xCheckAll"
-                                        @change="
-                                            if(!xCheckAll){
-                                                xCheck = {{ Js::from($this->items->pluck('id')->map(fn($id) => (string) $id)->toArray()) }};
-                                            }else{
+                                        :checked="xCheckAll"
+                                        @click.prevent="
+                                            if(xCheck.length === {{ $this->items()->count() }}){
                                                 xCheck = [];
+                                            }else{
+                                                xCheck = {{ Js::from($this->items->pluck('id')->map(fn($id) => (string) $id)->toArray()) }};
                                             }
                                             $wire.set('xCheck', xCheck);
                                         "
@@ -198,12 +233,6 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                                  : 'background-color: white;'">
                                         <svg
                                             x-show="isAllSelected"
-                                            x-transition:enter="transition ease-out duration-150"
-                                            x-transition:enter-start="opacity-0 scale-50"
-                                            x-transition:enter-end="opacity-100 scale-100"
-                                            x-transition:leave="transition ease-in duration-100"
-                                            x-transition:leave-start="opacity-100 scale-100"
-                                            x-transition:leave-end="opacity-0 scale-50"
                                             class="w-2.5 h-2.5 text-white"
                                             fill="none" stroke="currentColor" stroke-width="3"
                                             viewBox="0 0 24 24">
@@ -211,12 +240,6 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                         </svg>
                                         <svg
                                             x-show="isIndeterminate"
-                                            x-transition:enter="transition ease-out duration-150"
-                                            x-transition:enter-start="opacity-0 scale-50"
-                                            x-transition:enter-end="opacity-100 scale-100"
-                                            x-transition:leave="transition ease-in duration-100"
-                                            x-transition:leave-start="opacity-100 scale-100"
-                                            x-transition:leave-end="opacity-0 scale-50"
                                             class="w-2.5 h-2.5 text-white"
                                             fill="none" stroke="currentColor" stroke-width="3"
                                             viewBox="0 0 24 24">
@@ -270,12 +293,6 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                              : 'background-color: white;'">
                                         <svg
                                             x-show="xCheck.includes('{{ (string) $v->id }}')"
-                                            x-transition:enter="transition ease-out duration-150"
-                                            x-transition:enter-start="opacity-0 scale-50"
-                                            x-transition:enter-end="opacity-100 scale-100"
-                                            x-transition:leave="transition ease-in duration-100"
-                                            x-transition:leave-start="opacity-100 scale-100"
-                                            x-transition:leave-end="opacity-0 scale-50"
                                             class="w-2.5 h-2.5 text-white"
                                             fill="none" stroke="currentColor" stroke-width="3"
                                             viewBox="0 0 24 24">
@@ -297,7 +314,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                 >
                             </td>
                             <td class="px-4 py-3.5">
-                                <a href=""
+                                <a href="{{route('dichvu.edit', ['type' => $type, 'id' => $v->id])}}" wire:navigate
                                    class="text-sm font-medium text-neutral-900 hover:text-primary-600 transition-colors line-clamp-2">
                                     {{ $v->namevi }}
                                 </a>
@@ -310,10 +327,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                             <td class="px-4 py-3.5">
                                 @if ($v->user)
                                     <div class="flex items-center gap-2">
-                                        <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
-                                             style="background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});">
-                                            {{ strtoupper(substr($v->user->fullname ?? 'U', 0, 1)) }}
-                                        </div>
+                                        <flux:avatar circle class="w-7 h-7 flex items-center justify-center text-white text-xs font-semibold shrink-0" style="background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});" size="sm" name="{{ strtoupper(substr($v->user->fullname ?? 'U', 0, 1)) }}" initials:single />
                                         <div class="min-w-0">
                                             <p class="text-sm font-medium text-neutral-700 truncate">{{ $v->user->fullname }}</p>
                                             <p class="text-xs text-neutral-400 truncate capitalize">{{ \App\Enums\RoleEnum::label($v->user->roles->first()?->name ?? '') }}</p>
@@ -334,7 +348,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1">
                                     <a
-                                        href=""
+                                        href="{{route('dichvu.edit', ['type' => $type, 'id' => $v->id])}}" wire:navigate
                                         class="p-2 rounded-lg text-neutral-400 hover:text-primary-600 hover:bg-primary-50
                                                transition-all"
                                         title="Chỉnh sửa">
@@ -345,7 +359,6 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                     </a>
                                     <button
                                         wire:click="deleteItem({{ $v->id }})"
-                                        wire:confirm="Bạn có chắc chắn muốn xóa bản ghi này?"
                                         class="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50
                                                transition-all"
                                         title="Xóa">

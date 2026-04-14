@@ -1,17 +1,46 @@
 <div
-    x-data="{ pending: 0 }"
+    x-data="{
+        pending: 0,
+        show: false,
+        startRequest() {
+            this.pending++;
+        },
+        endRequest() {
+            this.pending = 0;
+        }
+    }"
     x-init="
-        // AJAX requests (Livewire 4 = commit hooks)
-        Livewire.hook('commit.prepare', () => { pending++; });
-        Livewire.hook('commit.succeed', () => { if (pending > 0) pending--; });
-        Livewire.hook('commit.fail',    () => { if (pending > 0) pending--; });
+        Livewire.hook('commit.prepare', () => {  });
+        Livewire.interceptRequest(({ onResponse, onSuccess, onError, onFailure }) => {
+            let timer = null;
+            startRequest();
+            timer = setTimeout(() => {
+                show = true;
+            }, 750);
 
-        // Full-page navigation (Livewire 4 = DOM events)
-        document.addEventListener('livewire:navigating', () => { pending++; });
-        document.addEventListener('livewire:navigated',  () => { if (pending > 0) pending--; });
+            const cleanup = () => {
+                clearTimeout(timer);
+                timer = null;
+                show = false;
+                endRequest();
+            };
+            onResponse(() => cleanup());
+            onSuccess(() => cleanup());
+            onError(() => cleanup());
+            onFailure(() => cleanup());
+        });
+
+        document.addEventListener('livewire:navigating', () => {
+            startRequest();
+            this.show = true;
+        });
+        document.addEventListener('livewire:navigated', () => {
+            this.show = false;
+            endRequest();
+        });
     "
 >
-    <template x-if="pending > 0">
+    <template x-if="pending > 0 && show">
         <div x-cloak
             x-transition:enter="transition duration-200 ease-out"
             x-transition:enter-start="opacity-0"

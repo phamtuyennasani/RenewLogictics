@@ -84,8 +84,8 @@ Route::middleware('auth')->group(function () {
     // --- Dữ liệu ---
     Route::prefix('dich-vu')->name('dichvu.')->group(function () {
         Route::livewire('/{type}','pages::dulieu.index')->name('index');
-        Route::livewire('/{type}/add','pages::dulieu.add')->name('add');
-        Route::livewire('/{type}/edit/{id}','pages::dulieu.add')->name('edit');
+        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
     })->middleware('can:dulieu.index');
 
     Route::prefix('don-vi')->name('donvi.')->group(function () {
