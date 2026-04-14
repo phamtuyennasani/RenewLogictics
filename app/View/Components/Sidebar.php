@@ -126,6 +126,7 @@ class Sidebar extends Component
                         'route'  => 'nhansu.internal',
                         'icon'   => 'internal',
                         'label'  => 'Nhân viên nội bộ',
+                        'startsWith' => 'nhan-su',
                         'roles'  => ['admin', 'cs'],
                         'children' => [
                             ['route' => 'nhansu.ketoan',  'label' => 'Tài khoản Kế toán',  'roles' => ['admin', 'cs']],
@@ -154,6 +155,7 @@ class Sidebar extends Component
                     'icon'   => 'service',
                     'label'  => 'Dịch vụ',
                     'roles'  => ['admin', 'cs'],
+                    'startsWith' => 'dich-vu',
                     'route_params' => ['type' => 'dich-vu'],
                     'children' => [
                         ['route' => 'dichvu.index', 'route_params' => ['type' => 'dichvuchinh'],            'label' => 'Dịch vụ chính',       'roles' => ['admin', 'cs']],
@@ -168,6 +170,7 @@ class Sidebar extends Component
                     'route'  => 'donvi.index',
                     'icon'   => 'unit',
                     'label'  => 'Đơn vị',
+                    'startsWith' => 'don-vi',
                     'roles'  => ['admin', 'cs'],
                     'route_params' => ['type' => 'don-vi'],
                     'children' => [
@@ -180,6 +183,7 @@ class Sidebar extends Component
                     'route'  => 'phanloai.index',
                     'icon'   => 'classify',
                     'label'  => 'Phân loại',
+                    'startsWith' => 'phan-loai',
                     'roles'  => ['admin', 'cs'],
                     'route_params' => ['type' => 'phan-loai'],
                     'children' => [
@@ -195,6 +199,7 @@ class Sidebar extends Component
                     'route'  => 'place.index',
                     'icon'   => 'country',
                     'label'  => 'Quốc gia',
+                    'startsWith' => 'place',
                     'roles'  => ['admin', 'cs'],
                     'route_params' => ['type' => 'place'],
                     'children' => [
@@ -208,6 +213,7 @@ class Sidebar extends Component
                     'route'  => 'doitac.index',
                     'icon'   => 'agency',
                     'label'  => 'Đại lý',
+                    'startsWith' => 'doi-tac',
                     'roles'  => ['admin', 'cs'],
                     'route_params' => ['type' => 'doi-tac'],
                     'children' => [
@@ -221,6 +227,7 @@ class Sidebar extends Component
                     'route'  => 'phuphi.index',
                     'icon'   => 'fee',
                     'label'  => 'Phụ phí',
+                    'startsWith' => 'phu-phi',
                     'roles'  => ['admin', 'ketoan'],
                     'route_params' => ['type' => 'phu-phi'],
                     'children' => [
@@ -240,6 +247,7 @@ class Sidebar extends Component
                     'icon'   => 'policy',
                     'label'  => 'Chính sách',
                     'roles'  => ['admin'],
+                    'startsWith' => 'chinh-sach',
                     'children' => [
                         ['route' => 'chinhsach.index',              'label' => 'Danh sách chính sách', 'roles' => ['admin']],
                         ['route' => 'chinhsach.quydinh-taodon',     'label' => 'Quy định tạo đơn',     'roles' => ['admin']],
@@ -255,6 +263,7 @@ class Sidebar extends Component
                     'icon'   => 'settings',
                     'label'  => 'Cấu hình chung',
                     'roles'  => ['admin', 'manager', 'ketoan', 'cs'],
+                    'startsWith' => 'setting',
                     'children' => [
                         ['route' => 'settings.index',        'label' => 'Danh sách cấu hình',  'roles' => ['admin', 'manager', 'ketoan', 'cs']],
                         ['route' => 'settings.thongbao',   'label' => 'Thông báo',           'roles' => ['admin', 'manager', 'ketoan', 'cs']],

@@ -2,38 +2,29 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Web\DulieuController;
-
-/*
-|--------------------------------------------------------------------------
-| Web Routes — VAU TRANS
-|--------------------------------------------------------------------------
-*/
-
+use App\Livewire\Dashboard;
+use App\Livewire\Order;
+use App\Livewire\Login;
+use App\Livewire\DuLieu;
 /* ============================================================
    GUEST ROUTES — Chưa đăng nhập
    ============================================================ */
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login'])->name('login.submit');
+    Route::livewire('/login','pages::auth.login')->name('login');
 });
-
 /* ============================================================
    AUTH ROUTES — Đã đăng nhập
    ============================================================ */
 Route::middleware('auth')->group(function () {
-
     // --- Dashboard ---
-    Route::get('/dashboard', fn () => view('dashboard'))->name('dashboard');
-
+    Route::livewire('/dashboard', 'pages::dashboard.index')->name('dashboard');
     // --- Đơn hàng ---
     Route::prefix('orders')->name('orders.')->group(function () {
-        Route::get('/', fn () => view('orders.index'))->name('index');
-        Route::get('/create', fn () => view('orders.create'))->name('create');
-        Route::get('/{id}', fn ($id) => view('orders.show', ['id' => $id]))->name('show');
+        Route::livewire('/', 'pages::order.index')->name('index');
+        Route::livewire('/create', 'pages::order.create')->name('create');
+        Route::livewire('/{id}', 'pages::order.show')->name('show');
     })->middleware('can:orders.index');
-
     // --- Pickup ---
     Route::prefix('pickups')->name('pickups.')->group(function () {
         Route::get('/', fn () => view('pickups.index'))->name('index');
@@ -92,11 +83,9 @@ Route::middleware('auth')->group(function () {
 
     // --- Dữ liệu ---
     Route::prefix('dich-vu')->name('dichvu.')->group(function () {
-        Route::get('/{type}', [DulieuController::class, 'index'])->name('index');
-        Route::get('add/{type}', [DulieuController::class, 'add'])->name('add');
-        Route::get('edit/{type}/{id}', [DulieuController::class, 'edit'])->name('edit');
-        Route::post('save/{type}', [DulieuController::class, 'save'])->name('save');
-        Route::post('delete/{type}', [DulieuController::class, 'delete'])->name('delete');
+        Route::livewire('/{type}','pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add','pages::dulieu.add')->name('add');
+        Route::livewire('/{type}/edit/{id}','pages::dulieu.add')->name('edit');
     })->middleware('can:dulieu.index');
 
     Route::prefix('don-vi')->name('donvi.')->group(function () {
@@ -145,9 +134,13 @@ Route::middleware('auth')->group(function () {
     // --- Profile ---
     Route::get('/ho-so', fn () => view('profile.index'))->name('profile')
         ->middleware('can:profile');
-
     // --- Logout ---
-    Route::get('/logout', [LoginController::class, 'logout'])->name('logout');
+    Route::get('/logout', function () {
+        \Auth::logout();
+        \Session::invalidate();
+        \Session::regenerateToken();
+        return redirect()->route('login');
+    })->name('logout');
 });
 
 /* ============================================================

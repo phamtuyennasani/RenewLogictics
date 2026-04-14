@@ -38,17 +38,17 @@ enum RoleEnum: string
     /**
      * Label hiển thị cho từng role
      */
-    public function label(): string
+    public static function label(string $value): string
     {
-        return match ($this) {
-            self::ADMIN   => 'Quản trị viên',
-            self::MANAGER => 'Quản lý',
-            self::KETOAN  => 'Kế toán',
-            self::CS      => 'Chăm sóc khách hàng',
-            self::SALE    => 'Kinh doanh',
-            self::OPS     => 'Vận hành',
-            self::CTV     => 'Cộng tác viên',
-            self::SHIPPER => 'Shipper',
+        return match ($value) {
+            self::ADMIN->value   => 'Quản trị viên',
+            self::MANAGER->value => 'Quản lý',
+            self::KETOAN->value  => 'Kế toán',
+            self::CS->value       => 'Chăm sóc khách hàng',
+            self::SALE->value    => 'Kinh doanh',
+            self::OPS->value     => 'Vận hành',
+            self::CTV->value     => 'Cộng tác viên',
+            self::SHIPPER->value => 'Shipper',
         };
     }
 

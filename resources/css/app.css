@@ -96,6 +96,11 @@
     --transition-fast:   150ms;
     --transition-normal: 200ms;
     --transition-slow:   300ms;
+    
+    /* ---- BREAKPOINTS ---- */
+    --breakpoint-2xl: 1536px;
+    --breakpoint-3xl: 1920px;
+    --breakpoint-4xl: 2560px;
 }
 
 /* ============================================================
@@ -104,7 +109,10 @@
 [x-cloak] { display: none !important; }
 
 /* Smooth scroll globally */
-html { scroll-behavior: smooth; }
+html { 
+    scroll-behavior: smooth;
+    @apply 4xl:text-2xl;
+}
 
 /* Custom scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
