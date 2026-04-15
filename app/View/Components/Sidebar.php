@@ -12,10 +12,45 @@ class Sidebar extends Component
      * Key = slug route, Icon, Label, Roles được phép, Children (nếu có)
      */
     public array $menuItems;
+    public ?string $activeMenuKey;
 
     public function __construct()
     {
         $this->menuItems = $this->buildMenu();
+        $this->activeMenuKey = $this->detectActiveMenuKey();
+    }
+    /**
+     * Detect menu có children nào đang active → trả về itemKey để sidebar tự mở
+     */
+    protected function detectActiveMenuKey(): ?string
+    {
+        $currentPath = request()->path();
+        $currentRoute = request()->route()?->getName();
+
+        // Build ordered group/index keys matching Blade's loop index
+        $groupIdx = 0;
+        foreach ($this->menuItems as $groupKey => $group) {
+            foreach (($group['items'] ?? []) as $itemIndex => $item) {
+                if (empty($item['children'])) continue;
+
+                $itemKey = $groupKey . '-' . $groupIdx . '-' . $itemIndex;
+
+                // Kiểm tra startsWith
+                if (!empty($item['startsWith']) && str_starts_with('/' . $currentPath, '/' . $item['startsWith'])) {
+                    return $itemKey;
+                }
+
+                // Kiểm tra children routes
+                foreach ($item['children'] as $child) {
+                    if (($child['route'] ?? null) === $currentRoute) {
+                        return $itemKey;
+                    }
+                }
+            }
+            $groupIdx++;
+        }
+
+        return null;
     }
     /**
      * Build menu tree dựa trên role của user đang login

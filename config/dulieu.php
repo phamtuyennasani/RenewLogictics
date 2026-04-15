@@ -13,6 +13,7 @@ return [
     // ==============================================================
     'dichvuchinh' => [
         'group'  => 'Dịch vụ',
+        'route_group' => 'dichvu',
         'title'  => 'Dịch vụ chính',
         'columns'    => ['namevi' => 'Tên dịch vụ'],
         'formFields' => [
@@ -29,6 +30,7 @@ return [
 
     'dichvuchitiet' => [
         'group'  => 'Dịch vụ',
+        'route_group' => 'dichvu',
         'title'  => 'Dịch vụ chi tiết',
         'columns'    => ['namevi' => 'Tên dịch vụ'],
         'formFields' => [
@@ -43,6 +45,7 @@ return [
     'dichvudikem' => [
         'group'  => 'Dịch vụ',
         'title'  => 'Dịch vụ đi kèm',
+        'route_group' => 'dichvu',
         'columns'    => ['namevi' => 'Tên dịch vụ', 'descvi' => 'Mô tả'],
         'formFields' => [
             'namevi' => ['label' => 'Tên dịch vụ', 'type' => 'text', 'required' => true],
@@ -56,6 +59,7 @@ return [
 
     'chinhanh' => [
         'group'  => 'Dịch vụ',
+        'route_group' => 'dichvu',
         'title'  => 'Chi nhánh nhận hàng',
         'columns'    => ['namevi' => 'Tên chi nhánh', 'descvi' => 'Địa chỉ'],
         'formFields' => [
@@ -71,6 +75,7 @@ return [
     'tinhtrangdon' => [
         'group'  => 'Dịch vụ',
         'title'  => 'Tình trạng đơn',
+        'route_group' => 'dichvu',
         'columns'    => ['namevi' => 'Tên tình trạng'],
         'formFields' => [
             'namevi' => ['label' => 'Tên tình trạng', 'type' => 'text', 'required' => true],
@@ -87,6 +92,7 @@ return [
     'loaikien' => [
         'group'  => 'Đơn vị',
         'title'  => 'Loại kiện',
+        'route_group' => 'donvi',
         'columns'    => ['namevi' => 'Tên loại kiện'],
         'formFields' => [
             'namevi' => ['label' => 'Tên loại kiện', 'type' => 'text', 'required' => true],
@@ -100,6 +106,7 @@ return [
     'hanghoa' => [
         'group'  => 'Đơn vị',
         'title'  => 'Hàng hóa (Loại kiện)',
+        'route_group' => 'donvi',
         'columns'    => ['namevi' => 'Tên hàng hóa'],
         'formFields' => [
             'namevi' => ['label' => 'Tên hàng hóa', 'type' => 'text', 'required' => true],
@@ -115,6 +122,7 @@ return [
     // ==============================================================
     'loaibuugui' => [
         'group'  => 'Phân loại',
+        'route_group' => 'phanloai',
         'title'  => 'Loại bưu gửi',
         'columns'    => ['namevi' => 'Tên loại bưu gửi'],
         'formFields' => [
@@ -128,6 +136,7 @@ return [
 
     'lydoguihang' => [
         'group'  => 'Phân loại',
+        'route_group' => 'phanloai',
         'title'  => 'Lý do gửi hàng',
         'columns'    => ['namevi' => 'Tên lý do'],
         'formFields' => [
@@ -142,6 +151,7 @@ return [
     'hinhthucgui' => [
         'group'  => 'Phân loại',
         'title'  => 'Hình thức gửi hàng',
+        'route_group' => 'phanloai',
         'columns'    => ['namevi' => 'Tên hình thức'],
         'formFields' => [
             'namevi' => ['label' => 'Tên hình thức', 'type' => 'text', 'required' => true],
@@ -155,6 +165,7 @@ return [
     'deliveryterm' => [
         'group'  => 'Phân loại',
         'title'  => 'Delivery term',
+        'route_group' => 'phanloai',
         'columns'    => ['namevi' => 'Tên delivery term'],
         'formFields' => [
             'namevi' => ['label' => 'Tên delivery term', 'type' => 'text', 'required' => true],
@@ -168,6 +179,7 @@ return [
     'phuongtien' => [
         'group'  => 'Phân loại',
         'title'  => 'Phương tiện',
+        'route_group' => 'phanloai',
         'columns'    => ['namevi' => 'Tên phương tiện'],
         'formFields' => [
             'namevi' => ['label' => 'Tên phương tiện', 'type' => 'text', 'required' => true],

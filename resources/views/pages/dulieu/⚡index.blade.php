@@ -23,23 +23,20 @@ new class extends Component {
     public ?string $pendingAction = null;
     public mixed $pendingId = null;
 
-    public function updatingKeyword()
-    {
+    public function updatingKeyword(){
         $this->resetPage();
     }
 
     #[Computed]
-    public function items()
-    {
+    public function items(){
         return News::when($this->keyword, function ($query) {
             $query->where('namevi', 'like', '%' . $this->keyword . '%');
         })->where('type', $this->type)->orderByDesc('numb')->paginate(15);
     }
 
-    public function deleteSelected()
-    {
+    public function deleteSelected(){
         if (empty($this->xCheck)) {
-            $this->dispatch('toast', ['type' => 'warning', 'message' => 'Vui lòng chọn dữ liệu cần xóa!']);
+            Flux::toast(duration: 2000,heading: 'Cảnh báo', text: 'Vui lòng chọn dữ liệu cần xóa!', variant: 'warning');
             return;
         }
         $count = count($this->xCheck);
@@ -52,8 +49,7 @@ new class extends Component {
         ]);
     }
 
-    public function deleteItem($id)
-    {
+    public function deleteItem($id){
         $this->pendingAction = 'deleteItem';
         $this->pendingId = $id;
         $this->dispatch('open-confirm', [
@@ -62,10 +58,8 @@ new class extends Component {
             'variant' => 'danger',
         ]);
     }
-
     #[On('confirm-action')]
-    public function handleConfirmAction()
-    {
+    public function handleConfirmAction(){
         match ($this->pendingAction) {
             'deleteItem' => News::findOrFail($this->pendingId)->delete(),
             'deleteSelected' => News::whereIn('id', $this->xCheck)->delete(),
@@ -75,17 +69,14 @@ new class extends Component {
             $this->xCheck = [];
             $this->xCheckAll = false;
         }
-
         $this->pendingAction = null;
         $this->pendingId = null;
         Flux::toast(duration: 2000,heading: 'Thành công', text: 'Xóa dữ liệu thành công!', variant: 'success');
     }
 
-    public function changeNumb($id, $numb)
-    {
+    public function changeNumb($id, $numb){
         News::findOrFail($id)->update(['numb' => $numb]);
     }
-
     public function render()
     {
         $this->config = config('dulieu.' . $this->type, []);
@@ -155,7 +146,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
             </div>
 
             {{-- Add button --}}
-            <a href="{{route('dichvu.add', ['type' => $type])}}" wire:navigate
+            <a href="{{route($this->config['route_group'].'.add', ['type' => $type])}}" wire:navigate
                class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
                       rounded-xl transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5"
                style="background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});">
@@ -314,7 +305,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                 >
                             </td>
                             <td class="px-4 py-3.5">
-                                <a href="{{route('dichvu.edit', ['type' => $type, 'id' => $v->id])}}" wire:navigate
+                                <a href="{{route($this->config['route_group'].'.edit', ['type' => $type, 'id' => $v->id])}}" wire:navigate
                                    class="text-sm font-medium text-neutral-900 hover:text-primary-600 transition-colors line-clamp-2">
                                     {{ $v->namevi }}
                                 </a>
@@ -348,7 +339,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1">
                                     <a
-                                        href="{{route('dichvu.edit', ['type' => $type, 'id' => $v->id])}}" wire:navigate
+                                        href="{{route($this->config['route_group'].'.edit', ['type' => $type, 'id' => $v->id])}}" wire:navigate
                                         class="p-2 rounded-lg text-neutral-400 hover:text-primary-600 hover:bg-primary-50
                                                transition-all"
                                         title="Chỉnh sửa">
@@ -384,7 +375,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                         <p class="text-sm font-medium text-neutral-600">Không có bản ghi nào</p>
                                         <p class="text-xs text-neutral-400 mt-0.5">Hãy thêm dữ liệu mới để bắt đầu</p>
                                     </div>
-                                    <a href="{{route('dichvu.add', ['type' => $type])}}" wire:navigate
+                                    <a href="{{route($this->config['route_group'].'.add', ['type' => $type])}}" wire:navigate
                                        class="mt-1 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium
                                               text-white rounded-xl transition-all shadow-sm hover:shadow-md"
                                        style="background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});">

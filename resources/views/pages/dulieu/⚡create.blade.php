@@ -89,7 +89,7 @@ new class extends Component {
         } else {
             Flux::toast(duration: 2000,heading: 'Thành công', text: 'Thêm mới dữ liệu thành công!', variant: 'success');
         }
-        return $this->redirect(route('dichvu.index', ['type' => $this->type]),navigate:true);
+        return $this->redirect(route($this->config['route_group'] . '.index', ['type' => $this->type]),navigate:true);
     }
     private function trimRecursive(array $data): array
     {
@@ -102,7 +102,7 @@ new class extends Component {
     }
     public function goBack()
     {
-        return $this->redirect(route('dichvu.index', ['type' => $this->type]),navigate:true);
+        return $this->redirect(route($this->config['route_group'] . '.index', ['type' => $this->type]),navigate:true);
     }
 
     public function render()

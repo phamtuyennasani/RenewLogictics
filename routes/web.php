@@ -89,12 +89,20 @@ Route::middleware('auth')->group(function () {
     })->middleware('can:dulieu.index');
 
     Route::prefix('don-vi')->name('donvi.')->group(function () {
-        Route::get('/{type}', [DulieuController::class, 'index'])->name('index');
+        Route::livewire('/{type}','pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
     })->middleware('can:dulieu.index');
-    
+
     Route::prefix('phan-loai')->name('phanloai.')->group(function () {
-        Route::get('/{type}', [DulieuController::class, 'index'])->name('index');
+        Route::livewire('/{type}','pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
     })->middleware('can:dulieu.index');
+
+
+    
+   
     Route::prefix('place')->name('place.')->group(function () {
         Route::get('/{type}', [DulieuController::class, 'index'])->name('index');
     })->middleware('can:dulieu.index');
