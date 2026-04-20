@@ -18,25 +18,17 @@ class User extends Authenticatable
     protected $fillable = [
         'username',
         'password',
-        'confirm_code',
         'avatar',
         'fullname',
         'phone',
         'email',
         'address',
-        'login_session',
-        'user_token',
-        'lastlogin',
         'status',
         'role',
-        'secret_key',
         'numb',
         'code',
-        'id_province',
-        'id_ward',
         'options',
         'id_sale',
-        'id_permission',
     ];
 
     protected $hidden = [
@@ -46,7 +38,7 @@ class User extends Authenticatable
 
     protected $casts = [
         'options' => 'array',
-        'lastlogin' => 'datetime',
+        'status'  => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -57,58 +49,23 @@ class User extends Authenticatable
     const ROLE_MANAGER = 2;
     const ROLE_USER = 1;
 
+    // Cascade soft delete: xóa role trong pivot table trước khi soft delete user
+    protected static function booted(): void
+    {
+        static::deleting(function (User $user) {
+            $user->roles()->detach();
+        });
+    }
+
     // Auth override
     public function getAuthPassword()
     {
         return $this->password;
     }
 
-    // Route key for UUID
-    public function getRouteKeyName()
-    {
-        return 'uuid';
-    }
-
-    // Active status accessor (từ hệ thống cũ)
     protected function active(): Attribute
     {
-        return Attribute::get(function () {
-            if (empty($this->status)) {
-                return false;
-            }
-            return str_contains($this->status, 'hienthi');
-        });
-    }
-
-    // Relationships
-    public function city()
-    {
-        return $this->belongsTo(City::class, 'id_province');
-    }
-
-    public function ward()
-    {
-        return $this->belongsTo(Ward::class, 'id_ward');
-    }
-
-    public function orders()
-    {
-        return $this->hasMany(Order::class, 'id_sale');
-    }
-
-    public function orderActions()
-    {
-        return $this->hasOne(OrderAction::class, 'id_user')->latestOfMany('updated_at');
-    }
-
-    public function pickups()
-    {
-        return $this->hasMany(Pickup::class, 'id_user');
-    }
-
-    public function members()
-    {
-        return $this->hasMany(Member::class, 'id_sale');
+        return Attribute::get(fn () => (bool) $this->status);
     }
 
     // Check role helpers

@@ -11,6 +11,7 @@ new class extends Component {
     public array $config = [];
     public array $formData = [];
     public bool $isSaving = false;
+    public bool $isActive = true;
 
     public function mount(?string $type = null, $id = null)
     {
@@ -40,6 +41,7 @@ new class extends Component {
                     'password' => '',
                     'password_confirmation' => '',
                 ];
+                $this->isActive = (bool) $item->status;
             }
         }
     }
@@ -59,11 +61,11 @@ new class extends Component {
         ];
 
         if (!$this->itemId) {
-            $rules['formData.password'] = 'required|string|min:8|regex:/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};:\'",.<>\/?\\|`~]).{8,}$/';
-            $rules['formData.password_confirmation'] = 'required|string|min:8|same:formData.password';
+            $rules['formData.password'] = ['required', 'string', 'min:8', 'regex:/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};:\'",.<>\/?\\|`~]).{8,}$/'];
+            $rules['formData.password_confirmation'] = ['required', 'string', 'min:8', 'same:formData.password'];
         } else {
-            $rules['formData.password'] = 'nullable|string|min:8|regex:/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};:\'",.<>\/?\\|`~]).{8,}$/';
-            $rules['formData.password_confirmation'] = 'nullable|string|min:8|same:formData.password';
+            $rules['formData.password'] = ['nullable', 'string', 'min:8', 'regex:/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};:\'",.<>\/?\\|`~]).{8,}$/'];
+            $rules['formData.password_confirmation'] = ['nullable', 'string', 'min:8', 'same:formData.password'];
         }
 
         return $rules;
@@ -106,7 +108,7 @@ new class extends Component {
         }
 
         $roleName = $this->config['role'] ?? $this->type;
-
+        
         if ($this->itemId) {
             $updateData = [
                 'username' => $this->formData['username'],
@@ -114,6 +116,7 @@ new class extends Component {
                 'fullname' => $this->formData['fullname'],
                 'email'    => $this->formData['email'] ?: null,
                 'phone'    => $this->formData['phone'] ?: null,
+                'status'   => $this->isActive ? '1' : '0',
             ];
             if (!empty($this->formData['password'])) {
                 $updateData['password'] = bcrypt($this->formData['password']);
@@ -129,7 +132,7 @@ new class extends Component {
                 'email'    => $this->formData['email'] ?: null,
                 'phone'    => $this->formData['phone'] ?: null,
                 'password' => bcrypt($this->formData['password']),
-                'status'   => 'hienthi',
+                'status'   => $this->isActive ? '1' : '0',
             ]);
             $user->assignRole($roleName);
         }
@@ -215,6 +218,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 <flux:input
                     type="text"
                     required
+                    :readonly="$itemId"
                     wire:model.defer="formData.username"
                     :invalid="$errors->has('formData.username')"
                     placeholder="Nhập username..."
@@ -228,6 +232,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 <flux:label badge="Tự động">Mã nhân viên</flux:label> 
                 <flux:input
                     type="text"
+                    :readonly="$itemId"
                     wire:model.defer="formData.code"
                     :invalid="$errors->has('formData.code')"
                     placeholder="Để trống để tự động tạo..."
@@ -276,13 +281,25 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     @error('formData.phone')<flux:error>{{ $message }}</flux:error>@enderror
                 </flux:field>
             </div>
+
+            {{-- Kích hoạt tài khoản --}}
+            <div class="flex items-start gap-3">
+                <div class="mt-1.5">
+                    <flux:checkbox wire:model.live="isActive" />
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-sm font-medium text-neutral-700 cursor-pointer select-none">
+                        Kích hoạt tài khoản
+                    </label>
+                    <span class="text-xs text-neutral-400 mt-0.5">
+                        Tài khoản đã kích hoạt mới có thể đăng nhập vào hệ thống.
+                    </span>
+                </div>
+            </div>
             <div class="grid grid-cols-2 gap-3">
                 <flux:field>
-                    <flux:label :badge="$itemId ? null : 'Bắt buộc'">
+                    <flux:label :badge="$itemId ? 'Không bắt buộc' : 'Bắt buộc'">
                         Mật khẩu
-                        @if ($itemId)
-                            <flux:badge color="zinc">Không bắt buộc</flux:badge>
-                        @endif
                     </flux:label>
                     <flux:input viewable
                         type="password"
@@ -299,7 +316,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 </flux:field>
                 {{-- Nhập lại mật khẩu --}}
                 <flux:field>
-                    <flux:label :badge="$itemId ? null : 'Bắt buộc'">Nhập lại mật khẩu</flux:label>
+                    <flux:label :badge="$itemId ? 'Không bắt buộc' : 'Bắt buộc'">Nhập lại mật khẩu</flux:label>
                     <flux:input viewable
                         type="password"
                         wire:model.defer="formData.password_confirmation"

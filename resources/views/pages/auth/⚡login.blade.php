@@ -52,7 +52,7 @@ new #[Layout('layouts::guest')] class extends Component
             }
 
             // Kiểm tra tài khoản có hoạt động không (hienthi = đang hiển thị/hoạt động)
-            if ($user->status !== 'hienthi') {
+            if (!$user->active) {
                 $this->errorMessage = 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.';
                 $this->isLoading = false;
                 return;

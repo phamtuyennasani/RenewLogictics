@@ -224,6 +224,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Email</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">SĐT</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Role</th>
+                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center">Trạng thái</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Ngày tạo</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center w-28">Thao tác</th>
                     </tr>
@@ -282,6 +283,20 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                 @empty
                                     <span class="text-neutral-300">—</span>
                                 @endforelse
+                            </td>
+
+                            <td class="px-4 py-3.5 text-center">
+                                @if ($v->status == 1)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                        Kích hoạt
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-500">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>
+                                        Chưa kích hoạt
+                                    </span>
+                                @endif
                             </td>
 
                             <td class="px-4 py-3.5">

@@ -142,8 +142,7 @@ Route::middleware('auth')->group(function () {
     })->middleware('can:settings.index');
 
     // --- Profile ---
-    Route::get('/ho-so', fn () => view('profile.index'))->name('profile')
-        ->middleware('can:profile');
+    Route::livewire('/ho-so', 'pages::taikhoan.index')->name('profile');
     // --- Logout ---
     Route::get('/logout', function () {
         \Auth::logout();
