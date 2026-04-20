@@ -10,7 +10,7 @@ new class extends Component {
     public $type;
     public $itemId = null;
     public array $config = [];
-    public $form;
+    public $formData = [];
     // Status
     public bool $isSaving = false;
     public array $rules = [];
@@ -23,7 +23,7 @@ new class extends Component {
         $this->config = config("dulieu.{$this->type}", []);
         // Build form fields và validation rules động
         foreach ($this->config['formFields'] ?? [] as $key => $field) {
-            $this->form[$key] = null;
+            $this->formData[$key] = null;
             // Build validation rule động
             $rule = [];
             if (!empty($field['required'])) {
@@ -38,31 +38,31 @@ new class extends Component {
             if (!empty($field['max'])) {
                 $rule[] = 'max:' . $field['max'];
             }
-            $this->rules["form.{$key}"] = implode('|', $rule);
+            $this->rules["formData.{$key}"] = implode('|', $rule);
             // Build message động
             if (!empty($field['required'])) {
-                $this->messages["form.{$key}.required"] = "{$field['label']} không được để trống";
+                $this->messages["formData.{$key}.required"] = "{$field['label']} không được để trống";
             }
         }
         foreach ($this->config['formOptions'] ?? [] as $key => $field) {
             $name = explode('.', $field['name']);
-            $this->form[$name[0]][$name[1]] = null;
+            $this->formData[$name[0]][$name[1]] = null;
             if($field['type'] === 'number') {
-               $this->form[$name[0]][$name[1]] = 1;
+               $this->formData[$name[0]][$name[1]] = 1;
             }else {
-                $this->form[$name[0]][$name[1]] = null;
+                $this->formData[$name[0]][$name[1]] = null;
             }
            
         }
-        $this->form['numb'] = 1;
+        $this->formData['numb'] = 1;
         if($id){
             $item = News::find($id);
             foreach ($this->config['formFields'] ?? [] as $key => $field) {
-                $this->form[$key] = $item->{$key} ?? null;
+                $this->formData[$key] = $item->{$key} ?? null;
             }
             foreach ($this->config['formOptions'] ?? [] as $key => $field) {
                 $name = explode('.', $field['name']);
-                $this->form[$name[0]][$name[1]] = $item->{$name[0]}[$name[1]] ?? null;
+                $this->formData[$name[0]][$name[1]] = $item->{$name[0]}[$name[1]] ?? null;
             }
         }
     }
@@ -76,10 +76,10 @@ new class extends Component {
             $this->isSaving = false;
             throw $e; 
         }
-        $this->form = $this->trimRecursive($this->form);
+        $this->formData = $this->trimRecursive($this->formData);
         $itemSaved = News::updateOrCreate(
             ['id' => $this->itemId],
-            array_merge($this->form, [
+            array_merge($this->formData, [
                 'type' => $this->type,
                 'id_user' => auth()->id(),
             ])
@@ -119,7 +119,7 @@ new class extends Component {
     <div class="flex items-center gap-3">
         <button
             wire:click="goBack" 
-            class="p-2 rounded-xl text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-all">
+        class="p-2 rounded-xl text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-all cursor-pointer">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
@@ -154,8 +154,8 @@ new class extends Component {
                 <flux:input 
                     :type="$v['type'] ?? 'text'"
                     :required="@$v['required']"
-                    wire:model.defer="form.{{ $k }}"
-                    :invalid="$errors->has('form.{{ $k }}')"
+                    wire:model.defer="formData.{{ $k }}"
+                    :invalid="$errors->has('formData.{{ $k }}')"
                     :placeholder="$v['placeholder'] ?? ''"
                     @focus="$el.removeAttribute('data-invalid')"
                     :class:input="[
@@ -172,7 +172,7 @@ new class extends Component {
                 <flux:input 
                     :type="$v['type'] ?? 'text'"
                     :required="@$v['required']"
-                    wire:model.defer="form.{{ $v['name'] }}"
+                    wire:model.defer="formData.{{ $v['name'] }}"
                     :placeholder="$v['placeholder'] ?? ''"
                     :class:input="[
                         'w-full px-4 py-2.5 text-sm border transition-all',
@@ -187,7 +187,7 @@ new class extends Component {
                 <flux:input 
                     :type="'number'"
                     min="1"
-                    wire:model.defer="form.numb"
+                    wire:model.defer="formData.numb"
                     :class:input="[
                         'w-full px-4 py-2.5 text-sm border transition-all',
                         'placeholder:text-neutral-400',

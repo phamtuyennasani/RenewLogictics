@@ -11,29 +11,35 @@ use Flux\Flux;
 
 new class extends Component {
     use WithPagination;
-
     #[Url(history: true)]
     public ?string $keyword = '';
     public $type;
     public array $xCheck = [];
-    public bool $xCheckAll = false;
-    public array $config;
-
-    // Lưu action đang chờ confirm
+    public array $config = [];
     public ?string $pendingAction = null;
     public mixed $pendingId = null;
-
-    public function updatingKeyword(){
+    public function updatingKeyword()
+    {
         $this->resetPage();
     }
 
+    public function updatingPage()
+    {
+        $this->xCheck = [];
+        $this->dispatch('sync-check');
+    }
     #[Computed]
     public function items(){
-        return News::when($this->keyword, function ($query) {
-            $query->where('namevi', 'like', '%' . $this->keyword . '%');
-        })->where('type', $this->type)->orderByDesc('numb')->paginate(15);
+        return News::with(['user', 'user.roles'])
+            ->when($this->keyword, function ($query) {
+                $query->where('namevi', 'like', '%' . $this->keyword . '%');
+            })->where('type', $this->type)->orderByDesc('numb')->paginate(15);
     }
-
+    #[Computed]
+    public function currentPageIds()
+    {
+        return $this->items->pluck('id')->map(fn($id) => (string) $id)->toArray();
+    }
     public function deleteSelected(){
         if (empty($this->xCheck)) {
             Flux::toast(duration: 2000,heading: 'Cảnh báo', text: 'Vui lòng chọn dữ liệu cần xóa!', variant: 'warning');
@@ -48,7 +54,6 @@ new class extends Component {
             'variant'      => 'danger',
         ]);
     }
-
     public function deleteItem($id){
         $this->pendingAction = 'deleteItem';
         $this->pendingId = $id;
@@ -67,18 +72,15 @@ new class extends Component {
         };
         if ($this->pendingAction === 'deleteSelected') {
             $this->xCheck = [];
-            $this->xCheckAll = false;
         }
         $this->pendingAction = null;
         $this->pendingId = null;
         Flux::toast(duration: 2000,heading: 'Thành công', text: 'Xóa dữ liệu thành công!', variant: 'success');
     }
-
     public function changeNumb($id, $numb){
         News::findOrFail($id)->update(['numb' => $numb]);
     }
-    public function render()
-    {
+    public function render(){
         $this->config = config('dulieu.' . $this->type, []);
         return $this->view();
     }
@@ -89,24 +91,12 @@ new class extends Component {
 @php
 $primaryHex = config('theme.primary.hex', '#3b82f6');
 $accentHex  = config('theme.accent.hex', '#0ea5e9');
+$gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex});";
+
 @endphp
 
-<div
-    x-data="{
-        xCheck: @entangle('xCheck'),
-        _xCheckAll: {{ $this->xCheckAll ? 'true' : 'false' }},
-        get xCheckAll() {
-            return this.xCheck.length > 0 && this.xCheck.length === {{ $this->items()->count() }}
-        },
-        get isAllSelected() {
-            return this.xCheck.length > 0 && this.xCheck.length === {{ $this->items()->count() }}
-        },
-        get isIndeterminate() {
-            return this.xCheck.length > 0 && this.xCheck.length < {{ $this->items()->count() }}
-        }
-    }"
-    class="space-y-4"
->
+<div x-data="tableCheck" class="space-y-4" style="--gradient: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});">
+
     {{-- ======================= PAGE HEADER ======================= --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -174,7 +164,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                 </span>
             </div>
 
-            <div class="flex items-center gap-2" x-cloak x-show="xCheck.length > 0" x-transition>
+            <div class="flex items-center gap-2" x-cloak x-show="localCheck.length > 0" x-transition>
                 <button
                     wire:click="deleteSelected()"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
@@ -183,7 +173,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                     </svg>
-                    Xóa <span x-text="`(${xCheck.length})`"></span>
+                    Xóa <span x-text="'(' + localCheck.length + ')'"></span>
                 </button>
             </div>
         </div>
@@ -194,51 +184,20 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                     <tr class="bg-neutral-50 border-b border-neutral-100">
 
                         {{-- ======================= HEADER CHECKBOX ======================= --}}
-                        <th class="w-12 px-5 py-3.5 text-center">
-                            <div class="flex items-center justify-center">
-                                <label class="relative flex items-center justify-center cursor-pointer select-none">
-                                    <input
-                                        type="checkbox"
-                                        :checked="xCheckAll"
-                                        @click.prevent="
-                                            if(xCheck.length === {{ $this->items()->count() }}){
-                                                xCheck = [];
-                                            }else{
-                                                xCheck = {{ Js::from($this->items->pluck('id')->map(fn($id) => (string) $id)->toArray()) }};
-                                            }
-                                            $wire.set('xCheck', xCheck);
-                                        "
-                                        class="peer sr-only"
-                                    >
-                                    <div class="w-4.5 h-4.5 rounded-md border flex items-center justify-center
-                                                bg-white transition-all duration-200 cursor-pointer
-                                                peer-hover:border-primary-400
-                                                peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500/40
-                                                peer-disabled:cursor-not-allowed peer-disabled:opacity-50
-                                                peer-checked:border-0 peer-checked:shadow-sm"
-                                         :class="isAllSelected ? 'border-0 shadow-sm' : isIndeterminate ? 'border-primary-500' : 'border-neutral-300'"
-                                         :style="isAllSelected
-                                             ? 'background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});'
-                                             : isIndeterminate
-                                                 ? 'background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});'
-                                                 : 'background-color: white;'">
-                                        <svg
-                                            x-show="isAllSelected"
-                                            class="w-2.5 h-2.5 text-white"
-                                            fill="none" stroke="currentColor" stroke-width="3"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 11.5l4.5 4.5 8.5-8.5"/>
-                                        </svg>
-                                        <svg
-                                            x-show="isIndeterminate"
-                                            class="w-2.5 h-2.5 text-white"
-                                            fill="none" stroke="currentColor" stroke-width="3"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
-                                        </svg>
-                                    </div>
-                                </label>
-                            </div>
+                         <th class="w-12 px-5 py-3.5 text-center">
+                            <label class="relative flex items-center justify-center cursor-pointer select-none mx-auto w-fit">
+                                <input type="checkbox" :checked="isAllSelected" @click="toggleAll()" class="peer sr-only">
+                                <div class="w-4.5 h-4.5 rounded-md border flex items-center justify-center bg-white transition-all duration-200 cursor-pointer peer-hover:border-primary-400"
+                                     :class="isAllSelected || isIndeterminate ? 'border-0 shadow-sm' : 'border-neutral-300'"
+                                     :style="(isAllSelected || isIndeterminate) ? 'background: var(--gradient);' : ''">
+                                    <svg x-show="isAllSelected" class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 11.5l4.5 4.5 8.5-8.5"/>
+                                    </svg>
+                                    <svg x-show="isIndeterminate" class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14"/>
+                                    </svg>
+                                </div>
+                            </label>
                         </th>
 
                         <th class="w-24 px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center">
@@ -267,26 +226,12 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                     @forelse ($this->items as $v)
                         <tr class="hover:bg-neutral-50/60 transition-colors">
                             <td class="px-5 py-3.5 text-center">
-                                <label class="relative flex items-center justify-center cursor-pointer select-none">
-                                    <input
-                                        type="checkbox"
-                                        value="{{ $v->id }}"
-                                        x-model="xCheck"
-                                        class="peer sr-only"
-                                    >
-                                    <div class="w-4.5 h-4.5 rounded-md border flex items-center justify-center
-                                                bg-white transition-all duration-200 cursor-pointer
-                                                peer-hover:border-primary-400
-                                                peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500/40"
-                                        :class="xCheck.includes('{{ (string) $v->id }}') ? 'border-0 shadow-sm' : 'border-neutral-300'"
-                                        :style="xCheck.includes('{{ (string) $v->id }}')
-                                             ? 'background: linear-gradient(135deg, {{ $primaryHex }}, {{ $accentHex }});'
-                                             : 'background-color: white;'">
-                                        <svg
-                                            x-show="xCheck.includes('{{ (string) $v->id }}')"
-                                            class="w-2.5 h-2.5 text-white"
-                                            fill="none" stroke="currentColor" stroke-width="3"
-                                            viewBox="0 0 24 24">
+                                <label class="relative flex items-center justify-center cursor-pointer select-none mx-auto w-fit">
+                                    <input type="checkbox" :checked="isChecked({{ $v->id }})" @click="toggle({{ $v->id }})" class="peer sr-only">
+                                    <div class="w-4.5 h-4.5 rounded-md border flex items-center justify-center bg-white transition-all duration-200 cursor-pointer peer-hover:border-primary-400"
+                                         :class="isChecked({{ $v->id }}) ? 'border-0 shadow-sm' : 'border-neutral-300'"
+                                         :style="isChecked({{ $v->id }}) ? 'background: var(--gradient);' : ''">
+                                        <svg x-show="isChecked({{ $v->id }})" class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 11.5l4.5 4.5 8.5-8.5"/>
                                         </svg>
                                     </div>
@@ -312,7 +257,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                             </td>
                             @foreach (@$this->config['formOptions']??[] as $field => $label)
                             <td class="px-4 py-3.5 {{ $label['class'] ?? '' }}">
-                                {{ ($v->options2[$field]) ?? '' }} 
+                                {{ $v->options2[$field] ?? '' }}
                             </td>
                          @endforeach
                             <td class="px-4 py-3.5">
@@ -350,8 +295,7 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
                                     </a>
                                     <button
                                         wire:click="deleteItem({{ $v->id }})"
-                                        class="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50
-                                               transition-all"
+                                        class="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
                                         title="Xóa">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -394,3 +338,48 @@ $accentHex  = config('theme.accent.hex', '#0ea5e9');
     </div>
     {{ $this->items->links() }}
 </div>
+@script
+<script>
+    Alpine.data('tableCheck', () => ({
+        localCheck: @json($this->xCheck).map(id => String(id)),
+        init() {
+            window.addEventListener('sync-check', () => {
+                this.localCheck = @json($this->xCheck).map(id => String(id));
+            });
+        },
+        getPageIds() {
+            return @json($this->currentPageIds);
+        },
+        get isAllSelected() {
+            const pageIds = this.getPageIds();
+            return pageIds.length > 0 && pageIds.every(id => this.localCheck.includes(id));
+        },
+
+        get isIndeterminate() {
+            const pageIds = this.getPageIds();
+            const checkedOnPage = pageIds.filter(id => this.localCheck.includes(id)).length;
+            return checkedOnPage > 0 && checkedOnPage < pageIds.length;
+        },
+        isChecked(id) {
+            return this.localCheck.includes(String(id));
+        },
+        toggle(id) {
+            const key = String(id);
+            const idx = this.localCheck.indexOf(key);
+            if (idx >= 0) this.localCheck.splice(idx, 1);
+            else this.localCheck.push(key);
+            $wire.set('xCheck', this.localCheck);
+        },
+        toggleAll() {
+            const pageIds = this.getPageIds();
+            if (this.isAllSelected) {
+                this.localCheck = this.localCheck.filter(id => !pageIds.includes(id));
+            } else {
+                const otherIds = this.localCheck.filter(id => !pageIds.includes(id));
+                this.localCheck = [...otherIds, ...pageIds];
+            }
+            $wire.set('xCheck', this.localCheck);
+        },
+    }));
+</script>
+@endscript

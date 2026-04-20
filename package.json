@@ -16,6 +16,7 @@
     },
     "dependencies": {
         "primeicons": "^7.0.0",
-        "smooth-scrollbar": "^8.8.4"
+        "smooth-scrollbar": "^8.8.4",
+        "tom-select": "^2.6.0"
     }
 }

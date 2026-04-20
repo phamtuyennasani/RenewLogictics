@@ -2,7 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\Web\DulieuController;
 use App\Livewire\Dashboard;
 use App\Livewire\Order;
 use App\Livewire\Login;
@@ -100,18 +99,25 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
     })->middleware('can:dulieu.index');
 
+    Route::prefix('doi-tac')->name('doitac.')->group(function () {
+        Route::livewire('/{type}','pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
+    })->middleware('can:dulieu.index');
 
-    
+    Route::prefix('phu-phi')->name('phuphi.')->group(function () {
+        Route::livewire('/{type}','pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
+    })->middleware('can:dulieu.index');
+
    
     Route::prefix('place')->name('place.')->group(function () {
-        Route::get('/{type}', [DulieuController::class, 'index'])->name('index');
+        Route::livewire('/{type}','pages::place.index')->name('index');
+        Route::livewire('/{type}/add','pages::place.create')->name('add');
+        Route::livewire('/{type}/edit/{id}','pages::place.create')->name('edit');
     })->middleware('can:dulieu.index');
-    Route::prefix('doi-tac')->name('doitac.')->group(function () {
-        Route::get('/{type}', [DulieuController::class, 'index'])->name('index');
-    })->middleware('can:dulieu.index');
-    Route::prefix('phu-phi')->name('phuphi.')->group(function () {
-        Route::get('/{type}', [DulieuController::class, 'index'])->name('index');
-    })->middleware('can:dulieu.index');
+  
 
     // ================================================================
     // DULIEU — Mỗi view là 1 Livewire component cùng cấu trúc

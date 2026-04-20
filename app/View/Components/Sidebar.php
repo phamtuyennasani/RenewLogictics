@@ -238,9 +238,9 @@ class Sidebar extends Component
                     'roles'  => ['admin', 'cs'],
                     'route_params' => ['type' => 'place'],
                     'children' => [
-                        ['route' => 'place.index', 'route_params' => ['type' => 'quocgia'],   'label' => 'Quốc gia',           'roles' => ['admin', 'cs']],
-                        ['route' => 'place.index', 'route_params' => ['type' => 'tinhthanh'], 'label' => 'Tỉnh / Thành phố',  'roles' => ['admin', 'cs']],
-                        ['route' => 'place.index', 'route_params' => ['type' => 'phuongxa'],  'label' => 'Phường / Xã',        'roles' => ['admin', 'cs']],
+                        ['route' => 'place.index', 'route_params' => ['type' => 'countries'],   'label' => 'Quốc gia','roles' => ['admin', 'cs']],
+                        ['route' => 'place.index', 'route_params' => ['type' => 'state'], 'label' => 'Tỉnh / bang','roles' => ['admin', 'cs']],
+                        ['route' => 'place.index', 'route_params' => ['type' => 'cities'],  'label' => 'Thành phố','roles' => ['admin', 'cs']],
                     ],
                 ],
                 // Đối tác (Đại lý, Hãng bay, Chung chuyển)
@@ -254,7 +254,7 @@ class Sidebar extends Component
                     'children' => [
                         ['route' => 'doitac.index', 'route_params' => ['type' => 'daily'], 'label' => 'Đại lý','roles' => ['admin', 'cs']],
                         ['route' => 'doitac.index', 'route_params' => ['type' => 'hangbay'],    'label' => 'Hãng bay','roles' => ['admin', 'cs']],
-                        ['route' => 'doitac.index', 'route_params' => ['type' => 'doitac'],    'label' => 'Đối tác chung chuyển','roles' => ['admin', 'cs']],
+                        ['route' => 'doitac.index', 'route_params' => ['type' => 'doitacchungchuyen'],    'label' => 'Đối tác chung chuyển','roles' => ['admin', 'cs']],
                     ],
                 ],
                 // Phụ phí
@@ -266,7 +266,7 @@ class Sidebar extends Component
                     'roles'  => ['admin', 'ketoan'],
                     'route_params' => ['type' => 'phu-phi'],
                     'children' => [
-                        ['route' => 'phuphi.index', 'route_params' => ['type' => 'phuphi'], 'label' => 'Phụ phí đơn hàng', 'roles' => ['admin', 'ketoan']],
+                        ['route' => 'phuphi.index', 'route_params' => ['type' => 'phuphidonhang'], 'label' => 'Phụ phí đơn hàng', 'roles' => ['admin', 'ketoan']],
                     ],
                 ],
             ],
@@ -320,26 +320,6 @@ class Sidebar extends Component
             'dulieu'     => $dulieu,
             'cau_hinh'   => $cautruong,
         ]);
-    }
-
-    /**
-     * Build children cho mục Trạng thái (có thêm điều kiện ketoan)
-     */
-    protected function buildStatusChildren(string $role): array
-    {
-        $items = [];
-
-        if ($role !== 'ketoan') {
-            $items[] = ['route' => 'dulieu.index', 'route_params' => ['type' => 'trangthai-xuly'],     'label' => 'Trạng thái xử lý',    'roles' => ['admin', 'ketoan']];
-            $items[] = ['route' => 'dulieu.index', 'route_params' => ['type' => 'trangthai-taihang'],  'label' => 'Trạng thái tải hàng', 'roles' => ['admin', 'ketoan']];
-            $items[] = ['route' => 'dulieu.index', 'route_params' => ['type' => 'trangthai-pickup'],   'label' => 'Trạng thái pickup',    'roles' => ['admin', 'ketoan']];
-        }
-
-        $items[] = ['route' => 'dulieu.index', 'route_params' => ['type' => 'trangthai-ttkhachhang'], 'label' => 'KH thanh toán',      'roles' => ['admin', 'ketoan']];
-        $items[] = ['route' => 'dulieu.index', 'route_params' => ['type' => 'trangthai-ttncc'],        'label' => 'Thanh toán NCC',       'roles' => ['admin', 'ketoan']];
-        $items[] = ['route' => 'dulieu.index', 'route_params' => ['type' => 'trangthai-ttcongno'],     'label' => 'Thanh toán công nợ',  'roles' => ['admin', 'ketoan']];
-
-        return $items;
     }
 
     /**

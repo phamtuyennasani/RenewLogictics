@@ -10,6 +10,7 @@
         }
     }"
     x-init="
+        show = false;
         Livewire.hook('commit.prepare', () => {  });
         Livewire.interceptRequest(({ onResponse, onSuccess, onError, onFailure }) => {
             let timer = null;
@@ -30,12 +31,12 @@
             onFailure(() => cleanup());
         });
 
-        document.addEventListener('livewire:navigating', () => {
+        document.addEventListener('livewire:navigate', () => {
             startRequest();
-            this.show = true;
+            show = true;
         });
         document.addEventListener('livewire:navigated', () => {
-            this.show = false;
+            show = false;
             endRequest();
         });
     "

@@ -191,53 +191,12 @@ return [
     ],
 
     // ==============================================================
-    // NHÓM: QUỐC GIA — /place/{type}
-    // ==============================================================
-    'quocgia' => [
-        'group'  => 'Quốc gia',
-        'title'  => 'Quốc gia',
-        'columns'    => ['namevi' => 'Tên quốc gia'],
-        'formFields' => [
-            'namevi' => ['label' => 'Tên quốc gia', 'type' => 'text', 'required' => true],
-            'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
-        ],
-        'canCreate' => true,
-        'canEdit'   => true,
-        'canDelete' => true,
-    ],
-
-    'tinhthanh' => [
-        'group'  => 'Quốc gia',
-        'title'  => 'Tỉnh / Thành phố',
-        'columns'    => ['namevi' => 'Tên tỉnh / Thành phố'],
-        'formFields' => [
-            'namevi' => ['label' => 'Tên tỉnh / Thành phố', 'type' => 'text', 'required' => true],
-            'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
-        ],
-        'canCreate' => true,
-        'canEdit'   => true,
-        'canDelete' => true,
-    ],
-
-    'phuongxa' => [
-        'group'  => 'Quốc gia',
-        'title'  => 'Phường / Xã',
-        'columns'    => ['namevi' => 'Tên phường / Xã'],
-        'formFields' => [
-            'namevi' => ['label' => 'Tên phường / Xã', 'type' => 'text', 'required' => true],
-            'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
-        ],
-        'canCreate' => true,
-        'canEdit'   => true,
-        'canDelete' => true,
-    ],
-
-    // ==============================================================
     // NHÓM: ĐẠI LÝ — /doi-tac/{type}
     // ==============================================================
     'daily' => [
         'group'  => 'Đại lý',
         'title'  => 'Danh sách đại lý',
+        'route_group' => 'doitac',
         'columns'    => ['namevi' => 'Tên đại lý', 'descvi' => 'Địa chỉ'],
         'formFields' => [
             'namevi' => ['label' => 'Tên đại lý', 'type' => 'text', 'required' => true],
@@ -252,6 +211,7 @@ return [
     'hangbay' => [
         'group'  => 'Đại lý',
         'title'  => 'Hãng bay',
+        'route_group' => 'doitac',
         'columns'    => ['namevi' => 'Tên hãng bay'],
         'formFields' => [
             'namevi' => ['label' => 'Tên hãng bay', 'type' => 'text', 'required' => true],
@@ -262,8 +222,9 @@ return [
         'canDelete' => true,
     ],
 
-    'doitac' => [
+    'doitacchungchuyen' => [
         'group'  => 'Đại lý',
+        'route_group' => 'doitac',
         'title'  => 'Đối tác chung chuyển',
         'columns'    => ['namevi' => 'Tên đối tác', 'descvi' => 'Mô tả'],
         'formFields' => [
@@ -279,8 +240,9 @@ return [
     // ==============================================================
     // NHÓM: PHỤ PHÍ — /phu-phi/{type}
     // ==============================================================
-    'phuphi' => [
+    'phuphidonhang' => [
         'group'  => 'Phụ phí',
+        'route_group' => 'phuphi',
         'title'  => 'Phụ phí đơn hàng',
         'columns'    => ['namevi' => 'Tên phụ phí', 'descvi' => 'Ghi chú'],
         'formFields' => [

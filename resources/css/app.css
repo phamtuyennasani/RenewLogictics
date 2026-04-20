@@ -1,11 +1,13 @@
 @import 'tailwindcss';
 @import '../../vendor/livewire/flux/dist/flux.css';
 
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
 @import "primeicons/primeicons.css";
+@import "tom-select/dist/css/tom-select.css";
 
 /* ============================================================
    THEME CONFIGURATION — Chỉnh màu chủ đạo tại đây
@@ -139,3 +141,58 @@ html {
     outline: 0px solid var(--color-brand-ring);
     outline-offset: 0px;
 }
+
+/* TomSelect */
+.ts-control {
+  @apply w-full rounded-lg border border-zinc-200 py-2.5 px-3 ps-3 pe-3 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-indigo-500  text-sm ;
+}
+
+.ts-control input {
+  @apply !pr-5 text-sm !m-0;
+}
+
+.ts-wrapper.plugin-remove_button .item {
+  @apply rounded-md;
+}
+.ts-wrapper.multi .ts-control > div {
+  @apply p-0 m-0 pl-1;
+}
+
+.ts-wrapper.plugin-remove_button .item .remove {
+  @apply border-none text-lg leading-none py-1 rounded-r-lg;
+}
+
+.ts-dropdown {
+  @apply rounded-md border border-solid border-t border-gray-300;
+}
+
+.ts-dropdown [data-selectable].option, .ts-dropdown .no-results {
+  @apply py-2;
+}
+.ts-dropdown [data-selectable].option:first-child {
+  @apply rounded-t-md;
+}
+
+.ts-dropdown [data-selectable].option:last-child {
+  @apply rounded-b-md;
+}
+.ts-dropdown .create:hover, .ts-dropdown .option:hover, .ts-dropdown .active {
+  @apply bg-indigo-100 text-indigo-900;
+}
+
+.ts-dropdown .spinner {
+  @apply h-auto w-auto;
+}
+
+.ts-dropdown .spinner:after {
+  @apply h-5 w-5 border-2 p-0 my-0 inline-block;
+}
+
+.ts-wrapper:not(.form-control):not(.form-select).single .ts-control {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  print-color-adjust: exact;
+}
+/* End TomSelect */
