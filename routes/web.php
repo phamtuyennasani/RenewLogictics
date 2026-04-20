@@ -71,13 +71,9 @@ Route::middleware('auth')->group(function () {
 
     // --- Nhân sự ---
     Route::prefix('nhan-su')->name('nhansu.')->group(function () {
-        Route::get('/sale', fn () => view('nhansu.sale'))->name('sale');
-        Route::get('/internal', fn () => view('nhansu.internal'))->name('internal');
-        Route::get('/internal/ketoan', fn () => view('nhansu.ketoan'))->name('ketoan');
-        Route::get('/internal/cs', fn () => view('nhansu.cs'))->name('cs');
-        Route::get('/internal/ops', fn () => view('nhansu.ops'))->name('ops');
-        Route::get('/internal/shipper', fn () => view('nhansu.shipper'))->name('shipper');
-        Route::get('/manager', fn () => view('nhansu.manager'))->name('manager');
+        Route::livewire('/{type}',         'pages::nhansu.index')->name('index');
+        Route::livewire('/{type}/add',     'pages::nhansu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}','pages::nhansu.create')->name('edit');
     })->middleware('can:nhansu.index');
 
     // --- Dữ liệu ---
