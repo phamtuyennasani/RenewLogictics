@@ -75,8 +75,16 @@
                                  x-transition:leave-start="opacity-100 translate-y-0"
                                  x-transition:leave-end="opacity-0 -translate-y-1">
                                 @foreach ($item['children'] as $child)
-                                    <a href="{{ route($child['route'], ($child['route_params'] ?? [])) }}" wire:navigate
-                                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 data-current:bg-primary-50 data-current:text-primary-700 data-current:[&>span]:bg-primary-500">
+                                    @php
+                                        $childUrl = route($child['route'], ($child['route_params'] ?? []));
+                                        $childPath = parse_url($childUrl, PHP_URL_PATH) ?: '/';
+                                        $childPrefix = '/' . ltrim($child['startsWith'] ?? trim($childPath, '/'), '/');
+                                    @endphp
+                                    <a href="{{ $childUrl }}" wire:navigate
+                                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group"
+                                       :class="(currentPath === '{{ $childPath }}' || currentPath.startsWith('{{ rtrim($childPrefix, '/') }}/'))
+                                            ? 'bg-primary-50 text-primary-700 [&>span]:bg-primary-500'
+                                            : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'">
                                         <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-neutral-300"></span>
                                         {{ $child['label'] }}
                                     </a>
@@ -84,8 +92,16 @@
                             </div>
                         </div>
                     @else
-                        <a href="{{ route($item['route'], ($item['route_params'] ?? [])) }}" wire:navigate
-                           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 data-current:bg-primary-50 data-current:text-primary-700"
+                        @php
+                            $itemUrl = route($item['route'], ($item['route_params'] ?? []));
+                            $itemPath = parse_url($itemUrl, PHP_URL_PATH) ?: '/';
+                            $activePrefix = '/' . ltrim($item['startsWith'] ?? trim($itemPath, '/'), '/');
+                        @endphp
+                        <a href="{{ $itemUrl }}" wire:navigate
+                           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group"
+                           :class="(currentPath === '{{ $itemPath }}' || currentPath.startsWith('{{ rtrim($activePrefix, '/') }}/'))
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'"
                            @click="openItem = null">
                             <span class="w-5 h-5 flex items-center justify-center shrink-0">
                                 <livewire:sidebar.icon :type="$item['icon']" :key="$item['icon']" />

@@ -60,7 +60,12 @@ new class extends Component {
     {
         return [
             'current_password' => 'required|string',
-            'new_password'     => 'required|string|min:8|regex:/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};:\'",.<>\/?\\|`~]).{8,}$/',
+            'new_password'     => [
+                'required',
+                'string',
+                'min:8',
+                'regex:/^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};:\'",.<>\/?\\|`~]).{8,}$/',
+            ],
             'confirm_password' => 'required|string|same:new_password',
         ];
     }
@@ -76,6 +81,7 @@ new class extends Component {
             'confirm_password.same'    => 'Mật khẩu nhập lại không khớp',
         ];
     }
+
 
     public function saveInfo()
     {
@@ -100,6 +106,16 @@ new class extends Component {
             if (!is_dir($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
+
+            // Xóa ảnh cũ (chỉ xóa file local trong /uploads/user)
+            $oldAvatar = (string) ($user->avatar ?? '');
+            if (str_starts_with($oldAvatar, '/uploads/user/')) {
+                $oldAvatarPath = public_path(ltrim($oldAvatar, '/'));
+                if (is_file($oldAvatarPath)) {
+                    @unlink($oldAvatarPath);
+                }
+            }
+
             $filename = auth()->id() . '_' . time() . '.' . $this->avatar->getClientOriginalExtension();
             $targetPath = $uploadDir . DIRECTORY_SEPARATOR . $filename;
 
@@ -112,6 +128,11 @@ new class extends Component {
 
         $user->update($data);
         $this->isSaving = false;
+
+        // Dispatch event để update avatar trong header
+        if (isset($data['avatar'])) {
+            $this->dispatch('avatar-updated', avatar: $data['avatar']);
+        }
 
         Flux::toast(
             duration: 2000,
@@ -404,7 +425,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                                 <flux:input
                                     viewable
                                     type="password"
-                                    wire:model.defer="new_password"
+                                    wire:model.live.debounce.200ms="new_password"
                                     :invalid="$errors->has('new_password')"
                                     placeholder="Nhập mật khẩu mới..."
                                     autocomplete="new-password"
@@ -430,13 +451,72 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     </div>
 
                     {{-- Password rules hint --}}
-                    <div class="bg-neutral-50 border border-neutral-200 rounded-xl p-4">
+                    <div class="bg-neutral-50 border border-neutral-200 rounded-xl p-4"
+                         x-data="{
+                            p: '',
+                            get min8()  { return this.p.length >= 8 },
+                            get hasUp()  { return /[A-Z]/.test(this.p) },
+                            get hasNum() { return /\d/.test(this.p) },
+                            get hasSpe() { return /[!@#$%^&*()_+\-=\[\]{};:\x27\x22,.<>\/?\\|`~]/.test(this.p) },
+                         }"
+                         x-init="
+                            p = $wire.new_password || '';
+                            $watch('$wire.new_password', v => { p = v || '' });
+                         ">
                         <p class="text-xs font-semibold text-neutral-600 mb-2">Mật khẩu phải đáp ứng:</p>
                         <div class="flex flex-wrap gap-x-5 gap-y-1">
-                            <span class="text-xs text-neutral-400">• Tối thiểu 8 ký tự</span>
-                            <span class="text-xs text-neutral-400">• Ít nhất 1 chữ hoa</span>
-                            <span class="text-xs text-neutral-400">• Ít nhất 1 số</span>
-                            <span class="text-xs text-neutral-400">• Ít nhất 1 ký tự đặc biệt</span>
+                            <div class="flex items-center gap-1.5">
+                                <span x-show="min8" class="inline-flex">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </span>
+                                <span x-show="!min8" class="inline-flex">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/>
+                                    </svg>
+                                </span>
+                                <span class="text-xs" :class="min8 ? 'text-green-600 font-medium' : 'text-neutral-400'">Tối thiểu 8 ký tự</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span x-show="hasUp" class="inline-flex">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </span>
+                                <span x-show="!hasUp" class="inline-flex">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/>
+                                    </svg>
+                                </span>
+                                <span class="text-xs" :class="hasUp ? 'text-green-600 font-medium' : 'text-neutral-400'">Ít nhất 1 chữ hoa</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span x-show="hasNum" class="inline-flex">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </span>
+                                <span x-show="!hasNum" class="inline-flex">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/>
+                                    </svg>
+                                </span>
+                                <span class="text-xs" :class="hasNum ? 'text-green-600 font-medium' : 'text-neutral-400'">Ít nhất 1 số</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span x-show="hasSpe" class="inline-flex">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </span>
+                                <span x-show="!hasSpe" class="inline-flex">
+                                    <svg class="w-3.5 h-3.5 shrink-0 text-neutral-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 12H4"/>
+                                    </svg>
+                                </span>
+                                <span class="text-xs" :class="hasSpe ? 'text-green-600 font-medium' : 'text-neutral-400'">Ít nhất 1 ký tự đặc biệt</span>
+                            </div>
                         </div>
                     </div>
 

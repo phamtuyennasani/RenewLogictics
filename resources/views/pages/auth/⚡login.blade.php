@@ -193,7 +193,7 @@ new #[Layout('layouts::guest')] class extends Component
                 {{-- Remember & Options --}}
                 <div class="flex items-center justify-between">
                     <label class="flex items-center gap-3 cursor-pointer group">
-                        <input type="checkbox" wire:model.live="remember" class="sr-only peer">
+                        <input type="checkbox" wire:model.defer="remember" class="sr-only peer">
                         <span class="w-5 h-5 rounded-md border-2 border-gray-200 peer-checked:bg-blue-500 peer-checked:border-blue-500 flex items-center justify-center transition-colors group-hover:border-blue-300">
                             <svg class="w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>

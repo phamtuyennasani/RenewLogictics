@@ -47,7 +47,7 @@ enum RoleEnum: string
             self::CS->value       => 'Chăm sóc khách hàng',
             self::SALE->value    => 'Kinh doanh',
             self::OPS->value     => 'Vận hành',
-            self::CTV->value     => 'Cộng tác viên',
+            self::CTV->value     => 'Khách hàng / CTV',
             self::SHIPPER->value => 'Shipper',
         };
     }

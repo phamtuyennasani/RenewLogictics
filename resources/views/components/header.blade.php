@@ -4,7 +4,17 @@
             <h1 class="text-lg font-semibold text-neutral-900">{{ $pageTitle }}</h1>
         @endif
     </div>
-    <div class="flex items-center gap-3" x-data="{ open: false }" @click.outside="open = false">
+    <div class="flex items-center gap-3"
+         x-data="{
+            open: false,
+            avatarUrl: @js(Auth::user()->avatar),
+            init() {
+                window.addEventListener('avatar-updated', (e) => {
+                    this.avatarUrl = e.detail?.avatar || null;
+                });
+            }
+         }"
+         @click.outside="open = false">
         {{-- Notifications --}}
         <button class="relative p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -20,11 +30,8 @@
                 class="flex items-center gap-2 pl-3 border-l border-neutral-200 transition-colors py-1 pr-2">
                 <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
                     style="background: linear-gradient(135deg, {{ config('theme.primary.hex', '#3b82f6') }}, {{ config('theme.accent.hex', '#0ea5e9') }});">
-                    @if (Auth::user()->avatar)
-                        <img src="{{ Auth::user()->avatar }}" alt="avatar" class="w-full h-full rounded-full object-cover">
-                    @else
-                        {{ strtoupper(substr(Auth::user()->username ?? 'U', 0, 1)) }}
-                    @endif
+                    <img x-show="avatarUrl" :src="avatarUrl" alt="avatar" class="w-full h-full rounded-full object-cover">
+                    <span x-show="!avatarUrl">{{ strtoupper(substr(Auth::user()->username ?? 'U', 0, 1)) }}</span>
                 </div>
                 <div class="hidden sm:block text-left">
                     <p class="text-sm font-medium text-neutral-900 leading-none">

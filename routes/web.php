@@ -66,7 +66,9 @@ Route::middleware('auth')->group(function () {
 
     // --- CTV ---
     Route::prefix('ctv')->name('ctv.')->group(function () {
-        Route::get('/', fn () => view('ctv.index'))->name('index');
+        Route::livewire('/', 'pages::ctv.index')->name('index');
+        Route::livewire('/add', 'pages::ctv.create')->name('add');
+        Route::livewire('/edit/{id}', 'pages::ctv.create')->name('edit');
     })->middleware('can:ctv.index');
 
     // --- Nhân sự ---

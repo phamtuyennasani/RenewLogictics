@@ -195,4 +195,7 @@ html {
   background-size: 1.5em 1.5em;
   print-color-adjust: exact;
 }
+.ts-wrapper.plugin-dropdown_input.dropdown-active .items-placeholder {
+}
+
 /* End TomSelect */

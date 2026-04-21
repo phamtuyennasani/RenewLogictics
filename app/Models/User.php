@@ -24,7 +24,6 @@ class User extends Authenticatable
         'email',
         'address',
         'status',
-        'role',
         'numb',
         'code',
         'options',
@@ -82,5 +81,10 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->active;
+    }
+
+    public function sale()
+    {
+        return $this->belongsTo(self::class, 'id_sale');
     }
 }

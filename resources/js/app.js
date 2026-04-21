@@ -35,9 +35,14 @@ document.addEventListener('alpine:init', () => {
                     plugins: ['dropdown_input'],
                     placeholder: config.placeholder,
                     options: config.initialOptions,
-                    items: this.$wire.get(this.propertyName) 
-                        ? [String(this.$wire.get(this.propertyName))] 
+                    items: this.$wire.get(this.propertyName)
+                        ? [String(this.$wire.get(this.propertyName))]
                         : [],
+                    render: {
+                        no_results: function() {
+                            return '<div class="no-results">Không tìm thấy kết quả</div>';
+                        }
+                    },
                     onChange: (value) => {
                         this.$wire.set(this.propertyName, value || null);
                     }
@@ -53,8 +58,22 @@ document.addEventListener('alpine:init', () => {
                     }
                 });
                 this.$el.addEventListener('update-options', (e) => {
-                    this.updateOptions(e.detail.options);
+                    this.updateOptions(e.detail.options || []);
                 });
+
+                this.$el.addEventListener('focus-select-search', () => {
+                    this.tomSelectInstance?.focus();
+                });
+
+                this.$el.addEventListener('open-select-search', () => {
+                    this.tomSelectInstance?.open();
+                });
+
+                if ((config.initialOptions || []).length === 0) {
+                    this.tomSelectInstance.clear(true);
+                    this.tomSelectInstance.clearOptions();
+                    this.tomSelectInstance.refreshOptions(false);
+                }
                 this.$el.addEventListener('update-disabled', (e) => {
                     if (e.detail.disabled) {
                         this.tomSelectInstance.disable();
