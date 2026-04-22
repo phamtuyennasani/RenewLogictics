@@ -134,11 +134,7 @@ Route::middleware('auth')->group(function () {
     // --- Chính sách ---
     Route::prefix('chinh-sach')->name('chinhsach.')->group(function () {
         Route::get('/', fn () => view('chinhsach.index'))->name('index');
-        Route::get('/quy-dinh-tao-don', fn () => view('chinhsach.quydinh-taodon'))->name('quydinh-taodon');
-        Route::get('/quy-dinh-khai-hang', fn () => view('chinhsach.quydinh-khahang'))->name('quydinh-khahang');
-        Route::get('/quy-dinh-them-tai', fn () => view('chinhsach.quydinh-themtai'))->name('quydinh-themtai');
-        Route::get('/chinh-sach-dieu-khoan', fn () => view('chinhsach.dieukhoan'))->name('dieukhoan');
-        Route::get('/bao-mat-thong-tin', fn () => view('chinhsach.baomat'))->name('baomat');
+        Route::livewire('/{slug}', 'pages::chinhsach.edit')->name('show');
     })->middleware('can:chinhsach.index');
 
     // --- Cấu hình ---

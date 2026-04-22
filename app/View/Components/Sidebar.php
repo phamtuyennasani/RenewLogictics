@@ -288,16 +288,16 @@ class Sidebar extends Component
                     'route'  => 'chinhsach.index',
                     'icon'   => 'policy',
                     'label'  => 'Chính sách',
-                    'roles'  => ['admin'],
+                    'roles'  => ['admin', 'manager', 'cs', 'sale', 'ctv'],
                     'startsWith' => 'chinh-sach',
-                    'children' => [
-                        ['route' => 'chinhsach.index',              'label' => 'Danh sách chính sách', 'roles' => ['admin']],
-                        ['route' => 'chinhsach.quydinh-taodon',     'label' => 'Quy định tạo đơn',     'roles' => ['admin']],
-                        ['route' => 'chinhsach.quydinh-khahang',    'label' => 'Quy định khai hàng',   'roles' => ['admin']],
-                        ['route' => 'chinhsach.quydinh-themtai',   'label' => 'Quy định thêm tải',    'roles' => ['admin']],
-                        ['route' => 'chinhsach.dieukhoan',          'label' => 'Chính sách & Điều khoản', 'roles' => ['admin']],
-                        ['route' => 'chinhsach.baomat',             'label' => 'Bảo mật thông tin',    'roles' => ['admin']],
-                    ],
+                    'children' => collect(config('policy', []))->map(function ($meta, $slug) {
+                        return [
+                            'route' => 'chinhsach.show',
+                            'route_params' => ['slug' => $slug],
+                            'label' => $meta['title'],
+                            'roles' => $meta['canView'] ?? [],
+                        ];
+                    })->values()->toArray(),
                 ],
                 [
                     'route'  => 'settings.index',
