@@ -196,6 +196,9 @@ html {
   print-color-adjust: exact;
 }
 .ts-wrapper.plugin-dropdown_input.dropdown-active .items-placeholder {
+  @apply !block !pointer-events-none;
 }
-
+.ts-wrapper.plugin-dropdown_input.dropdown-active div + .items-placeholder{
+  @apply !hidden;
+}
 /* End TomSelect */

@@ -119,19 +119,18 @@ class Sidebar extends Component
                 ],
             ],
         ], $role);
-
         // === NHÓM KHÁCH HÀNG ===
         $khachhang = $this->filterByRole([
             'label' => 'Khách hàng',
             'items' => [
                 [
-                    'route'  => 'customers.index',
+                    'route'  => 'sender.index',
                     'icon'   => 'customer',
-                    'label'  => 'Khách hàng',
+                    'label'  => 'Địa chỉ gửi',
                     'roles'  => ['admin', 'manager', 'cs', 'sale', 'ctv'],
                 ],
                 [
-                    'route'  => 'addresses.index',
+                    'route'  => 'receiver.index',
                     'icon'   => 'address',
                     'label'  => 'Địa chỉ nhận',
                     'roles'  => ['admin', 'manager', 'cs', 'sale', 'ctv'],
@@ -139,12 +138,11 @@ class Sidebar extends Component
                 [
                     'route'  => 'ctv.index',
                     'icon'   => 'ctv',
-                    'label'  => 'Cộng tác viên',
+                    'label'  => 'Khách hàng',
                     'roles'  => ['admin', 'manager', 'cs'],
                 ],
             ],
         ], $role);
-
         // === NHÓM NHÂN SỰ (ẩn với CTV, CS, OPS, SALE) ===
         $nhansu = [];
         if (!in_array($role, ['ctv', 'cs', 'ops', 'sale'])) {
@@ -201,7 +199,6 @@ class Sidebar extends Component
         $dulieu = $this->filterByRole([
             'label' => 'Dữ liệu',
             'items' => [
-                // Dịch vụ
                 [
                     'route'  => 'dichvu.index',
                     'icon'   => 'service',
@@ -217,7 +214,6 @@ class Sidebar extends Component
                         ['route' => 'dichvu.index', 'route_params' => ['type' => 'tinhtrangdon'],     'label' => 'Tình trạng đơn',      'roles' => ['admin', 'cs']],
                     ],
                 ],
-                // Đơn vị
                 [
                     'route'  => 'donvi.index',
                     'icon'   => 'unit',
@@ -230,7 +226,6 @@ class Sidebar extends Component
                         ['route' => 'donvi.index', 'route_params' => ['type' => 'hanghoa'],  'label' => 'Hàng hóa (Loại kiện)',  'roles' => ['admin', 'cs']],
                     ],
                 ],
-                // Phân loại
                 [
                     'route'  => 'phanloai.index',
                     'icon'   => 'classify',
@@ -246,7 +241,6 @@ class Sidebar extends Component
                         ['route' => 'phanloai.index', 'route_params' => ['type' => 'phuongtien'],  'label' => 'Phương tiện',        'roles' => ['admin', 'cs']],
                     ],
                 ],
-                // Quốc gia
                 [
                     'route'  => 'place.index',
                     'icon'   => 'country',
@@ -260,7 +254,6 @@ class Sidebar extends Component
                         ['route' => 'place.index', 'route_params' => ['type' => 'cities'],  'label' => 'Thành phố','roles' => ['admin', 'cs']],
                     ],
                 ],
-                // Đối tác (Đại lý, Hãng bay, Chung chuyển)
                 [
                     'route'  => 'doitac.index',
                     'icon'   => 'agency',
@@ -274,7 +267,6 @@ class Sidebar extends Component
                         ['route' => 'doitac.index', 'route_params' => ['type' => 'doitacchungchuyen'],    'label' => 'Đối tác chung chuyển','roles' => ['admin', 'cs']],
                     ],
                 ],
-                // Phụ phí
                 [
                     'route'  => 'phuphi.index',
                     'icon'   => 'fee',
@@ -288,12 +280,10 @@ class Sidebar extends Component
                 ],
             ],
         ], $role);
-
         // === NHÓM CẤU HÌNH ===
         $cautruong = $this->filterByRole([
             'label' => 'Cấu hình',
             'items' => [
-                // Chính sách (chỉ Admin)
                 [
                     'route'  => 'chinhsach.index',
                     'icon'   => 'policy',
@@ -309,7 +299,6 @@ class Sidebar extends Component
                         ['route' => 'chinhsach.baomat',             'label' => 'Bảo mật thông tin',    'roles' => ['admin']],
                     ],
                 ],
-                // Cấu hình chung
                 [
                     'route'  => 'settings.index',
                     'icon'   => 'settings',

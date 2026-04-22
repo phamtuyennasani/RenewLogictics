@@ -59,10 +59,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/', fn () => view('customers.index'))->name('index');
     })->middleware('can:customers.index');
 
+    // --- Địa chỉ gửi ---
+    Route::prefix('sender')->name('sender.')->group(function () {
+        Route::livewire('/', 'pages::sender.index')->name('index');
+        Route::livewire('/add', 'pages::sender.create')->name('add');
+        Route::livewire('/edit/{uuid}', 'pages::sender.create')->name('edit');
+    })->middleware('can:sender.index');
+
     // --- Địa chỉ nhận ---
-    Route::prefix('dia-chi')->name('addresses.')->group(function () {
-        Route::get('/', fn () => view('addresses.index'))->name('index');
-    })->middleware('can:addresses.index');
+    Route::prefix('receiver')->name('receiver.')->group(function () {
+        Route::livewire('/', 'pages::receiver.index')->name('index');
+        Route::livewire('/add', 'pages::receiver.create')->name('add');
+        Route::livewire('/edit/{uuid}', 'pages::receiver.create')->name('edit');
+    })->middleware('can:receiver.index');
 
     // --- CTV ---
     Route::prefix('ctv')->name('ctv.')->group(function () {

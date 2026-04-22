@@ -30,6 +30,15 @@ class Member extends Model
         'id_khachhang',
         'code',
         'uuid',
+        'id_province',
+        'id_ward',
+        'country_id',
+        'state',
+        'cities',
+        'postcode',
+        'id_sender',
+        'company_name',
+        'fullname',
     ];
 
     protected $casts = [
@@ -52,7 +61,7 @@ class Member extends Model
 
     public function ctv()
     {
-        return $this->belongsTo(CongTacVien::class, 'id_ctv');
+        return $this->belongsTo(User::class, 'id_ctv');
     }
 
     public function khachHang()
@@ -67,7 +76,27 @@ class Member extends Model
 
     public function sender()
     {
-        return $this->belongsTo(Member::class, 'id_khachhang');
+        return $this->belongsTo(Member::class, 'id_sender');
+    }
+
+    public function receiverMembers()
+    {
+        return $this->hasMany(Member::class, 'id_sender');
+    }
+
+    public function province()
+    {
+        return $this->belongsTo(Province::class, 'id_province');
+    }
+
+    public function ward()
+    {
+        return $this->belongsTo(Ward::class, 'id_ward');
+    }
+
+    public function country()
+    {
+        return $this->belongsTo(Country::class, 'country_id');
     }
 
     public function orders()
@@ -78,6 +107,17 @@ class Member extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'id_create');
+    }
+
+    // Scopes
+    public function scopeSender($query)
+    {
+        return $query->where('type', 'sender');
+    }
+
+    public function scopeReceiver($query)
+    {
+        return $query->where('type', 'receiver');
     }
 
     // Computed attributes
@@ -93,7 +133,30 @@ class Member extends Model
     {
         return Attribute::get(function () {
             if (!$this->ctv) return '';
-            return $this->ctv->name . ' - ' . $this->ctv->code ?? '';
+            return ($this->ctv->fullname ?: $this->ctv->username) . ' - ' . ($this->ctv->code ?? '');
+        });
+    }
+
+    protected function fullAddress(): Attribute
+    {
+        return Attribute::get(function () {
+            if ($this->type === 'sender') {
+                $parts = array_filter([
+                    $this->address,
+                    $this->ward?->name,
+                    $this->province?->name,
+                ]);
+                return implode(', ', $parts);
+            } else {
+                $parts = array_filter([
+                    $this->address,
+                    $this->cities,
+                    $this->state,
+                    $this->country?->name,
+                    $this->postcode,
+                ]);
+                return implode(', ', $parts);
+            }
         });
     }
 }
