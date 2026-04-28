@@ -1,0 +1,381 @@
+<?php
+
+namespace App\View\Components;
+
+use Illuminate\View\Component;
+use Illuminate\Support\Facades\Auth;
+
+class Sidebar extends Component
+{
+    /**
+     * Menu items định nghĩa theo cấu trúc phân quyền
+     * Key = slug route, Icon, Label, Roles được phép, Children (nếu có)
+     */
+    public array $menuItems;
+    public ?string $activeMenuKey;
+
+    public function __construct()
+    {
+        $this->menuItems = $this->buildMenu();
+        $this->activeMenuKey = $this->detectActiveMenuKey();
+    }
+    /**
+     * Detect menu có children nào đang active → trả về itemKey để sidebar tự mở
+     */
+    protected function detectActiveMenuKey(): ?string
+    {
+        $currentPath = request()->path();
+        $currentRoute = request()->route()?->getName();
+
+        // Build ordered group/index keys matching Blade's loop index
+        $groupIdx = 0;
+        foreach ($this->menuItems as $groupKey => $group) {
+            foreach (($group['items'] ?? []) as $itemIndex => $item) {
+                if (empty($item['children'])) continue;
+
+                $itemKey = $groupKey . '-' . $groupIdx . '-' . $itemIndex;
+
+                // Kiểm tra startsWith
+                if (!empty($item['startsWith']) && str_starts_with('/' . $currentPath, '/' . $item['startsWith'])) {
+                    return $itemKey;
+                }
+
+                // Kiểm tra children routes
+                foreach ($item['children'] as $child) {
+                    if (($child['route'] ?? null) === $currentRoute) {
+                        return $itemKey;
+                    }
+                }
+            }
+            $groupIdx++;
+        }
+
+        return null;
+    }
+    /**
+     * Build menu tree dựa trên role của user đang login
+     */
+    protected function buildMenu(): array
+    {
+        $user = Auth::user();
+        $role = $user->roles->first()?->name ?? 'guest';
+        // === NHÓM TÁC VỤ (visible cho hầu hết role) ===
+        $tacvu = $this->filterByRole([
+            'label' => 'Tác vụ',
+            'items' => [
+                [
+                    'route'  => 'dashboard',
+                    'icon'   => 'dashboard',
+                    'label'  => 'Dashboard',
+                    'roles'  => ['admin', 'manager', 'ketoan', 'cs', 'sale', 'ops', 'ctv', 'shipper'],
+                ],
+                [
+                    'route'  => 'orders.index',
+                    'icon'   => 'orders',
+                    'label'  => 'Đơn hàng',
+                    'roles'  => ['admin', 'manager', 'ketoan', 'cs', 'sale', 'ops', 'ctv'],
+                ],
+                [
+                    'route'  => 'orders.create',
+                    'icon'   => 'create-order',
+                    'label'  => 'Tạo đơn nhanh',
+                    'roles'  => ['admin', 'cs', 'sale', 'ctv'],
+                ],
+                [
+                    'route'  => 'pickups.index',
+                    'icon'   => 'pickup',
+                    'label'  => 'Quản lý Pickup',
+                    'roles'  => ['admin', 'manager', 'sale', 'cs', 'ops', 'ctv'],
+                ],
+                [
+                    'route'  => 'scan',
+                    'icon'   => 'scan',
+                    'label'  => 'Quét kiện hàng',
+                    'roles'  => ['admin', 'ops'],
+                ],
+                [
+                    'route'  => 'packages.index',
+                    'icon'   => 'package',
+                    'label'  => 'Quản lý tải hàng',
+                    'roles'  => ['admin', 'manager', 'ops', 'cs'],
+                ],
+                [
+                    'route'  => 'congno.index',
+                    'icon'   => 'congno',
+                    'label'  => 'Công nợ CTV',
+                    'roles'  => ['admin', 'manager', 'ketoan', 'ctv'],
+                ],
+                [
+                    'route'  => 'congno.dailyindex',
+                    'icon'   => 'congno-daily',
+                    'label'  => 'Công nợ đại lý',
+                    'roles'  => ['admin', 'manager', 'ketoan'],
+                ],
+                [
+                    'route'  => 'thongke',
+                    'icon'   => 'stats',
+                    'label'  => 'Thống kê',
+                    'roles'  => ['admin', 'manager', 'sale', 'ketoan', 'ctv'],
+                ],
+            ],
+        ], $role);
+        // === NHÓM KHÁCH HÀNG ===
+        $khachhang = $this->filterByRole([
+            'label' => 'Khách hàng',
+            'items' => [
+                [
+                    'route'  => 'sender.index',
+                    'icon'   => 'customer',
+                    'label'  => 'Địa chỉ gửi',
+                    'roles'  => ['admin', 'manager', 'cs', 'sale', 'ctv'],
+                ],
+                [
+                    'route'  => 'receiver.index',
+                    'icon'   => 'address',
+                    'label'  => 'Địa chỉ nhận',
+                    'roles'  => ['admin', 'manager', 'cs', 'sale', 'ctv'],
+                ],
+                [
+                    'route'  => 'ctv.index',
+                    'icon'   => 'ctv',
+                    'label'  => 'Khách hàng',
+                    'roles'  => ['admin', 'manager', 'cs'],
+                ],
+            ],
+        ], $role);
+        // === NHÓM NHÂN SỰ (ẩn với CTV, CS, OPS, SALE) ===
+        $nhansu = [];
+        if (!in_array($role, ['ctv', 'cs', 'ops', 'sale'])) {
+            $nhansu = $this->filterByRole([
+                'label' => 'Nhân sự',
+                'items' => [
+                    [
+                        'route'       => 'nhansu.index',
+                        'route_params' => ['type' => 'sale'],
+                        'icon'   => 'sale-list',
+                        'label'  => 'Kinh doanh',
+                        'roles'  => ['admin', 'ketoan', 'cs'],
+                    ],
+                    [
+                        'route'       => 'nhansu.index',
+                        'route_params' => ['type' => 'ketoan'],
+                        'icon'   => 'ketoan',
+                        'label'  => 'Kế toán',
+                        'roles'  => ['admin', 'cs'],
+                    ],
+                    [
+                        'route'       => 'nhansu.index',
+                        'route_params' => ['type' => 'cs'],
+                        'icon'   => 'cs',
+                        'label'  => 'CS',
+                        'roles'  => ['admin', 'cs'],
+                    ],
+                    [
+                        'route'       => 'nhansu.index',
+                        'route_params' => ['type' => 'ops'],
+                        'icon'   => 'ops',
+                        'label'  => 'OPS',
+                        'roles'  => ['admin', 'cs'],
+                    ],
+                    [
+                        'route'       => 'nhansu.index',
+                        'route_params' => ['type' => 'shipper'],
+                        'icon'   => 'shipper',
+                        'label'  => 'Shipper',
+                        'roles'  => ['admin', 'cs'],
+                    ],
+                    [
+                        'route'       => 'nhansu.index',
+                        'route_params' => ['type' => 'manager'],
+                        'icon'   => 'manager-list',
+                        'label'  => 'Quản lý',
+                        'roles'  => ['admin', 'sale', 'cs'],
+                    ],
+                ],
+            ], $role);
+        }
+
+        // === NHÓM DỮ LIỆU ===
+        $dulieu = $this->filterByRole([
+            'label' => 'Dữ liệu',
+            'items' => [
+                [
+                    'route'  => 'dichvu.index',
+                    'icon'   => 'service',
+                    'label'  => 'Dịch vụ',
+                    'roles'  => ['admin', 'cs'],
+                    'startsWith' => 'dich-vu',
+                    'route_params' => ['type' => 'dich-vu'],
+                    'children' => [
+                        ['route' => 'dichvu.index', 'route_params' => ['type' => 'dichvuchinh'],            'label' => 'Dịch vụ chính',       'roles' => ['admin', 'cs']],
+                        ['route' => 'dichvu.index', 'route_params' => ['type' => 'dichvuchitiet'],   'label' => 'Dịch vụ chi tiết',     'roles' => ['admin', 'cs']],
+                        ['route' => 'dichvu.index', 'route_params' => ['type' => 'dichvudikem'],     'label' => 'Dịch vụ đi kèm',      'roles' => ['admin', 'cs']],
+                        ['route' => 'dichvu.index', 'route_params' => ['type' => 'chinhanh'],         'label' => 'Chi nhánh nhận hàng', 'roles' => ['admin', 'cs']],
+                        ['route' => 'dichvu.index', 'route_params' => ['type' => 'tinhtrangdon'],     'label' => 'Tình trạng đơn',      'roles' => ['admin', 'cs']],
+                    ],
+                ],
+                [
+                    'route'  => 'donvi.index',
+                    'icon'   => 'unit',
+                    'label'  => 'Đơn vị',
+                    'startsWith' => 'don-vi',
+                    'roles'  => ['admin', 'cs'],
+                    'route_params' => ['type' => 'don-vi'],
+                    'children' => [
+                        ['route' => 'donvi.index', 'route_params' => ['type' => 'loaikien'], 'label' => 'Loại kiện',              'roles' => ['admin', 'cs']],
+                        ['route' => 'donvi.index', 'route_params' => ['type' => 'hanghoa'],  'label' => 'Hàng hóa (Loại kiện)',  'roles' => ['admin', 'cs']],
+                    ],
+                ],
+                [
+                    'route'  => 'phanloai.index',
+                    'icon'   => 'classify',
+                    'label'  => 'Phân loại',
+                    'startsWith' => 'phan-loai',
+                    'roles'  => ['admin', 'cs'],
+                    'route_params' => ['type' => 'phan-loai'],
+                    'children' => [
+                        ['route' => 'phanloai.index', 'route_params' => ['type' => 'loaibuugui'],   'label' => 'Loại bưu gửi',      'roles' => ['admin', 'cs']],
+                        ['route' => 'phanloai.index', 'route_params' => ['type' => 'lydoguihang'],  'label' => 'Lý do gửi hàng',     'roles' => ['admin', 'cs']],
+                        ['route' => 'phanloai.index', 'route_params' => ['type' => 'hinhthucgui'],  'label' => 'Hình thức gửi hàng', 'roles' => ['admin', 'cs']],
+                        ['route' => 'phanloai.index', 'route_params' => ['type' => 'deliveryterm'], 'label' => 'Delivery term',     'roles' => ['admin', 'cs']],
+                        ['route' => 'phanloai.index', 'route_params' => ['type' => 'phuongtien'],  'label' => 'Phương tiện',        'roles' => ['admin', 'cs']],
+                    ],
+                ],
+                [
+                    'route'  => 'place.index',
+                    'icon'   => 'country',
+                    'label'  => 'Quốc gia',
+                    'startsWith' => 'place',
+                    'roles'  => ['admin', 'cs'],
+                    'route_params' => ['type' => 'place'],
+                    'children' => [
+                        ['route' => 'place.index', 'route_params' => ['type' => 'countries'],   'label' => 'Quốc gia','roles' => ['admin', 'cs']],
+                        ['route' => 'place.index', 'route_params' => ['type' => 'state'], 'label' => 'Tỉnh / bang','roles' => ['admin', 'cs']],
+                        ['route' => 'place.index', 'route_params' => ['type' => 'cities'],  'label' => 'Thành phố','roles' => ['admin', 'cs']],
+                    ],
+                ],
+                [
+                    'route'  => 'doitac.index',
+                    'icon'   => 'agency',
+                    'label'  => 'Đại lý',
+                    'startsWith' => 'doi-tac',
+                    'roles'  => ['admin', 'cs'],
+                    'route_params' => ['type' => 'doi-tac'],
+                    'children' => [
+                        ['route' => 'doitac.index', 'route_params' => ['type' => 'daily'], 'label' => 'Đại lý','roles' => ['admin', 'cs']],
+                        ['route' => 'doitac.index', 'route_params' => ['type' => 'hangbay'],    'label' => 'Hãng bay','roles' => ['admin', 'cs']],
+                        ['route' => 'doitac.index', 'route_params' => ['type' => 'doitacchungchuyen'],    'label' => 'Đối tác chung chuyển','roles' => ['admin', 'cs']],
+                    ],
+                ],
+                [
+                    'route'  => 'phuphi.index',
+                    'icon'   => 'fee',
+                    'label'  => 'Phụ phí',
+                    'startsWith' => 'phu-phi',
+                    'roles'  => ['admin', 'ketoan'],
+                    'route_params' => ['type' => 'phu-phi'],
+                    'children' => [
+                        ['route' => 'phuphi.index', 'route_params' => ['type' => 'phuphidonhang'], 'label' => 'Phụ phí đơn hàng', 'roles' => ['admin', 'ketoan']],
+                    ],
+                ],
+            ],
+        ], $role);
+        // === NHÓM CẤU HÌNH ===
+        $cautruong = $this->filterByRole([
+            'label' => 'Cấu hình',
+            'items' => [
+                [
+                    'route'  => 'chinhsach.index',
+                    'icon'   => 'policy',
+                    'label'  => 'Chính sách',
+                    'roles'  => ['admin', 'manager', 'cs', 'sale', 'ctv'],
+                    'startsWith' => 'chinh-sach',
+                    'children' => collect(config('policy', []))->map(function ($meta, $slug) {
+                        return [
+                            'route' => 'chinhsach.show',
+                            'route_params' => ['slug' => $slug],
+                            'label' => $meta['title'],
+                            'roles' => $meta['canView'] ?? [],
+                        ];
+                    })->values()->toArray(),
+                ],
+                [
+                    'route'  => 'settings.index',
+                    'icon'   => 'settings',
+                    'label'  => 'Cấu hình chung',
+                    'roles'  => ['admin', 'manager', 'ketoan', 'cs'],
+                    'startsWith' => 'setting',
+                    'children' => [
+                        ['route' => 'settings.index',        'label' => 'Danh sách cấu hình',  'roles' => ['admin', 'manager', 'ketoan', 'cs']],
+                        ['route' => 'settings.thongbao',   'label' => 'Thông báo',           'roles' => ['admin', 'manager', 'ketoan', 'cs']],
+                        ['route' => 'settings.logo',        'label' => 'Logo',                 'roles' => ['admin']],
+                        ['route' => 'settings.favicon',    'label' => 'Favicon',              'roles' => ['admin']],
+                        ['route' => 'settings.banner',     'label' => 'Banner đăng nhập',     'roles' => ['admin']],
+                        ['route' => 'settings.social',      'label' => 'Social',                'roles' => ['admin']],
+                        ['route' => 'settings.company',     'label' => 'Thông tin công ty',    'roles' => ['admin']],
+                        ['route' => 'profile',             'label' => 'Thông tin cá nhân',     'roles' => ['admin', 'manager', 'ketoan', 'cs', 'sale', 'ops', 'ctv', 'shipper']],
+                    ],
+                ],
+            ],
+        ], $role);
+
+        return array_filter([
+            'tacvu'      => $tacvu,
+            'khachhang'  => $khachhang,
+            'nhansu'     => $nhansu,
+            'dulieu'     => $dulieu,
+            'cau_hinh'   => $cautruong,
+        ]);
+    }
+
+    /**
+     * Lọc items theo role hiện tại
+     */
+    protected function filterByRole(array $group, string $role): array
+    {
+        $filteredItems = [];
+
+        foreach ($group['items'] ?? [] as $item) {
+            // Filter children trước
+            if (!empty($item['children'])) {
+                $item['children'] = array_values(array_filter(
+                    $item['children'],
+                    fn($child) => $this->roleMatch($child['roles'] ?? [], $role)
+                ));
+                // Chỉ giữ lại parent nếu có ít nhất 1 child
+                if (!empty($item['children'])) {
+                    $filteredItems[] = $item;
+                }
+            } else {
+                // Item không có children → kiểm tra trực tiếp
+                if ($this->roleMatch($item['roles'] ?? [], $role)) {
+                    $filteredItems[] = $item;
+                }
+            }
+        }
+
+        return empty($filteredItems) ? [] : [
+            'label' => $group['label'],
+            'items' => $filteredItems,
+        ];
+    }
+
+    /**
+     * Kiểm tra user role có trong danh sách allowed roles không
+     */
+    protected function roleMatch(array $allowedRoles, string $userRole): bool
+    {
+        if (empty($allowedRoles)) {
+            return true;
+        }
+        return in_array($userRole, $allowedRoles);
+    }
+
+    /**
+     * Render the component.
+     */
+    public function render()
+    {
+        return view('components.sidebar.sidebar');
+    }
+}
