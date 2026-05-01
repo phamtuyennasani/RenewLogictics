@@ -1,27 +1,15 @@
 <?php
 
 use Livewire\Component;
-
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Modelable;
 new class extends Component
 {
-    public array $receiver = [
-        'company' => '',
-        'tenlienhe' => '',
-        'phone' => '',
-        'email' => '',
-        'address' => '',
-        'postcode' => '',
-    ];
-
-    public function mount(array $receiver = [])
-    {
-        $this->receiver = array_merge($this->receiver, $receiver);
-    }
-
-    public function updated($property)
-    {
-        // Chỉ dispatch khi thực sự cần thiết, không phải mỗi lần thay đổi
-        // $this->dispatch('receiverUpdated', receiver: $this->receiver);
+    #[Modelable]
+    public $receiver;
+    #[Computed]
+    public function countries(){
+        return \App\Models\Country::all();
     }
 };
 ?>
@@ -42,7 +30,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
 
     <div class="p-6 space-y-5">
         <flux:field>
-            <flux:label badge="Bắt buộc">Công ty</flux:label>
+            <flux:label badge="Bắt buộc">Tên công ty nhận</flux:label>
             <flux:input
                 type="text"
                 required
@@ -50,22 +38,18 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 placeholder="Tên công ty"
                 :class:input="$inputClass"
             />
-            @error('receiver.company')<flux:error>{{ $message }}</flux:error>@enderror
         </flux:field>
-
-        <flux:field>
-            <flux:label badge="Bắt buộc">Tên liên hệ</flux:label>
-            <flux:input
-                type="text"
-                required
-                wire:model.blur="receiver.tenlienhe"
-                placeholder="Tên người nhận"
-                :class:input="$inputClass"
-            />
-            @error('receiver.tenlienhe')<flux:error>{{ $message }}</flux:error>@enderror
-        </flux:field>
-
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-3 gap-5">
+            <flux:field>
+                <flux:label badge="Bắt buộc">Tên người nhận</flux:label>
+                <flux:input
+                    type="text"
+                    required
+                    wire:model.blur="receiver.tenlienhe"
+                    placeholder="Tên người nhận"
+                    :class:input="$inputClass"
+                />
+            </flux:field>
             <flux:field>
                 <flux:label badge="Bắt buộc">Số điện thoại</flux:label>
                 <flux:input
@@ -74,10 +58,9 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     wire:model.blur="receiver.phone"
                     placeholder="Số điện thoại"
                     :class:input="$inputClass"
+                    mask:dynamic="$input.startsWith('+') ? '+' + '9'.repeat(15) : '9'.repeat(15)"
                 />
-                @error('receiver.phone')<flux:error>{{ $message }}</flux:error>@enderror
             </flux:field>
-
             <flux:field>
                 <flux:label>Email</flux:label>
                 <flux:input
@@ -87,19 +70,24 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     :class:input="$inputClass"
                 />
             </flux:field>
+            <flux:field>
+                <flux:label badge="Bắt buộc">Quốc gia</flux:label>
+                <x-select-search
+                    name="receiver.country_id"
+                    :options="$this->countries->pluck('name', 'id')->toArray()"
+                    placeholder="-- Chọn quốc gia --"
+                />
+            </flux:field>
+            <flux:field class="col-span-2">
+                <flux:label badge="Bắt buộc">Địa chỉ</flux:label>
+                <flux:input
+                    wire:model.blur="receiver.address"
+                    required
+                    placeholder="Địa chỉ chi tiết"
+                    :class:input="$inputClass"
+                />
+            </flux:field>
         </div>
-
-        <flux:field>
-            <flux:label badge="Bắt buộc">Địa chỉ</flux:label>
-            <flux:textarea
-                wire:model.blur="receiver.address"
-                rows="3"
-                placeholder="Địa chỉ chi tiết"
-                :class:input="$inputClass"
-            />
-            @error('receiver.address')<flux:error>{{ $message }}</flux:error>@enderror
-        </flux:field>
-
         <flux:field>
             <flux:label badge="Bắt buộc">Postcode</flux:label>
             <flux:input

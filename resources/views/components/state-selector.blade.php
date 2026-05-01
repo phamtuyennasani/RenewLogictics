@@ -2,10 +2,11 @@
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\WithoutUrlPagination;
 use Illuminate\Support\Facades\DB;
 
 new class extends Component {
-    use WithPagination;
+    use WithPagination,WithoutUrlPagination;
 
     public ?int $countryId = null;
     public ?string $selected = null;
@@ -39,11 +40,6 @@ new class extends Component {
             ->when($this->search, fn($q) => $q->where('name', 'like', '%' . $this->search . '%'))
             ->orderBy('name')
             ->paginate(10);
-    }
-
-    public function render()
-    {
-        return $this->view();
     }
 };
 

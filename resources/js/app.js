@@ -100,3 +100,24 @@ document.addEventListener('alpine:init', () => {
         }
     }));
 });
+document.querySelectorAll('.tomselectEml').forEach(select => {
+    const template = select.getAttribute("data-template");
+    new TomSelect(select, {
+        plugins: ["dropdown_input"],
+        render: {
+            option: function (data, escape) {
+            if (template == 1) {
+                console.log('Rendering option with template 1:', data);
+            }
+            return "<div class='!rounded-none'><p class='!line-clamp-1 mb-0'>" + escape(data.text) + "</p></div>";
+            },
+            item: function (data, escape) {
+            if (template == 1) {
+                console.log('Rendering item with template 1:', data);
+            }
+            return "<div><p class='!line-clamp-1 mb-0'>" + escape(data.text) + "</p></div>";
+            },
+        },
+        onChange: function(value) {},
+    });
+});

@@ -2,10 +2,11 @@
 
 use Livewire\Component;
 use Livewire\WithPagination;
+use Livewire\WithoutUrlPagination;
 use Illuminate\Support\Facades\DB;
 
 new class extends Component {
-    use WithPagination;
+    use WithPagination, WithoutUrlPagination;
 
     public ?int $countryId = null;
     public ?string $stateName = null;

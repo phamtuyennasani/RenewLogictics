@@ -15,7 +15,9 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public ?int $idSale = null;
     public ?int $idCtv = null;
     public ?int $idCustomer = null;
-    public $listSale;
+    public $listSale = [];
+    public $listSender = [];
+    public $listReceiver = [];
     public $itemServices;
 
     public array $service = [
@@ -32,14 +34,16 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
 
     public array $sender = [
         'id' => null,
-        'type' => 'customer',
         'company' => '',
+        'company_short_name' => '',
         'fullname' => '',
         'phone' => '',
         'email' => '',
+        'country' => 'VIETNAM',
         'address' => '',
-        'province_id' => null,
-        'ward_id' => null,
+        'id_city' => '',
+        'id_ward' => '',
+        'type'  => '',
     ];
 
     public array $receiver = [
@@ -113,7 +117,6 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         // Không cần nữa vì component con không dispatch event
         // $this->receiver = array_merge($this->receiver, $receiver);
     }
-
     #[On('packagesUpdated')]
     public function handlePackagesUpdated($packages): void{
         // Không cần nữa vì component con không dispatch event
@@ -152,6 +155,48 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             DB::rollBack();
             $this->addError('submit', 'Có lỗi xảy ra: ' . $e->getMessage());
         }
+    }
+    public function updatingIdSale($value): void{
+        $this->listSender = User::query()
+            ->select([
+                'user.id',
+                'user.fullname',
+                'user.username',
+                'user.code',
+                'user.email',
+                'user.phone',
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.company_name')) as company_name"),
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.company_short_name')) as company_short_name"),
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.address_detail')) as address"),
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.city_id')) as city_id"),
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.ward_id')) as ward_id"),
+                DB::raw("'khachhang' as type")
+            ])
+            ->join('model_has_roles', 'user.id', '=', 'model_has_roles.model_id')
+            ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
+            ->where('model_has_roles.model_type', User::class)
+            ->where('roles.name', 'ctv')
+            ->where('user.id_sale', $value)
+            ->orderBy('user.fullname')
+            ->get()
+            ->toArray();
+        
+        // Cập nhật TomSelect trực tiếp bằng JavaScript
+        $this->js("
+            let listCTV = " . json_encode(array_map(function($item) {
+                return "<option value='{$item['id']}' data-attr='" . htmlentities(json_encode($item)) . "'>AccNo. {$item['code']} - {$item['fullname']} - {$item['phone']} - {$item['email']} - {$item['company_name']}</option>";
+            }, $this->listSender)) . ";
+            listCTV.unshift(\"<option value='0'>Người Gửi Mới</option>\");
+            let senderSelect = document.getElementById('sender-select');
+            if (senderSelect) {
+                senderSelect.innerHTML = listCTV;
+                if (typeof TomSelect !== 'undefined' && senderSelect.tomselect) {
+                    senderSelect.tomselect.clear();
+                    senderSelect.tomselect.clearOptions();
+                    senderSelect.tomselect.sync();
+                }
+            }
+        ");
     }
     protected function rules(): array{
         return [

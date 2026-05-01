@@ -12,14 +12,7 @@ class Province extends Model
         'name',
         'code',
     ];
-
     public $timestamps = false;
-
-    public function members()
-    {
-        return $this->hasMany(Member::class, 'id_province');
-    }
-
     public function wards()
     {
         return $this->hasMany(Ward::class, 'parent_code', 'id');

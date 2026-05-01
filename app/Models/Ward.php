@@ -9,25 +9,9 @@ class Ward extends Model
 {
     use HasFactory;
 
-    protected $table = 'ward';
-
-    protected $fillable = [
-        'namevi',
-        'slugvi',
-        'id_district',
-        'id_city',
-        'code',
-        'numb',
-        'status',
-    ];
-
-    public function district()
-    {
-        return $this->belongsTo(District::class, 'id_district');
-    }
-
+    protected $table = 'wards';
     public function city()
     {
-        return $this->belongsTo(City::class, 'id_city');
+        return $this->belongsTo(Province::class, 'parent_code');
     }
 }

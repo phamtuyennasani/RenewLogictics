@@ -16,14 +16,26 @@
     <form wire:submit="submit" class="space-y-6">
         <div class="grid grid-cols-2 gap-5">
             {{-- Left Column --}}
+            <div></div>
+            <div wire:ignore>
+                 <flux:field >
+                    <flux:label badge="Bắt buộc">Sale phụ trách</flux:label>
+                    <select class="tomselectEml " data-placeholder="-- Chọn nhân viên SALE --" wire:model.live="idSale" required autocomplete="off">
+                        <option value="">-- Chọn nhân viên SALE --</option>
+                        @foreach($listSale as $item)
+                            <option value="{{ $item['id'] }}">{{ $item['fullname'].' - Mã Nhân Viên: '.$item['code'] }}</option>
+                        @endforeach
+                    </select>
+                </flux:field>
+            </div>
             <div class="space-y-5">
                 <livewire:order.service wire:model="service" :item-services="$itemServices" wire:key="service" />
                 {{-- <livewire:order.packages wire:key="packages" /> --}}
             </div>
             {{-- Right Column --}}
            <div class="space-y-5">
-                <livewire:order.sender wire:model="$sender" :list-sale="$listSale" wire:key="sender" />
-                {{-- <livewire:order.receiver wire:model="$receiver" wire:key="receiver" /> --}}
+                <livewire:order.sender wire:model="sender" :listSender="$listSender" :idSale="$idSale" wire:key="sender" />
+                <livewire:order.receiver wire:model="receiver" wire:key="receiver" />
                 <div class="bg-white rounded-lg p-5">
                     <h2 class="text-main-1 font-medium mb-4">Ghi chú</h2>
                     <textarea wire:model="notes" rows="4" class="w-full border border-neutral-200 rounded-lg p-3" placeholder="Nhập ghi chú cho đơn hàng..."></textarea>
