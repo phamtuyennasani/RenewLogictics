@@ -8,6 +8,7 @@ use App\Actions\Order\CreateOrderAction;
 use App\DataTransferObjects\OrderFormData;
 use App\Models\Member;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Models\News;
@@ -143,8 +144,65 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public function goBack(): void{
         redirect()->route('orders.index');
     }
+
+    protected function normalizeAssignmentByRole(): void
+    {
+        $user = auth()->user();
+
+        if ($user->hasRole('sale')) {
+            $this->idSale = $user->id;
+
+            if ($this->idCtv) {
+                $isValidCtv = User::query()
+                    ->whereKey($this->idCtv)
+                    ->where('id_sale', $user->id)
+                    ->whereHas('roles', fn ($q) => $q->where('name', 'ctv'))
+                    ->exists();
+
+                if (!$isValidCtv) {
+                    throw new AuthorizationException('CTV không thuộc quyền quản lý của sale hiện tại.');
+                }
+            }
+
+            return;
+        }
+
+        if ($user->hasRole('ctv')) {
+            $this->idSale = $user->id_sale;
+            $this->idCtv = $user->id;
+            $this->fixedIdCtv = $user->id;
+            return;
+        }
+
+        if (!$this->idSale) {
+            throw new AuthorizationException('Vui lòng chọn sale phụ trách.');
+        }
+
+        $isValidSale = User::query()
+            ->whereKey($this->idSale)
+            ->whereHas('roles', fn ($q) => $q->where('name', 'SALE'))
+            ->exists();
+
+        if (!$isValidSale) {
+            throw new AuthorizationException('Sale phụ trách không hợp lệ.');
+        }
+
+        if ($this->idCtv) {
+            $isValidCtv = User::query()
+                ->whereKey($this->idCtv)
+                ->where('id_sale', $this->idSale)
+                ->whereHas('roles', fn ($q) => $q->where('name', 'ctv'))
+                ->exists();
+
+            if (!$isValidCtv) {
+                throw new AuthorizationException('CTV không thuộc sale đã chọn.');
+            }
+        }
+    }
+
     public function submit(): void{
         dd($this->service, $this->sender, $this->receiver, $this->packages);
+        $this->normalizeAssignmentByRole();
         $this->validate($this->rules());
         if (!$this->agreedToTerms) {
             $this->addError('agreedToTerms', 'Bạn phải đồng ý với quy định tạo đơn');
@@ -359,6 +417,12 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     }
 
     public function updatingIdSale($value): void{
+        $user = auth()->user();
+        if ($user->hasRole('sale') || $user->hasRole('ctv')) {
+            $this->idSale = $user->hasRole('sale') ? $user->id : $user->id_sale;
+            return;
+        }
+
         $this->resetSender();
         $this->idCtv = $this->fixedIdCtv;
         if (!$value) {
@@ -374,6 +438,13 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
 
     public function updatingIdCtv($value): void
     {
+        $user = auth()->user();
+        if ($user->hasRole('ctv')) {
+            $this->idCtv = $user->id;
+            $this->fixedIdCtv = $user->id;
+            return;
+        }
+
         $this->idCtv = $value ? (int) $value : $this->fixedIdCtv;
         $this->syncReceivers();
     }
