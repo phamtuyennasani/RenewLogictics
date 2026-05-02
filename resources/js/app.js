@@ -1,5 +1,7 @@
 import './bootstrap';
 import TomSelect from 'tom-select';
+import { registerTomSelectNavigation } from './tom-select-helper';
+
 window.TomSelect = TomSelect;
 import Scrollbar from 'smooth-scrollbar';
 const sidebarEl = document.querySelector('#sidebar-scrollbar');
@@ -13,13 +15,6 @@ window.SidebarData = function(){
         currentPath: window.location.pathname,
     }
 };
-
-// Bắt đầu lắng nghe sự kiện điều hướng của Livewire 
-document.addEventListener('livewire:navigate', (event) => {})
-// Lắng nghe sự kiện trong quá trình điều hướng
-document.addEventListener('livewire:navigating', (e) => {});
-// Lắng nghe sự kiện sau khi điều hướng hoàn tất
-document.addEventListener('livewire:navigated', () => {});
 
 document.addEventListener('alpine:init', () => {
     Alpine.data('selectSearch', (config) => ({
@@ -100,24 +95,5 @@ document.addEventListener('alpine:init', () => {
         }
     }));
 });
-document.querySelectorAll('.tomselectEml').forEach(select => {
-    const template = select.getAttribute("data-template");
-    new TomSelect(select, {
-        plugins: ["dropdown_input"],
-        render: {
-            option: function (data, escape) {
-            if (template == 1) {
-                console.log('Rendering option with template 1:', data);
-            }
-            return "<div class='!rounded-none'><p class='!line-clamp-1 mb-0'>" + escape(data.text) + "</p></div>";
-            },
-            item: function (data, escape) {
-            if (template == 1) {
-                console.log('Rendering item with template 1:', data);
-            }
-            return "<div><p class='!line-clamp-1 mb-0'>" + escape(data.text) + "</p></div>";
-            },
-        },
-        onChange: function(value) {},
-    });
-});
+
+registerTomSelectNavigation();

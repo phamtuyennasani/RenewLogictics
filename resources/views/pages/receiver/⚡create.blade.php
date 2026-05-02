@@ -253,7 +253,6 @@ new class extends Component {
         $this->formData['cities'] = $city;
         $this->showCityModal = false;
     }
-
     #[On('close-modal')]
     public function handleCloseModal($modal)
     {
@@ -263,7 +262,6 @@ new class extends Component {
             $this->showCityModal = false;
         }
     }
-
     protected function rules(): array
     {
         return [

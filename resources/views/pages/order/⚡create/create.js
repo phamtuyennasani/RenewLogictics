@@ -17,18 +17,13 @@ document.getElementById('sender-select').addEventListener('change', function() {
         type: parsedData?.type || null,
         country:'VIETNAM',
     };
-
     // Set sender data
     $wire.set('sender', dataSender).then(() => {
-        // Sau khi Livewire cập nhật, cập nhật TomSelect cho city và ward
         setTimeout(() => {
-            // Cập nhật city select
             const citySelect = document.querySelector('select[name="sender.id_city"]');
             if (citySelect && citySelect.tomselect && dataSender.id_city) {
                 citySelect.tomselect.setValue(dataSender.id_city);
             }
-
-            // Đợi một chút để ward options được load
             setTimeout(() => {
                 const wardSelect = document.querySelector('select[name="sender.id_ward"]');
                 if (wardSelect && wardSelect.tomselect && dataSender.id_ward) {

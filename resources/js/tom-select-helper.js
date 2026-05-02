@@ -1,0 +1,69 @@
+import TomSelect from 'tom-select';
+
+window.TomSelect = TomSelect;
+
+const DEFAULT_SELECTOR = 'select.tomselectEml';
+
+function renderDefaultOption(data, escape) {
+    return "<div class='!rounded-none'><p class='!line-clamp-1 mb-0'>" + escape(data.text || '') + '</p></div>';
+}
+
+function renderDefaultItem(data, escape) {
+    return "<div><p class='!line-clamp-1 mb-0'>" + escape(data.text || '') + '</p></div>';
+}
+
+function buildTomSelectOptions(select) {
+    const placeholder = select.getAttribute('data-placeholder') || '';
+
+    return {
+        plugins: ['dropdown_input'],
+        placeholder,
+        render: {
+            option: renderDefaultOption,
+            item: renderDefaultItem,
+        },
+        onChange: function () {},
+    };
+}
+
+export function initTomSelectEml(container = document, selector = DEFAULT_SELECTOR) {
+    container.querySelectorAll(selector).forEach((select) => {
+        if (!(select instanceof HTMLSelectElement)) return;
+        if (select.tomselect) return;
+
+        new TomSelect(select, buildTomSelectOptions(select));
+    });
+}
+
+export function destroyTomSelectEml(container = document, selector = DEFAULT_SELECTOR) {
+    container.querySelectorAll(selector).forEach((select) => {
+        if (!(select instanceof HTMLSelectElement)) return;
+        select.tomselect?.destroy();
+    });
+}
+
+export function reinitTomSelectEml(container = document, selector = DEFAULT_SELECTOR) {
+    destroyTomSelectEml(container, selector);
+    initTomSelectEml(container, selector);
+}
+
+export function registerTomSelectNavigation() {
+    document.addEventListener('livewire:initialized', () => {
+        initTomSelectEml();
+    });
+
+    document.addEventListener('livewire:navigating', () => {
+        destroyTomSelectEml();
+    });
+
+    document.addEventListener('livewire:navigated', () => {
+        initTomSelectEml();
+    });
+}
+
+window.TomSelectHelper = {
+    init: initTomSelectEml,
+    destroy: destroyTomSelectEml,
+    reinit: reinitTomSelectEml,
+    registerNavigation: registerTomSelectNavigation,
+};
