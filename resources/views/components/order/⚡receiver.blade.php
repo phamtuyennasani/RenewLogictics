@@ -7,6 +7,10 @@ new class extends Component
 {
     #[Modelable]
     public $receiver;
+    public $listReceiver = [];
+    public $idSale;
+    public $idCtv;
+
     #[Computed]
     public function countries(){
         return \App\Models\Country::all();
@@ -29,6 +33,19 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
     </div>
 
     <div class="p-6 space-y-5">
+        <div wire:ignore wire:key="select-receiver-{{ $idSale ?? 'none' }}-{{ $idCtv ?? 'none' }}">
+            <flux:field>
+                <flux:label>Chọn người nhận từ danh sách có sẵn</flux:label>
+                <select class="tomselectEml tomselectEml-getReceiver" id="receiver-select" data-placeholder="Người Nhận Mới" autocomplete="off">
+                    <option value="">Người Nhận Mới</option>
+                    @foreach($listReceiver as $item)
+                        <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">
+                            {{ collect([$item['company'] ?? '', $item['tenlienhe'] ?? '', $item['phone'] ?? '', $item['email'] ?? '', $item['postcode'] ?? ''])->filter()->implode(' - ') }}
+                        </option>
+                    @endforeach
+                </select>
+            </flux:field>
+        </div>
         <flux:field>
             <flux:label badge="Bắt buộc">Tên công ty nhận</flux:label>
             <flux:input

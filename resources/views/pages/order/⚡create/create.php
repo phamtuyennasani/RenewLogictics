@@ -6,6 +6,7 @@ use Livewire\Attributes\Title;
 use Livewire\Attributes\On;
 use App\Actions\Order\CreateOrderAction;
 use App\DataTransferObjects\OrderFormData;
+use App\Models\Member;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -24,6 +25,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         'id_dichvu' => null,
         'id_chitiet_dichvu' => null,
         'id_chinhanh_nhanhang' => null,
+        'tensanpham' => '',
         'dichvudikem' => [],
         'tinhtrangdon' => null, 
         'hinhthucguihang' => null,
@@ -66,19 +68,35 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public bool $saveInfoReceiver = false;
     public bool $agreedToTerms = false;
     public float $dim = 6000;
+    public bool $showSaleSelector = true;
+    public ?int $fixedIdCtv = null;
+
     public function mount(): void
     {
         $user = auth()->user();
-        if ($user->hasRole('ctv')) {
+
+        if ($user->hasRole('sale')) {
+            $this->idSale = $user->id;
+            $this->showSaleSelector = false;
+        } elseif ($user->hasRole('ctv')) {
             $this->idCtv = $user->id;
+            $this->fixedIdCtv = $user->id;
             $this->dim = $user->options['dim'] ?? 6000;
             $this->idSale = $user->id_sale;
+            $this->showSaleSelector = false;
         }
+
         $this->listSale = User::query()
             ->whereHas('roles', fn ($q) => $q->where('name', 'SALE'))
             ->orderBy('fullname')
             ->get(['id', 'fullname', 'username','code'])
             ->toArray();
+
+        if ($this->idSale) {
+            $this->loadSendersBySale($this->idSale);
+        }
+        $this->syncReceivers();
+
         $this->packages = [
             [
                 'package_type' => null,
@@ -156,7 +174,55 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             $this->addError('submit', 'Có lỗi xảy ra: ' . $e->getMessage());
         }
     }
-    public function updatingIdSale($value): void{
+
+    protected function defaultSender(): array
+    {
+        return [
+            'id' => null,
+            'company' => '',
+            'company_short_name' => '',
+            'fullname' => '',
+            'phone' => '',
+            'email' => '',
+            'country' => 'VIETNAM',
+            'address' => '',
+            'id_city' => '',
+            'id_ward' => '',
+            'type'  => '',
+        ];
+    }
+
+    protected function resetSender(): void
+    {
+        $this->idCustomer = null;
+        $this->sender = $this->defaultSender();
+    }
+
+    protected function defaultReceiver(): array
+    {
+        return [
+            'id' => null,
+            'company' => '',
+            'tenlienhe' => '',
+            'phone' => '',
+            'email' => '',
+            'mavung' => '',
+            'country_id' => null,
+            'address' => '',
+            'state' => '',
+            'city' => '',
+            'postcode' => '',
+            'vsvx' => false,
+        ];
+    }
+
+    protected function resetReceiver(): void
+    {
+        $this->receiver = $this->defaultReceiver();
+    }
+
+    protected function loadSendersBySale(int $saleId): void
+    {
         $this->listSender = User::query()
             ->select([
                 'user.id',
@@ -176,12 +242,14 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
             ->where('model_has_roles.model_type', User::class)
             ->where('roles.name', 'ctv')
-            ->where('user.id_sale', $value)
+            ->where('user.id_sale', $saleId)
             ->orderBy('user.fullname')
             ->get()
             ->toArray();
-        
-        // Cập nhật TomSelect trực tiếp bằng JavaScript
+    }
+
+    protected function refreshSenderSelectOptions(): void
+    {
         $this->js("
             let listCTV = " . json_encode(array_map(function($item) {
                 return "<option value='{$item['id']}' data-attr='" . htmlentities(json_encode($item)) . "'>AccNo. {$item['code']} - {$item['fullname']} - {$item['phone']} - {$item['email']} - {$item['company_name']}</option>";
@@ -198,6 +266,117 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             }
         ");
     }
+
+    protected function loadReceiversBySale(int $saleId): void
+    {
+        $this->listReceiver = Member::query()
+            ->where('type', 'receiver')
+            ->where('id_sale', $saleId)
+            ->orderBy('fullname')
+            ->get()
+            ->map(function (Member $member) {
+                return [
+                    'id' => $member->id,
+                    'company' => $member->fullname,
+                    'tenlienhe' => $member->options['tenlienhe'] ?? '',
+                    'phone' => $member->phone,
+                    'email' => $member->email,
+                    'mavung' => $member->options['mavung'] ?? '',
+                    'country_id' => $member->options['id_country'] ?? $member->country_id,
+                    'address' => $member->options['address'] ?? $member->address,
+                    'state' => $member->options['state'] ?? $member->state,
+                    'city' => $member->options['city'] ?? $member->cities,
+                    'postcode' => $member->options['postcode'] ?? $member->postcode,
+                    'vsvx' => false,
+                ];
+            })
+            ->toArray();
+    }
+
+    protected function loadReceiversByCtv(int $ctvId): void
+    {
+        $this->listReceiver = Member::query()
+            ->receiver()
+            ->where('id_ctv', $ctvId)
+            ->orderBy('fullname')
+            ->get()
+            ->map(function (Member $member) {
+                return [
+                    'id' => $member->id,
+                    'company' => $member->fullname,
+                    'tenlienhe' => $member->options['tenlienhe'] ?? '',
+                    'phone' => $member->phone,
+                    'email' => $member->email,
+                    'mavung' => $member->options['mavung'] ?? '',
+                    'country_id' => $member->options['id_country'] ?? $member->country_id,
+                    'address' => $member->options['address'] ?? $member->address,
+                    'state' => $member->options['state'] ?? $member->state,
+                    'city' => $member->options['city'] ?? $member->cities,
+                    'postcode' => $member->options['postcode'] ?? $member->postcode,
+                    'vsvx' => false,
+                ];
+            })
+            ->toArray();
+    }
+
+    protected function refreshReceiverSelectOptions(): void
+    {
+        $this->js("
+            let listReceiver = " . json_encode(array_map(function($item) {
+                $label = trim(implode(' - ', array_filter([
+                    $item['company'] ?? '',
+                    $item['tenlienhe'] ?? '',
+                    $item['phone'] ?? '',
+                    $item['email'] ?? '',
+                    $item['postcode'] ?? '',
+                ])));
+                return "<option value='{$item['id']}' data-attr='" . htmlentities(json_encode($item)) . "'>{$label}</option>";
+            }, $this->listReceiver)) . ";
+            listReceiver.unshift(\"<option value=''>Người Nhận Mới</option>\");
+            let receiverSelect = document.getElementById('receiver-select');
+            if (receiverSelect) {
+                receiverSelect.innerHTML = listReceiver;
+                if (typeof TomSelect !== 'undefined' && receiverSelect.tomselect) {
+                    receiverSelect.tomselect.clear();
+                    receiverSelect.tomselect.clearOptions();
+                    receiverSelect.tomselect.sync();
+                }
+            }
+        ");
+    }
+
+    protected function syncReceivers(): void
+    {
+        $this->resetReceiver();
+        if ($this->idCtv) {
+            $this->loadReceiversByCtv($this->idCtv);
+        } elseif ($this->idSale) {
+            $this->loadReceiversBySale($this->idSale);
+        } else {
+            $this->listReceiver = [];
+        }
+        $this->refreshReceiverSelectOptions();
+    }
+
+    public function updatingIdSale($value): void{
+        $this->resetSender();
+        $this->idCtv = $this->fixedIdCtv;
+        if (!$value) {
+            $this->listSender = [];
+            $this->refreshSenderSelectOptions();
+            $this->syncReceivers();
+            return;
+        }
+        $this->loadSendersBySale((int) $value);
+        $this->refreshSenderSelectOptions();
+        $this->syncReceivers();
+    }
+
+    public function updatingIdCtv($value): void
+    {
+        $this->idCtv = $value ? (int) $value : $this->fixedIdCtv;
+        $this->syncReceivers();
+    }
     protected function rules(): array{
         return [
             'service.id_dichvu' => 'required|exists:news,id',
@@ -211,11 +390,11 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             'receiver.phone' => 'required|string|max:20',
             'receiver.address' => 'required|string|max:500',
             'receiver.postcode' => 'required|string|max:20',
-            'packages' => 'required|array|min:1',
-            'packages.*.length' => 'required|numeric|min:0.1',
-            'packages.*.width' => 'required|numeric|min:0.1',
-            'packages.*.height' => 'required|numeric|min:0.1',
-            'packages.*.g_weight' => 'required|numeric|min:0.1',
+            'packages' => 'nullable|array',
+            'packages.*.length' => 'nullable|numeric|min:0.1',
+            'packages.*.width' => 'nullable|numeric|min:0.1',
+            'packages.*.height' => 'nullable|numeric|min:0.1',
+            'packages.*.g_weight' => 'nullable|numeric|min:0.1',
         ];
     }
 };
