@@ -48,7 +48,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
             <div wire:ignore wire:key="select-sender-{{$idSale}}">
                  <flux:field >
                     <flux:label>Chọn người gủi từ danh sách có sẵn</flux:label>
-                    <select data-template='custom' class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="sender-select" autocomplete="off">
+                    <select data-template='custom-sender' class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="sender-select" autocomplete="off">
                         <option value=0>Người Gửi Mới</option>
                         @foreach($listSender as $item)
                             <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">AccNo. {{ $item['code'] }} - {{ $item['fullname'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['company_name'] }} </option>

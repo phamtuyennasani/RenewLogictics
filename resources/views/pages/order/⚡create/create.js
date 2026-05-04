@@ -58,10 +58,10 @@ document.addEventListener('change', (event) => {
             state: parsedData?.state || '',
             city: parsedData?.city || '',
             postcode: parsedData?.postcode || '',
-            vsvx: parsedData?.vsvx || false,
+            vsvx: false,
             address: parsedData?.address || '',
         };
-
         $wire.set('receiver', dataReceiver);
+        $wire.$dispatch('receiverUpdated');
     }
 });

@@ -133,9 +133,10 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         // $this->sender = array_merge($this->sender, $sender);
     }
     #[On('receiverUpdated')]
-    public function handleReceiverUpdated($receiver): void{
-        // Không cần nữa vì component con không dispatch event
-        // $this->receiver = array_merge($this->receiver, $receiver);
+    public function handleReceiverUpdated(): void{
+        if($this->receiver['postcode'] ?? null) {
+            $this->receiver['vsvx'] = true;
+        }
     }
     #[On('packagesUpdated')]
     public function handlePackagesUpdated($packages): void{
@@ -387,8 +388,8 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
                     $item['company'] ?? '',
                     $item['tenlienhe'] ?? '',
                     $item['phone'] ?? '',
-                    $item['email'] ?? '',
                     $item['postcode'] ?? '',
+                    $item['address'] ?? '',
                 ])));
                 return "<option value='{$item['id']}' data-attr='" . htmlentities(json_encode($item)) . "'>{$label}</option>";
             }, $this->listReceiver)) . ";
@@ -453,6 +454,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         $this->idCtv = $value ? (int) $value : $this->fixedIdCtv;
         $this->syncReceivers();
     }
+    
     protected function rules(): array{
         return [
             'service.id_dichvu' => 'required|exists:news,id',

@@ -36,11 +36,11 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
         <div wire:ignore wire:key="select-receiver-{{ $idSale ?? 'none' }}-{{ $idCtv ?? 'none' }}">
             <flux:field>
                 <flux:label>Chọn người nhận từ danh sách có sẵn</flux:label>
-                <select class="tomselectEml tomselectEml-getReceiver" id="receiver-select" data-placeholder="Người Nhận Mới" autocomplete="off">
+                <select data-template="custom-receiver" class="tomselectEml tomselectEml-getReceiver" id="receiver-select" data-placeholder="Người Nhận Mới" autocomplete="off">
                     <option value="0">Người Nhận Mới</option>
                     @foreach($listReceiver as $item)
                         <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">
-                            {{ collect([$item['company'] ?? '', $item['fullname'] ?? '', $item['phone'] ?? '', $item['email'] ?? '', $item['postcode'] ?? ''])->filter()->implode(' - ') }}
+                            {{ collect([$item['company'] ?? '', $item['fullname'] ?? '', $item['phone'] ?? '', $item['postcode'] ?? '', $item['address'] ?? ''])->filter()->implode(' - ') }}
                         </option>
                     @endforeach
                 </select>
@@ -134,7 +134,16 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     wire:model.blur="receiver.postcode"
                     placeholder="Mã bưu chính"
                     :class:input="$inputClass"
-                />
+                    x-on:keyup.debounce.200ms="$wire.$dispatch('receiverUpdated')"
+                >
+                @if(($receiver['vsvx'] ?? false) === true)
+                <x-slot name="iconTrailing">
+                    <flux:tooltip position="left" content="Postcode thuộc VSVX">
+                        <flux:icon.exclamation-triangle class="text-red-800" />
+                    </flux:tooltip>
+                </x-slot>
+                @endif
+                </flux:input>
             </flux:field>
         </div>
     </div>
