@@ -14,13 +14,26 @@ function renderDefaultItem(data, escape) {
 
 function buildTomSelectOptions(select) {
     const placeholder = select.getAttribute('data-placeholder') || '';
-
+    const template = select.getAttribute('data-template') || 'default';
+    let renderOption = renderDefaultOption;
+    let renderItem = renderDefaultItem;
+    if (template === 'custom') {
+        renderItem = function (data, escape) {
+            const dataAttr = select.querySelector(`option[value="${data.value}"]`)?.getAttribute('data-attr');
+            if(dataAttr==null) {
+                return renderDefaultItem(data, escape);
+            }
+            const parsedData = JSON.parse(dataAttr);
+            console.log('Parsed data for item rendering:', parsedData);
+            return "<div><p class='!line-clamp-1 mb-0'><b>AccNo.</b> " + escape(parsedData.code || '') + ' - ' + escape(parsedData.company_name || '') + ' - <b>' + escape(parsedData.phone || '') + '</b> - ' + escape(parsedData.address || '') + '</p></div>';
+        };
+    }
     return {
         plugins: ['dropdown_input'],
         placeholder,
         render: {
             option: renderDefaultOption,
-            item: renderDefaultItem,
+            item: renderItem,
         },
         onChange: function () {},
     };

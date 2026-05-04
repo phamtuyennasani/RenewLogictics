@@ -84,6 +84,7 @@ new class extends Component {
                 'state' => $item->state ?? '',
                 'cities' => $item->cities ?? '',
                 'postcode' => $item->postcode ?? '',
+                'address' => $item->address ?? '',
             ];
 
             // Load states if country selected
@@ -289,6 +290,7 @@ new class extends Component {
             'formData.state' => 'nullable|string|max:255',
             'formData.cities' => 'nullable|string|max:255',
             'formData.postcode' => 'nullable|string|max:20',
+            'formData.address' => 'nullable|string|max:500',
         ];
     }
 
@@ -304,6 +306,7 @@ new class extends Component {
             'formData.id_ctv.exists' => 'CTV không hợp lệ',
             'formData.id_sender.exists' => 'Sender không hợp lệ',
             'formData.country_id.exists' => 'Quốc gia không hợp lệ',
+            'formData.address.required' => 'Địa chỉ không được để trống',
         ];
     }
 
@@ -335,6 +338,7 @@ new class extends Component {
             'state' => $this->formData['state'] ?: null,
             'cities' => $this->formData['cities'] ?: null,
             'postcode' => $this->formData['postcode'] ?: null,
+            'address' => $this->formData['address'] ?: null,
             'type' => 'receiver',
         ];
 
@@ -597,6 +601,17 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                         :class:input="$inputClass"
                     />
                     @error('formData.postcode')<flux:error>{{ $message }}</flux:error>@enderror
+                </flux:field>
+                <flux:field class="col-span-full">
+                    <flux:label>Address/Địa chỉ</flux:label>
+                    <flux:input
+                        type="text"
+                        wire:model.defer="formData.address"
+                        :invalid="$errors->has('formData.address')"
+                        placeholder="Nhập address..."
+                        :class:input="$inputClass"
+                    />
+                    @error('formData.address')<flux:error>{{ $message }}</flux:error>@enderror
                 </flux:field>
             </div>
 

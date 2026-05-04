@@ -193,7 +193,6 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">CTV</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Sender</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Quốc gia</th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center">Trạng thái</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center w-28">Thao tác</th>
                     </tr>
                 </thead>
@@ -249,13 +248,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                     <span class="text-sm text-neutral-400">—</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3.5 text-center">
-                                @if ($v->status == 1)
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Kích hoạt</span>
-                                @else
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-500"><span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>Chưa kích hoạt</span>
-                                @endif
-                            </td>
+                            
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1">
                                     <a href="{{ route('receiver.edit', ['uuid' => $v->uuid]) }}" wire:navigate class="p-2 rounded-lg text-neutral-400 hover:text-primary-600 hover:bg-primary-50 transition-all" title="Chỉnh sửa">

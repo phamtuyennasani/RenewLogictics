@@ -52,7 +52,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public array $receiver = [
         'id' => null,
         'company' => '',
-        'tenlienhe' => '',
+        'fullname' => '',
         'phone' => '',
         'email' => '',
         'mavung' => '',
@@ -62,6 +62,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         'city' => '',
         'postcode' => '',
         'vsvx' => false,
+        'address' => '',
     ];
     public array $packages = [];
     public ?string $notes = null;
@@ -320,6 +321,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
                     senderSelect.tomselect.clear();
                     senderSelect.tomselect.clearOptions();
                     senderSelect.tomselect.sync();
+                    senderSelect.tomselect.setValue(0);
                 }
             }
         ");
@@ -335,8 +337,8 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             ->map(function (Member $member) {
                 return [
                     'id' => $member->id,
-                    'company' => $member->fullname,
-                    'tenlienhe' => $member->options['tenlienhe'] ?? '',
+                    'company' => $member->company_name,
+                    'fullname' => $member->fullname,
                     'phone' => $member->phone,
                     'email' => $member->email,
                     'mavung' => $member->options['mavung'] ?? '',
@@ -361,8 +363,8 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             ->map(function (Member $member) {
                 return [
                     'id' => $member->id,
-                    'company' => $member->fullname,
-                    'tenlienhe' => $member->options['tenlienhe'] ?? '',
+                    'company' => $member->company_name,
+                    'fullname' => $member->fullname,
                     'phone' => $member->phone,
                     'email' => $member->email,
                     'mavung' => $member->options['mavung'] ?? '',
@@ -390,7 +392,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
                 ])));
                 return "<option value='{$item['id']}' data-attr='" . htmlentities(json_encode($item)) . "'>{$label}</option>";
             }, $this->listReceiver)) . ";
-            listReceiver.unshift(\"<option value=''>Người Nhận Mới</option>\");
+            listReceiver.unshift(\"<option value='0'>Người Nhận Mới</option>\");
             let receiverSelect = document.getElementById('receiver-select');
             if (receiverSelect) {
                 receiverSelect.innerHTML = listReceiver;
@@ -398,6 +400,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
                     receiverSelect.tomselect.clear();
                     receiverSelect.tomselect.clearOptions();
                     receiverSelect.tomselect.sync();
+                    receiverSelect.tomselect.setValue(0);
                 }
             }
         ");
@@ -407,6 +410,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     {
         $this->resetReceiver();
         if ($this->idCtv) {
+            
             $this->loadReceiversByCtv($this->idCtv);
         } elseif ($this->idSale) {
             $this->loadReceiversBySale($this->idSale);
@@ -418,6 +422,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
 
     public function updatingIdSale($value): void{
         $user = auth()->user();
+        $this->idSale = $value ? (int) $value : null;
         if ($user->hasRole('sale') || $user->hasRole('ctv')) {
             $this->idSale = $user->hasRole('sale') ? $user->id : $user->id_sale;
             return;

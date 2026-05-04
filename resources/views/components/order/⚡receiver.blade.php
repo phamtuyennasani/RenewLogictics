@@ -37,10 +37,10 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
             <flux:field>
                 <flux:label>Chọn người nhận từ danh sách có sẵn</flux:label>
                 <select class="tomselectEml tomselectEml-getReceiver" id="receiver-select" data-placeholder="Người Nhận Mới" autocomplete="off">
-                    <option value="">Người Nhận Mới</option>
+                    <option value="0">Người Nhận Mới</option>
                     @foreach($listReceiver as $item)
                         <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">
-                            {{ collect([$item['company'] ?? '', $item['tenlienhe'] ?? '', $item['phone'] ?? '', $item['email'] ?? '', $item['postcode'] ?? ''])->filter()->implode(' - ') }}
+                            {{ collect([$item['company'] ?? '', $item['fullname'] ?? '', $item['phone'] ?? '', $item['email'] ?? '', $item['postcode'] ?? ''])->filter()->implode(' - ') }}
                         </option>
                     @endforeach
                 </select>
@@ -62,7 +62,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 <flux:input
                     type="text"
                     required
-                    wire:model.blur="receiver.tenlienhe"
+                    wire:model.blur="receiver.fullname"
                     placeholder="Tên người nhận"
                     :class:input="$inputClass"
                 />
@@ -105,16 +105,37 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 />
             </flux:field>
         </div>
-        <flux:field>
-            <flux:label badge="Bắt buộc">Postcode</flux:label>
-            <flux:input
-                type="text"
-                required
-                wire:model.blur="receiver.postcode"
-                placeholder="Mã bưu chính"
-                :class:input="$inputClass"
-            />
-            @error('receiver.postcode')<flux:error>{{ $message }}</flux:error>@enderror
-        </flux:field>
+        <div class="grid grid-cols-3 gap-5">
+            <flux:field>
+                <flux:label badge="Bắt buộc">Tỉnh / Bang</flux:label>
+                <flux:input
+                    type="text"
+                    required
+                    wire:model.blur="receiver.state"
+                    placeholder="Tỉnh / Bang"
+                    :class:input="$inputClass"
+                />
+            </flux:field>
+            <flux:field>
+                <flux:label badge="Bắt buộc">Thành phố</flux:label>
+                <flux:input
+                    type="text"
+                    required
+                    wire:model.blur="receiver.city"
+                    placeholder="Thành phố"
+                    :class:input="$inputClass"
+                />
+            </flux:field>
+            <flux:field>
+                <flux:label badge="Bắt buộc">Postcode</flux:label>
+                <flux:input
+                    type="text"
+                    required
+                    wire:model.blur="receiver.postcode"
+                    placeholder="Mã bưu chính"
+                    :class:input="$inputClass"
+                />
+            </flux:field>
+        </div>
     </div>
 </div>

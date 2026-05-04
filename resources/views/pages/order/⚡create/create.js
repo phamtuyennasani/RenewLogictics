@@ -33,7 +33,6 @@ document.addEventListener('change', (event) => {
             type: parsedData?.type || null,
             country: 'VIETNAM',
         };
-
         const nextIdCtv = $wire.fixedIdCtv || dataSender.id || null;
         $wire.set('idCtv', nextIdCtv);
         $wire.set('sender', dataSender).then(() => {
@@ -50,7 +49,7 @@ document.addEventListener('change', (event) => {
         const dataReceiver = {
             id: parsedData?.id || null,
             company: parsedData?.company || '',
-            tenlienhe: parsedData?.tenlienhe || '',
+            fullname: parsedData?.fullname || '',
             phone: parsedData?.phone || '',
             email: parsedData?.email || '',
             mavung: parsedData?.mavung || '',
@@ -60,6 +59,7 @@ document.addEventListener('change', (event) => {
             city: parsedData?.city || '',
             postcode: parsedData?.postcode || '',
             vsvx: parsedData?.vsvx || false,
+            address: parsedData?.address || '',
         };
 
         $wire.set('receiver', dataReceiver);
