@@ -32,7 +32,7 @@
             @endif
             <div class="space-y-5">
                 <livewire:order.service wire:model="service" :item-services="$itemServices" wire:key="service" />
-                {{-- <livewire:order.packages wire:key="packages" /> --}}
+                <livewire:order.packages wire:model="packages" wire:key="packages" />
             </div>
             {{-- Right Column --}}
            <div class="space-y-5">

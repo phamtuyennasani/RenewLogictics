@@ -1,33 +1,60 @@
 <?php
 
 use Livewire\Component;
+use Livewire\Attributes\Computed;
+
 
 new class extends Component
 {
     public array $packages = [];
-
+    public int $totalNumber = 1;
     public function mount(array $packages = [])
     {
         $this->packages = $packages ?: [
             [
+                'number_of_package' => 1,
                 'package_type' => null,
                 'length' => '',
                 'width' => '',
                 'height' => '',
                 'g_weight' => '',
+                'v_weight' => '',
+                'c_weight' => '',
             ]
         ];
     }
-
+    #[Computed]
+    public function loaikien()
+    {
+        return Cache::remember('loaikien', now()->addDay(), function () {
+            return \App\Models\News::whereType('loaikien')->pluck('namevi', 'id')->toArray();
+        });
+    }
     public function addPackage()
     {
         $this->packages[] = [
+            'number_of_package' => 1,
             'package_type' => null,
             'length' => '',
             'width' => '',
             'height' => '',
             'g_weight' => '',
+            'v_weight' => '',
+            'c_weight' => '',
         ];
+        $this->updateTotal();
+    }
+
+    public function updated($propertyName)
+    {
+        if (str_starts_with($propertyName, 'packages.') && str_ends_with($propertyName, '.number_of_package')) {
+            $this->updateTotal();
+        }
+    }
+
+    protected function updateTotal()
+    {
+        $this->totalNumber = collect($this->packages)->sum('number_of_package');
         $this->dispatch('packagesUpdated', packages: $this->packages);
     }
 
@@ -36,14 +63,8 @@ new class extends Component
         if (count($this->packages) > 1) {
             unset($this->packages[$index]);
             $this->packages = array_values($this->packages);
-            $this->dispatch('packagesUpdated', packages: $this->packages);
+            $this->updateTotal();
         }
-    }
-
-    public function updated($property)
-    {
-        // Chỉ dispatch khi thực sự cần thiết, không phải mỗi lần thay đổi
-        // $this->dispatch('packagesUpdated', packages: $this->packages);
     }
 };
 ?>
@@ -67,69 +88,96 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
 
     <div class="p-6 space-y-4">
         @foreach($packages as $index => $package)
-            <div class="border border-neutral-200 rounded-xl p-4 bg-neutral-50">
+            <div class="border border-neutral-200 rounded-xl p-3 bg-neutral-50">
                 <div class="flex items-center justify-between mb-3">
-                    <span class="text-sm font-medium text-neutral-700">Kiện {{ $index + 1 }}</span>
+                    <span class="text-sm font-medium text-neutral-700">Thông tin kiện</span>
                     @if(count($packages) > 1)
-                        <flux:button wire:click="removePackage({{ $index }})" size="sm" variant="danger">
-                            Xóa
+                        <flux:button wire:click="removePackage({{ $index }})" size="sm" >
+                            <flux:icon.trash variant="mini" color="red" />
                         </flux:button>
                     @endif
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-7 gap-3">
                     <flux:field>
-                        <flux:label badge="Bắt buộc">Dài (cm)</flux:label>
+                        <flux:label badge="*">Số lượng</flux:label>
                         <flux:input
-                            type="number"
-                            step="0.1"
+                            type="text"
+                            required
+                            wire:model.live="packages.{{ $index }}.number_of_package"
+                            placeholder=""
+                            :class:input="$inputClass"
+                            mask:dynamic="Math.max(1, parseInt($input.replace(/\D/g, '')) || 1).toString()"
+                        />
+                    </flux:field>
+                    <flux:field class="col-span-2">
+                        <flux:label badge="*">Loại kiện</flux:label>
+                        <flux:select wire:model="packages.{{ $index }}.package_type" placeholder="Loại kiện">
+                            @foreach($this->loaikien() as $id => $name)
+                                <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                            @endforeach
+                        </flux:select>
+                    </flux:field>
+                    <flux:field>
+                        <flux:label badge="*">Dài (cm)</flux:label>
+                        <flux:input
+                            type="text"
                             required
                             wire:model.blur="packages.{{ $index }}.length"
-                            placeholder="0.0"
+                            placeholder=""
                             :class:input="$inputClass"
+                            mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
-                        @error("packages.{$index}.length")<flux:error>{{ $message }}</flux:error>@enderror
                     </flux:field>
 
                     <flux:field>
-                        <flux:label badge="Bắt buộc">Rộng (cm)</flux:label>
+                        <flux:label badge="*">Rộng (cm)</flux:label>
                         <flux:input
-                            type="number"
-                            step="0.1"
+                            type="text"
                             required
                             wire:model.blur="packages.{{ $index }}.width"
-                            placeholder="0.0"
+                            placeholder=""
                             :class:input="$inputClass"
+                            mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
-                        @error("packages.{$index}.width")<flux:error>{{ $message }}</flux:error>@enderror
                     </flux:field>
 
                     <flux:field>
-                        <flux:label badge="Bắt buộc">Cao (cm)</flux:label>
+                        <flux:label badge="*">Cao (cm)</flux:label>
                         <flux:input
-                            type="number"
-                            step="0.1"
+                            type="text"
                             required
                             wire:model.blur="packages.{{ $index }}.height"
-                            placeholder="0.0"
+                            placeholder=""
                             :class:input="$inputClass"
+                            mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
-                        @error("packages.{$index}.height")<flux:error>{{ $message }}</flux:error>@enderror
                     </flux:field>
 
                     <flux:field>
-                        <flux:label badge="Bắt buộc">Trọng lượng (kg)</flux:label>
+                        <flux:label badge="*">Cân nặng KG</flux:label>
                         <flux:input
-                            type="number"
-                            step="0.1"
+                            type="text"
                             required
                             wire:model.blur="packages.{{ $index }}.g_weight"
-                            placeholder="0.0"
+                            placeholder=""
                             :class:input="$inputClass"
+                            mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
-                        @error("packages.{$index}.g_weight")<flux:error>{{ $message }}</flux:error>@enderror
                     </flux:field>
+                    
                 </div>
             </div>
         @endforeach
+        <div class="grid grid-cols-2 gap-3">
+            <div class="">
+                <div class="text-sm text-gray-500 flex items-center gap-2">
+                    Tổng số kiện: 
+                    <div class="inline-flex max-w-[100px]">
+                        <flux:input type="text" readonly variant="filled" wire:model="totalNumber" />
+                    </div>
+                </div>
+            </div>
+            <div class=""></div>
+        </div>
     </div>
 </div>
