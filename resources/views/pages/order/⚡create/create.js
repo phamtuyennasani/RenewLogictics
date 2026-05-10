@@ -13,7 +13,28 @@ function syncSenderLocation(dataSender) {
         }, 300);
     }, 100);
 }
-
+window.syncSenderLocation = syncSenderLocation;
+document.getElementById('danhsachgui-select')?.addEventListener('change', (event) => {
+    const selectedOption = event.target.options[event.target.selectedIndex];
+    const dataAttr = selectedOption?.getAttribute('data-attr');
+    const parsedData = dataAttr ? JSON.parse(dataAttr) : null;
+    const dataSender = {
+        id: parsedData?.id || null,
+        company: parsedData?.company_name || '',
+        company_short_name: parsedData?.company_short_name || '',
+        fullname: parsedData?.fullname || '',
+        phone: parsedData?.phone || '',
+        email: parsedData?.email || '',
+        address: parsedData?.address || '',
+        id_city: parsedData?.city_id || null,
+        id_ward: parsedData?.ward_id || null,
+        type: parsedData?.type || null,
+        country: 'VIETNAM',
+    };
+    $wire.set('sender', dataSender).then(() => {
+        syncSenderLocation(dataSender);
+    });
+});
 document.addEventListener('change', (event) => {
     const senderSelect = event.target.closest('#sender-select');
     if (senderSelect) {
@@ -33,14 +54,12 @@ document.addEventListener('change', (event) => {
             type: parsedData?.type || null,
             country: 'VIETNAM',
         };
-        const nextIdCtv = $wire.fixedIdCtv || dataSender.id || null;
-        $wire.set('idCtv', nextIdCtv);
+        $wire.set('idCustomer', dataSender.id||0);
         $wire.set('sender', dataSender).then(() => {
             syncSenderLocation(dataSender);
         });
         return;
     }
-
     const receiverSelect = event.target.closest('#receiver-select');
     if (receiverSelect) {
         const selectedOption = receiverSelect.options[receiverSelect.selectedIndex];

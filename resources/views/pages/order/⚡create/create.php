@@ -15,11 +15,11 @@ use App\Models\News;
 new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Component
 {
     public ?int $idSale = null;
-    public ?int $idCtv = null;
     public ?int $idCustomer = null;
     public $listSale = [];
-    public $listSender = [];
+    public $listCustomer = [];
     public $listReceiver = [];
+    public $listSender = [];
     public $itemServices;
 
     public array $service = [
@@ -95,7 +95,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             ->toArray();
 
         if ($this->idSale) {
-            $this->loadSendersBySale($this->idSale);
+            $this->loadCustomersBySale($this->idSale);
         }
         $this->syncReceivers();
 
@@ -134,9 +134,9 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     }
     #[On('receiverUpdated')]
     public function handleReceiverUpdated(): void{
-        if($this->receiver['postcode'] ?? null) {
-            $this->receiver['vsvx'] = true;
-        }
+        // if($this->receiver['postcode'] ?? null) {
+        //     $this->receiver['vsvx'] = true;
+        // }
     }
     #[On('packagesUpdated')]
     public function handlePackagesUpdated($packages): void{
@@ -281,9 +281,9 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         $this->receiver = $this->defaultReceiver();
     }
 
-    protected function loadSendersBySale(int $saleId): void
+    protected function loadCustomersBySale(int $saleId): void
     {
-        $this->listSender = User::query()
+        $this->listCustomer = User::query()
             ->select([
                 'user.id',
                 'user.fullname',
@@ -308,12 +308,12 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             ->toArray();
     }
 
-    protected function refreshSenderSelectOptions(): void
+    protected function refreshCustomerSelectOptions(): void
     {
         $this->js("
             let listCTV = " . json_encode(array_map(function($item) {
                 return "<option value='{$item['id']}' data-attr='" . htmlentities(json_encode($item)) . "'>AccNo. {$item['code']} - {$item['fullname']} - {$item['phone']} - {$item['email']} - {$item['company_name']}</option>";
-            }, $this->listSender)) . ";
+            }, $this->listCustomer)) . ";
             listCTV.unshift(\"<option value='0'>Người Gửi Mới</option>\");
             let senderSelect = document.getElementById('sender-select');
             if (senderSelect) {
@@ -353,27 +353,40 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             })
             ->toArray();
     }
-
-    protected function loadReceiversByCtv(int $ctvId): void
+    protected function loadReceiversByCtv(int $ctvId, string $ctvType): void
     {
         $this->listReceiver = Member::query()
-            ->receiver()
-            ->where('id_ctv', $ctvId)
+            ->select([
+                'id',
+                'company_name',
+                'fullname',
+                'phone',
+                'email',
+                'country_id',
+                'address',
+                'state',
+                'cities',
+                'postcode',
+                'options',
+            ])
+            ->where(($ctvType=='khachhang'?'id_ctv':'id_sender'), $this->sender['id'])
+            ->where('type', 'receiver')
             ->orderBy('fullname')
             ->get()
             ->map(function (Member $member) {
+                $options = $member->options ?? [];
                 return [
                     'id' => $member->id,
                     'company' => $member->company_name,
                     'fullname' => $member->fullname,
                     'phone' => $member->phone,
                     'email' => $member->email,
-                    'mavung' => $member->options['mavung'] ?? '',
-                    'country_id' => $member->options['id_country'] ?? $member->country_id,
-                    'address' => $member->options['address'] ?? $member->address,
-                    'state' => $member->options['state'] ?? $member->state,
-                    'city' => $member->options['city'] ?? $member->cities,
-                    'postcode' => $member->options['postcode'] ?? $member->postcode,
+                    'mavung' => $options['mavung'] ?? '',
+                    'country_id' => $options['id_country'] ?? $member->country_id,
+                    'address' => $options['address'] ?? $member->address,
+                    'state' => $options['state'] ?? $member->state,
+                    'city' => $options['city'] ?? $member->cities,
+                    'postcode' => $options['postcode'] ?? $member->postcode,
                     'vsvx' => false,
                 ];
             })
@@ -410,9 +423,8 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     protected function syncReceivers(): void
     {
         $this->resetReceiver();
-        if ($this->idCtv) {
-            
-            $this->loadReceiversByCtv($this->idCtv);
+        if ($this->sender['id']) {
+            $this->loadReceiversByCtv($this->sender['id'],$this->sender['type']);
         } elseif ($this->idSale) {
             $this->loadReceiversBySale($this->idSale);
         } else {
@@ -428,30 +440,110 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             $this->idSale = $user->hasRole('sale') ? $user->id : $user->id_sale;
             return;
         }
-
         $this->resetSender();
-        $this->idCtv = $this->fixedIdCtv;
+        $this->listSender = [];
         if (!$value) {
-            $this->listSender = [];
-            $this->refreshSenderSelectOptions();
+            $this->listCustomer = [];
+            $this->refreshCustomerSelectOptions();
             $this->syncReceivers();
             return;
         }
-        $this->loadSendersBySale((int) $value);
-        $this->refreshSenderSelectOptions();
+        $this->loadCustomersBySale((int) $value);
+        $this->refreshCustomerSelectOptions();
         $this->syncReceivers();
     }
-
-    public function updatingIdCtv($value): void
-    {
-        $user = auth()->user();
-        if ($user->hasRole('ctv')) {
-            $this->idCtv = $user->id;
-            $this->fixedIdCtv = $user->id;
-            return;
+    protected function syncDanhSachGui(): void{
+        if(empty($this->sender['id'])) $this->listSender = [];
+        else{
+            $CustomerSelected = User::query()
+                ->select([
+                    'id',
+                    'fullname',
+                    'username',
+                    'code',
+                    'email',
+                    'phone',
+                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.company.company_name')) as company_name"),
+                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.company.company_short_name')) as company_short_name"),
+                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.company.address_detail')) as address"),
+                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.company.city_id')) as city_id"),
+                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.company.ward_id')) as ward_id"),
+                    DB::raw("'khachhang' as type")
+                ])
+                ->whereKey($this->sender['id'])
+                ->first();
+            $this->listSender = Member::query()
+                ->select([
+                    'id',
+                    'company_name',
+                    'fullname',
+                    'phone',
+                    'email',
+                    'code',
+                    'address',
+                    'id_ward',
+                    DB::raw("id_province as city_id"),
+                ])
+                ->where('type', 'sender')
+                ->where('id_sale', $this->idSale)
+                ->where(function($q){
+                    $q->where('id_ctv', $this->sender['id'])->orWhere('id_sender', $this->sender['id']);
+                })
+                ->orderBy('company_name')
+                ->get()
+                ->map(function (Member $member) {
+                    return [
+                        'id' => $member->id,
+                        'company_name' => $member->company_name,
+                        'fullname' => $member->fullname,
+                        'phone' => $member->phone,
+                        'email' => $member->email,
+                        'country' =>'VIETNAM',
+                        'address' =>$member->address,
+                        'city_id' =>$member->city_id,
+                        'ward_id' =>$member->id_ward,
+                        'type'  => 'sender',
+                    ];
+                })
+                ->toArray();
+            $this->listSender = array_merge(
+                $CustomerSelected ? [[
+                    'id' => $CustomerSelected->id,
+                    'company_name' => $CustomerSelected->company_name,
+                    'fullname' => $CustomerSelected->fullname,
+                    'phone' => $CustomerSelected->phone,
+                    'email' => $CustomerSelected->email,
+                    'country' =>'VIETNAM',
+                    'address' =>$CustomerSelected->address,
+                    'city_id' =>$CustomerSelected->city_id,
+                    'ward_id' =>$CustomerSelected->ward_id,
+                    'type'  => 'khachhang',
+                ]] : [],
+                $this->listSender
+            );
         }
-
-        $this->idCtv = $value ? (int) $value : $this->fixedIdCtv;
+        $this->js("
+            let listDanhSachGui = " . json_encode(array_map(function($item) {
+                return "<option value='{$item['id']}' data-attr='" . htmlentities(json_encode($item)) . "'>{$item['company_name']} - {$item['phone']} - {$item['email']} - {$item['fullname']}</option>";
+            }, $this->listSender)) . ";
+            let senderSelect = document.getElementById('danhsachgui-select');
+            if (senderSelect) {
+                senderSelect.innerHTML = listDanhSachGui;
+                if (typeof TomSelect !== 'undefined' && senderSelect.tomselect) {
+                    senderSelect.tomselect.clear();
+                    senderSelect.tomselect.clearOptions();
+                    senderSelect.tomselect.sync();
+                }
+            }
+        ");
+    }
+    public function updatedIdCustomer(): void
+    {
+        $this->syncDanhSachGui();
+        $this->syncReceivers();
+    }
+    public function updatedSender(): void
+    {
         $this->syncReceivers();
     }
     

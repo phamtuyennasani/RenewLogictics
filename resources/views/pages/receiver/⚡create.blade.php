@@ -127,7 +127,7 @@ new class extends Component {
         $this->senders = $query->orderBy('company_name')
             ->get(['id', 'company_name', 'code'])
             ->mapWithKeys(fn ($s) => [
-                $s->id => trim($s->company_name . ($s->code ? ' (' . $s->code . ')' : ''))
+                $s->id => trim($s->company_name)
             ])
             ->toArray();
     }

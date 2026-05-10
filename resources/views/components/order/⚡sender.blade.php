@@ -3,29 +3,46 @@
 use Livewire\Component;
 use Livewire\Attributes\Modelable;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Reactive;
 use App\Models\Province;
+use App\Models\Ward;
 new class extends Component
 {
-    public $listSender;
+    public $listCustomer;
+    #[Reactive]
+    public $listSender = [];
+    public $showSelectSender = false;
     #[Modelable]
     public $sender;
     public $idSale;
-    public function mount($listSender, $idSale){
+    public function mount($listCustomer, $listSender, $idSale){
+        $this->listCustomer = $listCustomer;
         $this->listSender = $listSender;
         $this->idSale = $idSale;
     }
+
+    public function toggleSelectSender()
+    {
+        $this->showSelectSender = !$this->showSelectSender;
+    }
+
     #[Computed]
     public function citys()
     {
-        return Province::all();
+        return Cache::remember('citys', now()->addDay(), function () {
+            return Province::all()->pluck('name', 'id')->toArray();
+        });
     }
+    #[Computed]
     public function wards()
     {
         if (!$this->sender['id_city']) {
-            return collect([]);
+            return [];
         }
-        $city = Province::find($this->sender['id_city']);
-        return $city ? $city->wards : collect([]);
+        return Ward::select('id', 'name')->where('parent_code', $this->sender['id_city'])
+            ->get()
+            ->pluck('name', 'id')
+            ->toArray();
     }
 };
 ?>
@@ -50,7 +67,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     <flux:label>Chọn người gủi từ danh sách có sẵn</flux:label>
                     <select data-template='custom-sender' class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="sender-select" autocomplete="off">
                         <option value=0>Người Gửi Mới</option>
-                        @foreach($listSender as $item)
+                        @foreach($listCustomer as $item)
                             <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">AccNo. {{ $item['code'] }} - {{ $item['fullname'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['company_name'] }} </option>
                         @endforeach
                     </select>
@@ -58,13 +75,34 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
             </div>
             <flux:field>
                 <flux:label badge="Bắt buộc">Tên công ty / Khách hàng</flux:label>
-                <flux:input
-                    type="text"
-                    required
-                    wire:model.blur="sender.company"
-                    placeholder="Tên công ty / Khách hàng"
-                    :class:input="$inputClass"
-                />
+                <div class="relative">
+                    <flux:input
+                        type="text"
+                        required
+                        wire:model.blur="sender.company"
+                        placeholder="Tên công ty / Khách hàng"
+                        :class:input="$inputClass"
+                    >
+                    @if(!empty($listSender))
+                    <x-slot name="iconTrailing">
+                        <flux:button
+                            wire:click="toggleSelectSender"
+                            size="sm"
+                            type="button"
+                            variant="subtle"
+                            :icon="$showSelectSender ? 'chevron-up' : 'chevron-down'"
+                            class="-mr-1 cursor-pointer" />
+                    </x-slot>
+                    @endif
+                    </flux:input>
+                    <div class="select-hidden absolute top-full p-2 bg-white shadow-sm left-0 z-10 w-full" wire:ignore wire:show="showSelectSender" >
+                        <select data-template='custom-danhsachgui' wire:change="toggleSelectSender" class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="danhsachgui-select" autocomplete="off">
+                            @foreach($listSender as $item)
+                                <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">{{ $item['company_name'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['fullname'] }} </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
             </flux:field>
             <div class="grid grid-cols-3 gap-5">
                 <flux:field>
@@ -124,7 +162,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     <flux:label badge="Bắt buộc">Thành phố/Tỉnh</flux:label>
                     <x-select-search
                         name="sender.id_city"
-                        :options="$this->citys()->pluck('name', 'id')->toArray()"
+                        :options="$this->citys"
                         :selected="$sender['id_city'] ?? null"
                         placeholder="-- Chọn thành phố/tỉnh --"
                     />
@@ -133,10 +171,10 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     <flux:label badge="Bắt buộc">Phường/Xã</flux:label>
                     <x-select-search
                         name="sender.id_ward"
-                        :options="$this->wards()->pluck('name', 'id')->toArray()"
+                        :options="$this->wards"
                         :selected="$sender['id_ward'] ?? null"
                         placeholder="-- Chọn phường/xã --"
-                        :disabled="$this->wards()->isEmpty()"
+                        :disabled="empty($sender['id_city'])"
                     />
                 </flux:field>
             </div>

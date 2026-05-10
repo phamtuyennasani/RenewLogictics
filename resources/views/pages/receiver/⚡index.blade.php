@@ -184,14 +184,12 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                 </div>
                             </label>
                         </th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Mã</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Công ty</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Họ và tên</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Email</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">SĐT</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Sale</th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">CTV</th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Sender</th>
+                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Khách hàng phụ trách</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Quốc gia</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center w-28">Thao tác</th>
                     </tr>
@@ -209,8 +207,10 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                     </div>
                                 </label>
                             </td>
-                            <td class="px-4 py-3.5"><span class="text-sm font-mono text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">{{ $v->code ?? '—' }}</span></td>
-                            <td class="px-4 py-3.5 text-sm font-medium text-neutral-700">{{ $v->company_name ?? '—' }}</td>
+                            <td class="px-4 py-3.5 text-sm font-medium text-neutral-700">
+                                <p>{{ $v->company_name ?? '—' }}</p>
+                                <p class="text-xs text-neutral-400">{{ $v->address ?? '—' }}</p>
+                            </td>
                             <td class="px-4 py-3.5 text-sm font-medium text-neutral-700">{{ $v->fullname ?? '—' }}</td>
                             <td class="px-4 py-3.5 text-sm text-neutral-600">{{ $v->email ?? '—' }}</td>
                             <td class="px-4 py-3.5 text-sm text-neutral-600">{{ $v->phone ?? '—' }}</td>
@@ -226,14 +226,6 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                 @if($v->ctv)
                                     <p class="text-sm text-neutral-700">{{ $v->ctv->fullname ?: $v->ctv->username }}</p>
                                     <p class="text-xs text-neutral-400">{{ $v->ctv->code ?: '—' }}</p>
-                                @else
-                                    <span class="text-sm text-neutral-400">—</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3.5">
-                                @if($v->sender)
-                                    <p class="text-sm text-neutral-700">{{ $v->sender->company_name }}</p>
-                                    <p class="text-xs text-neutral-400">{{ $v->sender->code ?: '—' }}</p>
                                 @else
                                     <span class="text-sm text-neutral-400">—</span>
                                 @endif

@@ -184,15 +184,12 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                 </div>
                             </label>
                         </th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Mã</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Công ty</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Họ và tên</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Email</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">SĐT</th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Sale</th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">CTV</th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Địa chỉ</th>
-                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center">Trạng thái</th>
+                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Sale phụ trách</th>
+                        <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Khách hàng phụ trách</th>
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center w-28">Thao tác</th>
                     </tr>
                 </thead>
@@ -209,8 +206,10 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                     </div>
                                 </label>
                             </td>
-                            <td class="px-4 py-3.5"><span class="text-sm font-mono text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded">{{ $v->code ?? '—' }}</span></td>
-                            <td class="px-4 py-3.5 text-sm font-medium text-neutral-700">{{ $v->company_name ?? '—' }}</td>
+                            <td class="px-4 py-3.5 text-sm font-medium text-neutral-700">
+                                <p>{{ $v->company_name ?? '—' }}</p>
+                                <p class="text-xs text-neutral-400">{{ $v->address ?? '—' }}</p>
+                            </td>
                             <td class="px-4 py-3.5 text-sm font-medium text-neutral-700">{{ $v->fullname ?? '—' }}</td>
                             <td class="px-4 py-3.5 text-sm text-neutral-600">{{ $v->email ?? '—' }}</td>
                             <td class="px-4 py-3.5 text-sm text-neutral-600">{{ $v->phone ?? '—' }}</td>
@@ -230,21 +229,8 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                     <span class="text-sm text-neutral-400">—</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3.5">
-                                @if($v->province || $v->ward)
-                                    <p class="text-sm text-neutral-700">{{ $v->ward?->name }}</p>
-                                    <p class="text-xs text-neutral-400">{{ $v->province?->name }}</p>
-                                @else
-                                    <span class="text-sm text-neutral-400">—</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3.5 text-center">
-                                @if ($v->status == 1)
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Kích hoạt</span>
-                                @else
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-neutral-100 text-neutral-500"><span class="w-1.5 h-1.5 rounded-full bg-neutral-400"></span>Chưa kích hoạt</span>
-                                @endif
-                            </td>
+                           
+                            
                             <td class="px-4 py-3.5">
                                 <div class="flex items-center justify-center gap-1">
                                     <a href="{{ route('sender.edit', ['uuid' => $v->uuid]) }}" wire:navigate class="p-2 rounded-lg text-neutral-400 hover:text-primary-600 hover:bg-primary-50 transition-all" title="Chỉnh sửa">

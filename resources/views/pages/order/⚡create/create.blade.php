@@ -36,8 +36,8 @@
             </div>
             {{-- Right Column --}}
            <div class="space-y-5">
-                <livewire:order.sender wire:model="sender" :listSender="$listSender" :idSale="$idSale" wire:key="sender" />
-                <livewire:order.receiver wire:model="receiver" :list-receiver="$listReceiver" :id-sale="$idSale" :id-ctv="$idCtv" wire:key="receiver" />
+                <livewire:order.sender wire:model="sender" :list-customer="$listCustomer" :list-sender="$listSender" :id-sale="$idSale" wire:key="sender" />
+                <livewire:order.receiver wire:model="receiver" :list-receiver="$listReceiver" :id-sale="$idSale" :sender-id="$this->sender['id']" wire:key="receiver" />
                 <div class="bg-white rounded-lg p-5">
                     <h2 class="text-main-1 font-medium mb-4">Ghi chú</h2>
                     <textarea wire:model="notes" rows="4" class="w-full border border-neutral-200 rounded-lg p-3" placeholder="Nhập ghi chú cho đơn hàng..."></textarea>

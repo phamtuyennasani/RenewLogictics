@@ -9,7 +9,7 @@ new class extends Component
     public $receiver;
     public $listReceiver = [];
     public $idSale;
-    public $idCtv;
+    public $SenderID;
 
     #[Computed]
     public function countries(){
@@ -33,7 +33,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
     </div>
 
     <div class="p-6 space-y-5">
-        <div wire:ignore wire:key="select-receiver-{{ $idSale ?? 'none' }}-{{ $idCtv ?? 'none' }}">
+        <div wire:ignore wire:key="select-receiver-{{ $idSale ?? 'none' }}-{{ $SenderID ?? 'none' }}">
             <flux:field>
                 <flux:label>Chọn người nhận từ danh sách có sẵn</flux:label>
                 <select data-template="custom-receiver" class="tomselectEml tomselectEml-getReceiver" id="receiver-select" data-placeholder="Người Nhận Mới" autocomplete="off">

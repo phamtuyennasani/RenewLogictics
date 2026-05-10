@@ -92,7 +92,7 @@ new class extends Component
         </div>
 
         {{-- Dịch vụ đi kèm (Multiple checkboxes) --}}
-       
+        @if(!empty($dichvudikemOptions))
         <flux:checkbox.group label="Dịch vụ đi kèm:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.dichvudikem">
             @foreach($dichvudikemOptions as $option)
             <flux:checkbox value="{{ $option['id'] }}">
@@ -103,6 +103,7 @@ new class extends Component
             </flux:checkbox>
             @endforeach
         </flux:checkbox.group>
+        @endif
         {{-- Loại bưu gửi (Radio - single selection) --}}
         <flux:radio.group label="Loại bưu gửi:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.loaibuugui">
             @foreach($loaibuuguiOptions as $k => $option)

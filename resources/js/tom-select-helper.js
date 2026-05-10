@@ -37,6 +37,16 @@ function buildTomSelectOptions(select) {
             return "<div><p class='!line-clamp-1 mb-0'><b>"+ escape(parsedData.company || '') + '</b> - <b>' + escape(parsedData.phone || '') + '</b> - ' + escape(parsedData.postcode || '') +' - ' + escape(parsedData.address || '') + '</p></div>';
         };
     }
+    if (template === 'custom-danhsachgui') {
+        renderItem = function (data, escape) {
+            const dataAttr = select.querySelector(`option[value="${data.value}"]`)?.getAttribute('data-attr');
+            if(dataAttr==null) {
+                return renderDefaultItem(data, escape);
+            }
+            const parsedData = JSON.parse(dataAttr);
+            return "<div><p class='!line-clamp-1 mb-0'><b>" + escape(parsedData.company_name || '') + '</b> - ' + escape(parsedData.phone || '') + ' - ' + escape(parsedData.address || '') + '</p></div>';
+        };
+    }
     return {
         plugins: ['dropdown_input'],
         placeholder,
