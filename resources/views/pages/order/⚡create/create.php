@@ -12,6 +12,8 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Models\News;
+use Livewire\Attributes\Locked;
+
 new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Component
 {
     public ?int $idSale = null;
@@ -69,21 +71,20 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public bool $saveInfoSender = false;
     public bool $saveInfoReceiver = false;
     public bool $agreedToTerms = false;
-    public float $dim = 6000;
     public bool $showSaleSelector = true;
-    public ?int $fixedIdCtv = null;
+    #[Locked]
+    public float $dim;
 
     public function mount(): void
     {
         $user = auth()->user();
-
+        $this->dim = \App\Models\Setting::selectRaw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.dim')) as dim")->value('dim');
         if ($user->hasRole('sale')) {
             $this->idSale = $user->id;
             $this->showSaleSelector = false;
         } elseif ($user->hasRole('ctv')) {
-            $this->idCtv = $user->id;
-            $this->fixedIdCtv = $user->id;
-            $this->dim = $user->options['dim'] ?? 6000;
+            $this->idCustomer = $user->id;
+            $this->dim = $user->options['dim'] ?? $this->dim;
             $this->idSale = $user->id_sale;
             $this->showSaleSelector = false;
         }
@@ -172,7 +173,6 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         if ($user->hasRole('ctv')) {
             $this->idSale = $user->id_sale;
             $this->idCtv = $user->id;
-            $this->fixedIdCtv = $user->id;
             return;
         }
 
@@ -211,24 +211,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             return;
         }
         try {
-            DB::beginTransaction();
-            $formData = new OrderFormData(
-                idSale: $this->idSale,
-                idCtv: $this->idCtv,
-                idCustomer: $this->idCustomer,
-                service: $this->service,
-                sender: $this->sender,
-                receiver: $this->receiver,
-                packages: $this->packages,
-                notes: $this->notes,
-                saveInfoSender: $this->saveInfoSender,
-                saveInfoReceiver: $this->saveInfoReceiver,
-                dim: $this->dim,
-            );
-            $order = app(CreateOrderAction::class)->execute($formData);
-            DB::commit();
-            session()->flash('success', "Tạo đơn hàng {$order->id_bill} thành công!");
-            redirect()->route('orders.show', $order->id);
+           
         } catch (\Exception $e) {
             DB::rollBack();
             $this->addError('submit', 'Có lỗi xảy ra: ' . $e->getMessage());

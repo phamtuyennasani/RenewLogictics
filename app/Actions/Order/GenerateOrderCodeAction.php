@@ -10,11 +10,11 @@ class GenerateOrderCodeAction
     /**
      * Generate order code với DB transaction lock
      * Thread-safe khi nhiều user cùng thao tác
-     * Format: AVN{YYMMDD}{NNN}
+     * Format: BEE{YYMMDD}{NNN}
      */
     public function execute(): string
     {
-        $prefix = 'AVN' . now()->format('ymd');
+        $prefix = 'BEE' . now()->format('ymd');
 
         return DB::transaction(function () use ($prefix) {
             // Lock row cuối cùng có cùng prefix để prevent race condition

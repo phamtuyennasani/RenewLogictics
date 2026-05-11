@@ -10,23 +10,21 @@ class CalculateChargeableWeightAction
      * @param float $length Length in cm
      * @param float $width Width in cm
      * @param float $height Height in cm
-     * @param float $grossWeight Gross weight in kg
+     * @param float $gWeight Gross weight in kg
      * @param float $dim DIM factor (default 6000)
      * @return array ['v_weight' => float, 'c_weight' => float]
      */
-    public function execute(
+    public static function execute(
         float $length,
         float $width,
         float $height,
-        float $grossWeight,
+        float $gWeight,
         float $dim = 6000
     ): array {
         // Calculate volumetric weight
         $vWeight = ($length * $width * $height) / $dim;
-
         // Chargeable weight is the greater of volumetric or gross weight
-        $cWeight = max($vWeight, $grossWeight);
-
+        $cWeight = max($vWeight, $gWeight);
         // Apply rounding rules
         if ($cWeight < 21) {
             // Under 21kg: round to nearest 0.5kg
