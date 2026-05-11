@@ -5,6 +5,7 @@
     'placeholder' => '-- Chọn --',
     'search' => true,
     'disabled' => false,
+    'required' => false,
 ])
 @php
     $tomSelectOptions = collect($options)
@@ -19,7 +20,8 @@
         placeholder: @js($placeholder),
         disabled: @js($disabled),
     })"
+    data-js-required="{{ $required ? 'true' : 'false' }}"
     wire:ignore
 >
-    <select x-ref="select" autocomplete="off"></select>
+    <select x-ref="select" autocomplete="off" @if($required) required @endif></select>
 </div>

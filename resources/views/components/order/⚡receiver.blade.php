@@ -1,8 +1,9 @@
 <?php
 
-use Livewire\Component;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Modelable;
+use Livewire\Component;
+
 new class extends Component
 {
     #[Modelable]
@@ -12,7 +13,8 @@ new class extends Component
     public $SenderID;
 
     #[Computed]
-    public function countries(){
+    public function countries()
+    {
         return \App\Models\Country::all();
     }
 };
@@ -20,6 +22,7 @@ new class extends Component
 
 @php
 $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text-neutral-400 focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500';
+$inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
 @endphp
 
 <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm">
@@ -46,6 +49,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 </select>
             </flux:field>
         </div>
+
         <flux:field>
             <flux:label badge="Bắt buộc">Tên công ty nhận</flux:label>
             <flux:input
@@ -53,9 +57,13 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 required
                 wire:model.blur="receiver.company"
                 placeholder="Tên công ty"
-                :class:input="$inputClass"
+                :class:input="$errors->has('receiver.company') ? $inputClass.' '.$inputErrorClass : $inputClass"
             />
+            @error('receiver.company')
+                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            @enderror
         </flux:field>
+
         <div class="grid grid-cols-3 gap-5">
             <flux:field>
                 <flux:label badge="Bắt buộc">Tên người nhận</flux:label>
@@ -64,9 +72,13 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     required
                     wire:model.blur="receiver.fullname"
                     placeholder="Tên người nhận"
-                    :class:input="$inputClass"
+                    :class:input="$errors->has('receiver.fullname') ? $inputClass.' '.$inputErrorClass : $inputClass"
                 />
+                @error('receiver.fullname')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </flux:field>
+
             <flux:field>
                 <flux:label badge="Bắt buộc">Số điện thoại</flux:label>
                 <flux:input
@@ -74,10 +86,14 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     required
                     wire:model.blur="receiver.phone"
                     placeholder="Số điện thoại"
-                    :class:input="$inputClass"
+                    :class:input="$errors->has('receiver.phone') ? $inputClass.' '.$inputErrorClass : $inputClass"
                     mask:dynamic="$input.startsWith('+') ? '+' + '9'.repeat(15) : '9'.repeat(15)"
                 />
+                @error('receiver.phone')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </flux:field>
+
             <flux:field>
                 <flux:label>Email</flux:label>
                 <flux:input
@@ -87,6 +103,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     :class:input="$inputClass"
                 />
             </flux:field>
+
             <flux:field>
                 <flux:label badge="Bắt buộc">Quốc gia</flux:label>
                 <x-select-search
@@ -95,16 +112,21 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     placeholder="-- Chọn quốc gia --"
                 />
             </flux:field>
+
             <flux:field class="col-span-2">
                 <flux:label badge="Bắt buộc">Địa chỉ</flux:label>
                 <flux:input
                     wire:model.blur="receiver.address"
                     required
                     placeholder="Địa chỉ chi tiết"
-                    :class:input="$inputClass"
+                    :class:input="$errors->has('receiver.address') ? $inputClass.' '.$inputErrorClass : $inputClass"
                 />
+                @error('receiver.address')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </flux:field>
         </div>
+
         <div class="grid grid-cols-3 gap-5">
             <flux:field>
                 <flux:label badge="Bắt buộc">Tỉnh / Bang</flux:label>
@@ -113,9 +135,13 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     required
                     wire:model.blur="receiver.state"
                     placeholder="Tỉnh / Bang"
-                    :class:input="$inputClass"
+                    :class:input="$errors->has('receiver.state') ? $inputClass.' '.$inputErrorClass : $inputClass"
                 />
+                @error('receiver.state')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </flux:field>
+
             <flux:field>
                 <flux:label badge="Bắt buộc">Thành phố</flux:label>
                 <flux:input
@@ -123,9 +149,13 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     required
                     wire:model.blur="receiver.city"
                     placeholder="Thành phố"
-                    :class:input="$inputClass"
+                    :class:input="$errors->has('receiver.city') ? $inputClass.' '.$inputErrorClass : $inputClass"
                 />
+                @error('receiver.city')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </flux:field>
+
             <flux:field>
                 <flux:label badge="Bắt buộc">Postcode</flux:label>
                 <flux:input
@@ -133,7 +163,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     required
                     wire:model.blur="receiver.postcode"
                     placeholder="Mã bưu chính"
-                    :class:input="$inputClass"
+                    :class:input="$errors->has('receiver.postcode') ? $inputClass.' '.$inputErrorClass : $inputClass"
                     x-on:keyup.debounce.200ms="$wire.$dispatch('receiverUpdated')"
                 >
                 @if(($receiver['vsvx'] ?? false) === true)
@@ -144,6 +174,9 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 </x-slot>
                 @endif
                 </flux:input>
+                @error('receiver.postcode')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </flux:field>
         </div>
     </div>

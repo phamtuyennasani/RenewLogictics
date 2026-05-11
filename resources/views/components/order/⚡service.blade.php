@@ -1,8 +1,7 @@
 <?php
 
-use Livewire\Component;
-
 use Livewire\Attributes\Modelable;
+use Livewire\Component;
 
 new class extends Component
 {
@@ -19,13 +18,14 @@ new class extends Component
     public array $hinhthucguihangOptions = [];
     public array $deliverytermOptions = [];
     public array $tinhtrangdonOptions = [];
-    public function mount()
+
+    public function mount(): void
     {
         $this->loadOptions();
     }
-    protected function loadOptions()
-    {
 
+    protected function loadOptions(): void
+    {
         $itemServices = collect($this->itemServices);
         $this->dichvuOptions = $itemServices->where('type', 'dichvuchinh')->values()->all();
         $this->dichvuChitietOptions = $itemServices->where('type', 'dichvuchitiet')->values()->all();
@@ -37,11 +37,13 @@ new class extends Component
         $this->deliverytermOptions = $itemServices->where('type', 'deliveryterm')->values()->all();
         $this->tinhtrangdonOptions = $itemServices->where('type', 'tinhtrangdon')->values()->all();
     }
-    public function updatedService()
-    {
-    }
 };
 ?>
+
+@php
+$selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
+@endphp
+
 <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm">
     <div class="px-6 py-5 border-b border-neutral-100">
         <h2 class="text-sm font-semibold text-neutral-700 uppercase tracking-wide flex items-center gap-2">
@@ -51,12 +53,12 @@ new class extends Component
             Dịch vụ
         </h2>
     </div>
+
     <div class="p-6 space-y-5">
         <div class="grid grid-cols-3 gap-3">
-            
             <flux:field>
                 <flux:label badge="Bắt buộc">Dịch vụ chính</flux:label>
-                <div wire:ignore>
+                <div wire:ignore @class([$selectErrorClass => $errors->has('service.id_dichvu')])>
                     <select class="tomselectEml" data-placeholder="Chọn dịch vụ" wire:model.live="service.id_dichvu" required autocomplete="off">
                         <option value="">-- Chọn dịch vụ --</option>
                         @foreach($dichvuOptions as $option)
@@ -64,6 +66,9 @@ new class extends Component
                         @endforeach
                     </select>
                 </div>
+                @error('service.id_dichvu')
+                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                @enderror
             </flux:field>
 
             <flux:field>
@@ -91,22 +96,21 @@ new class extends Component
             </flux:field>
         </div>
 
-        {{-- Dịch vụ đi kèm (Multiple checkboxes) --}}
         @if(!empty($dichvudikemOptions))
         <flux:checkbox.group label="Dịch vụ đi kèm:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.dichvudikem">
             @foreach($dichvudikemOptions as $option)
             <flux:checkbox value="{{ $option['id'] }}">
                 <div class="flex items-center gap-2">
-                    <flux:checkbox.indicator  />
+                    <flux:checkbox.indicator />
                     <span class="text-sm">{{ $option['namevi'] }}</span>
                 </div>
             </flux:checkbox>
             @endforeach
         </flux:checkbox.group>
         @endif
-        {{-- Loại bưu gửi (Radio - single selection) --}}
+
         <flux:radio.group label="Loại bưu gửi:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.loaibuugui">
-            @foreach($loaibuuguiOptions as $k => $option)
+            @foreach($loaibuuguiOptions as $option)
             <flux:radio value="{{ $option['id'] }}">
                 <div class="flex items-center gap-2">
                     <flux:radio.indicator />
@@ -115,7 +119,7 @@ new class extends Component
             </flux:radio>
             @endforeach
         </flux:radio.group>
-        {{-- Lý do gửi hàng (Radio - single selection) --}}
+
         <flux:radio.group label="Lý do gửi hàng:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.lydoguihang">
             @foreach($lydoguihangOptions as $option)
             <flux:radio value="{{ $option['id'] }}">
@@ -126,7 +130,7 @@ new class extends Component
             </flux:radio>
             @endforeach
         </flux:radio.group>
-        {{-- Hình thức gửi hàng (Radio - single selection) --}}
+
         <flux:radio.group label="Hình thức gửi hàng:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.hinhthucguihang">
             @foreach($hinhthucguihangOptions as $option)
             <flux:radio value="{{ $option['id'] }}">
@@ -137,7 +141,7 @@ new class extends Component
             </flux:radio>
             @endforeach
         </flux:radio.group>
-        {{-- Delivery Term (Radio - single selection) --}}
+
         <flux:radio.group label="Delivery Term:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.deliveryterm">
             @foreach($deliverytermOptions as $option)
             <flux:radio value="{{ $option['id'] }}">
@@ -148,7 +152,7 @@ new class extends Component
             </flux:radio>
             @endforeach
         </flux:radio.group>
-        {{-- Tình trạng đơn (Radio - single selection) --}}
+
         <flux:radio.group label="Tình trạng đơn:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.tinhtrangdon">
             <div class="flex flex-wrap gap-4">
                 @foreach($tinhtrangdonOptions as $option)

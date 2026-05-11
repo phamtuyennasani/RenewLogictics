@@ -2,19 +2,27 @@
 
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Modelable;
+use Livewire\Attributes\Reactive;
 use Livewire\Component;
 
 new class extends Component
 {
+    #[Modelable]
     public array $packages = [];
+    #[Reactive]
+    public array $service = [];
+    public string $tensanpham = '';
     public int $totalNumber = 1;
     public float $totalV_Weight = 0;
     public float $totalC_Weight = 0;
     public float $dim;
 
-    public function mount(array $packages = [], float $dim = 6000): void
+    public function mount(array $packages = [],array $service = [], float $dim = 6000): void
     {
         $this->packages = $packages ?: [$this->defaultPackage()];
+        $this->service = $service;
+        $this->tensanpham = (string) ($service['tensanpham'] ?? '');
         $this->dim = $dim;
         $this->recalculateAllPackages();
     }
@@ -142,11 +150,17 @@ new class extends Component
         $this->packages = array_values($this->packages);
         $this->recalculateTotals();
     }
+
+    public function updatedTensanpham(string $value): void
+    {
+        $this->dispatch('serviceProductUpdated', tensanpham: $value);
+    }
 };
 ?>
 
 @php
 $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text-neutral-400 focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500';
+$inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
 $packageTypes = $this->loaikien();
 @endphp
 
@@ -164,6 +178,19 @@ $packageTypes = $this->loaikien();
     </div>
 
     <div class="p-6 space-y-4">
+        <flux:field>
+            <flux:label badge="Bắt buộc">Tên sản phẩm</flux:label>
+            <flux:input
+                type="text"
+                required
+                wire:model.live.debounce.300ms="tensanpham"
+                placeholder=""
+                :class:input="$errors->has('service.tensanpham') ? $inputClass.' '.$inputErrorClass : $inputClass"
+            />
+            @error('service.tensanpham')
+                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+            @enderror
+        </flux:field>
         @foreach($packages as $index => $package)
             <div class="border border-neutral-200 rounded-xl p-3 bg-neutral-50">
                 <div class="flex items-center justify-between mb-3">
@@ -203,9 +230,12 @@ $packageTypes = $this->loaikien();
                             required
                             wire:model.live.debounce.300ms="packages.{{ $index }}.length"
                             placeholder=""
-                            :class:input="$inputClass"
+                            :class:input="$errors->has('packages.'.$index.'.length') ? $inputClass.' '.$inputErrorClass : $inputClass"
                             mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
+                        @error('packages.'.$index.'.length')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
                     </flux:field>
 
                     <flux:field>
@@ -215,9 +245,12 @@ $packageTypes = $this->loaikien();
                             required
                             wire:model.live.debounce.300ms="packages.{{ $index }}.width"
                             placeholder=""
-                            :class:input="$inputClass"
+                            :class:input="$errors->has('packages.'.$index.'.width') ? $inputClass.' '.$inputErrorClass : $inputClass"
                             mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
+                        @error('packages.'.$index.'.width')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
                     </flux:field>
 
                     <flux:field>
@@ -227,9 +260,12 @@ $packageTypes = $this->loaikien();
                             required
                             wire:model.live.debounce.300ms="packages.{{ $index }}.height"
                             placeholder=""
-                            :class:input="$inputClass"
+                            :class:input="$errors->has('packages.'.$index.'.height') ? $inputClass.' '.$inputErrorClass : $inputClass"
                             mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
+                        @error('packages.'.$index.'.height')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
                     </flux:field>
 
                     <flux:field>
@@ -239,9 +275,12 @@ $packageTypes = $this->loaikien();
                             required
                             wire:model.live.debounce.300ms="packages.{{ $index }}.g_weight"
                             placeholder=""
-                            :class:input="$inputClass"
+                            :class:input="$errors->has('packages.'.$index.'.g_weight') ? $inputClass.' '.$inputErrorClass : $inputClass"
                             mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
+                        @error('packages.'.$index.'.g_weight')
+                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
                     </flux:field>
                 </div>
             </div>

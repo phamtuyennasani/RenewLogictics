@@ -12,6 +12,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Models\News;
+use Flux\Flux;
 use Livewire\Attributes\Locked;
 
 new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Component
@@ -99,18 +100,6 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             $this->loadCustomersBySale($this->idSale);
         }
         $this->syncReceivers();
-
-        $this->packages = [
-            [
-                'package_type' => null,
-                'length' => '',
-                'width' => '',
-                'height' => '',
-                'g_weight' => '',
-                'v_weight' => 0,
-                'c_weight' => 0,
-            ]
-        ];
         $this->itemServices = Cache::remember('order_service_options', 3600, function() {
             return News::whereIn('type', ['dichvuchinh','dichvuchitiet', 'chinhanh', 'dichvudikem', 'loaibuugui', 'lydoguihang', 'hinhthucgui', 'deliveryterm', 'tinhtrangdon'])
                 ->orderBy('numb', 'asc')
@@ -125,8 +114,9 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         $this->service['deliveryterm'] = $itemServices->where('type', 'deliveryterm')->first()['id'] ?? null;
         $this->service['tinhtrangdon'] = $itemServices->where('type', 'tinhtrangdon')->first()['id'] ?? null;
     }
-    #[On('serviceUpdated')]
-    public function handleServiceUpdated(array $service): void{
+    #[On('serviceProductUpdated')]
+    public function handleServiceUpdated(string $tensanpham): void{
+        $this->service['tensanpham'] = $tensanpham;
     }
     #[On('senderUpdated')]
     public function handleSenderUpdated($sender): void{
@@ -148,6 +138,16 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         redirect()->route('orders.index');
     }
 
+    public function showRequiredFieldsToast(): void
+    {
+        Flux::toast(
+            duration: 2000,
+            heading: 'Cảnh báo',
+            text: 'Bạn cần nhập đầy đủ các trường dữ liệu bắt buộc',
+            variant: 'warning'
+        );
+    }
+
     protected function normalizeAssignmentByRole(): void
     {
         $user = auth()->user();
@@ -155,9 +155,9 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         if ($user->hasRole('sale')) {
             $this->idSale = $user->id;
 
-            if ($this->idCtv) {
+            if ($this->idCustomer) {
                 $isValidCtv = User::query()
-                    ->whereKey($this->idCtv)
+                    ->whereKey($this->idCustomer)
                     ->where('id_sale', $user->id)
                     ->whereHas('roles', fn ($q) => $q->where('name', 'ctv'))
                     ->exists();
@@ -172,7 +172,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
 
         if ($user->hasRole('ctv')) {
             $this->idSale = $user->id_sale;
-            $this->idCtv = $user->id;
+            $this->idCustomer = $user->id;
             return;
         }
 
@@ -189,21 +189,20 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             throw new AuthorizationException('Sale phụ trách không hợp lệ.');
         }
 
-        if ($this->idCtv) {
-            $isValidCtv = User::query()
-                ->whereKey($this->idCtv)
+        if ($this->idCustomer) {
+            $isValidCustomer = User::query()
+                ->whereKey($this->idCustomer)
                 ->where('id_sale', $this->idSale)
                 ->whereHas('roles', fn ($q) => $q->where('name', 'ctv'))
                 ->exists();
 
-            if (!$isValidCtv) {
+            if (!$isValidCustomer) {
                 throw new AuthorizationException('CTV không thuộc sale đã chọn.');
             }
         }
     }
 
     public function submit(): void{
-        dd($this->service, $this->sender, $this->receiver, $this->packages);
         $this->normalizeAssignmentByRole();
         $this->validate($this->rules());
         if (!$this->agreedToTerms) {
@@ -539,7 +538,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             'sender.phone' => 'required|string|max:20',
             'sender.address' => 'required|string|max:500',
             'receiver.company' => 'required|string|max:255',
-            'receiver.tenlienhe' => 'required|string|max:255',
+            'receiver.fullname' => 'required|string|max:255',
             'receiver.phone' => 'required|string|max:20',
             'receiver.address' => 'required|string|max:500',
             'receiver.postcode' => 'required|string|max:20',
@@ -548,6 +547,43 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             'packages.*.width' => 'nullable|numeric|min:0.1',
             'packages.*.height' => 'nullable|numeric|min:0.1',
             'packages.*.g_weight' => 'nullable|numeric|min:0.1',
+        ];
+    }
+
+    protected function messages(): array
+    {
+        return [
+            'required' => ':attribute là bắt buộc.',
+            'string' => ':attribute phải là chuỗi ký tự.',
+            'numeric' => ':attribute phải là số hợp lệ.',
+            'max' => ':attribute không được vượt quá :max ký tự.',
+            'min' => ':attribute phải lớn hơn hoặc bằng :min.',
+            'exists' => ':attribute không hợp lệ.',
+            'array' => ':attribute không hợp lệ.',
+        ];
+    }
+
+    protected function validationAttributes(): array
+    {
+        return [
+            'service.id_dichvu' => 'Dịch vụ chính',
+            'service.tensanpham' => 'Tên sản phẩm',
+            'sender.company' => 'Tên công ty / Khách hàng gửi',
+            'sender.fullname' => 'Tên người gửi',
+            'sender.phone' => 'Số điện thoại người gửi',
+            'sender.address' => 'Địa chỉ người gửi',
+            'receiver.company' => 'Tên công ty nhận',
+            'receiver.fullname' => 'Tên người nhận',
+            'receiver.phone' => 'Số điện thoại người nhận',
+            'receiver.address' => 'Địa chỉ người nhận',
+            'receiver.state' => 'Tỉnh / Bang',
+            'receiver.city' => 'Thành phố',
+            'receiver.postcode' => 'Postcode',
+            'packages' => 'Danh sách kiện',
+            'packages.*.length' => 'Chiều dài kiện',
+            'packages.*.width' => 'Chiều rộng kiện',
+            'packages.*.height' => 'Chiều cao kiện',
+            'packages.*.g_weight' => 'Cân nặng kiện',
         ];
     }
 };

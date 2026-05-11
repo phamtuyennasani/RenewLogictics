@@ -49,6 +49,7 @@ new class extends Component
 
 @php
 $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text-neutral-400 focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500';
+$inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
 @endphp
 <div>
    
@@ -81,7 +82,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                         required
                         wire:model.blur="sender.company"
                         placeholder="Tên công ty / Khách hàng"
-                        :class:input="$inputClass"
+                        :class:input="$errors->has('sender.company') ? $inputClass.' '.$inputErrorClass : $inputClass"
                     >
                     @if(!empty($listSender))
                     <x-slot name="iconTrailing">
@@ -95,6 +96,9 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     </x-slot>
                     @endif
                     </flux:input>
+                    @error('sender.company')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
                     <div class="select-hidden absolute top-full p-2 bg-white shadow-sm left-0 z-10 w-full" wire:ignore wire:show="showSelectSender" >
                         <select data-template='custom-danhsachgui' wire:change="toggleSelectSender" class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="danhsachgui-select" autocomplete="off">
                             @foreach($listSender as $item)
@@ -112,8 +116,11 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                         required
                         wire:model.blur="sender.fullname"
                         placeholder="Tên người gửi"
-                        :class:input="$inputClass"
+                        :class:input="$errors->has('sender.fullname') ? $inputClass.' '.$inputErrorClass : $inputClass"
                     />
+                    @error('sender.fullname')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
                 </flux:field>
                 <flux:field>
                     <flux:label badge="Bắt buộc">Số điện thoại</flux:label>
@@ -122,13 +129,16 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                         required
                         wire:model.blur="sender.phone"
                         placeholder="Số điện thoại"
-                        :class:input="$inputClass"
+                        :class:input="$errors->has('sender.phone') ? $inputClass.' '.$inputErrorClass : $inputClass"
                         mask:dynamic="
                             /^(03|05|07|08|09)/.test($input.replace(/\D/g, ''))
                                 ? '9999 999 999'
                                 : '999 9999 9999'
                         "
                     />
+                    @error('sender.phone')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
                 </flux:field>
                 <flux:field>
                     <flux:label>Email</flux:label>
@@ -136,8 +146,11 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                         type="email"
                         wire:model.blur="sender.email"
                         placeholder="Email"
-                        :class:input="$inputClass"
+                        :class:input="$errors->has('sender.address') ? $inputClass.' '.$inputErrorClass : $inputClass"
                     />
+                    @error('sender.address')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
                 </flux:field>
                 <flux:field>
                     <flux:label>Quốc gia</flux:label>

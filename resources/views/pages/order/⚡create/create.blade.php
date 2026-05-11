@@ -1,4 +1,29 @@
-<div class="mx-auto space-y-6">
+<div
+    class="mx-auto space-y-6"
+    x-data="{
+        isEmptyField(field) {
+            if (field.type === 'checkbox') {
+                return !field.checked;
+            }
+
+            return !String(field.value ?? '').trim();
+        },
+        validateAndSubmit() {
+            const form = this.$refs.orderForm;
+            const fields = [...form.querySelectorAll('[required]')].filter((field) => !field.disabled);
+            const invalidField = fields.find((field) => this.isEmptyField(field));
+
+            if (invalidField) {
+                invalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                invalidField.focus({ preventScroll: true });
+                this.$wire.showRequiredFieldsToast();
+                return;
+            }
+
+            this.$wire.submit();
+        }
+    }"
+>
     {{-- Header --}}
     <div class="flex items-center gap-3">
         <button wire:click="goBack"
@@ -13,7 +38,7 @@
         </div>
     </div>
     {{-- Form --}}
-    <form wire:submit="submit" class="space-y-6">
+    <form x-ref="orderForm" x-on:submit.prevent="validateAndSubmit()" novalidate class="space-y-6">
         <div class="grid grid-cols-2 gap-5">
             {{-- Left Column --}}
             <div></div>
@@ -32,7 +57,7 @@
             @endif
             <div class="space-y-5">
                 <livewire:order.service wire:model="service" :item-services="$itemServices" wire:key="service" />
-                <livewire:order.packages wire:model="packages" :dim="$dim" wire:key="packages" />
+                <livewire:order.packages wire:model="packages" :service="$service" :dim="$dim" wire:key="packages" />
             </div>
             {{-- Right Column --}}
            <div class="space-y-5">
@@ -53,7 +78,7 @@
                         <a href="{{ route('orders.index') }}" class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
                             Thoát
                         </a>
-                        <button type="submit" :disabled="!$wire.agreedToTerms" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
                             Tạo đơn
                         </button>
                     </div>
