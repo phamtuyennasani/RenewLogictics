@@ -10,12 +10,38 @@
         },
         validateAndSubmit() {
             const form = this.$refs.orderForm;
-            const fields = [...form.querySelectorAll('[required]')].filter((field) => !field.disabled);
-            const invalidField = fields.find((field) => this.isEmptyField(field));
+            if (!form) return;
 
-            if (invalidField) {
-                invalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                invalidField.focus({ preventScroll: true });
+            const requiredEls = [...form.querySelectorAll('[required]')].filter((f) => !f.disabled);
+
+            let firstInvalid = null;
+
+            for (const el of requiredEls) {
+                let checkEl = el;
+                let scrollEl = el;
+
+                // Handle TomSelect: original <select> is hidden, check TS wrapper instead
+                if (el.offsetParent === null) {
+                    const tsWrapper = el.closest('.ts-wrapper')?.querySelector('.ts-control input, .ts-dropdown');
+                    if (tsWrapper) {
+                        checkEl = tsWrapper;
+                        scrollEl = el.closest('.ts-wrapper') || el;
+                    }
+                }
+
+                const isEmpty = checkEl.type === 'checkbox' ? !checkEl.checked : !String(checkEl.value ?? '').trim();
+
+                if (isEmpty) {
+                    firstInvalid = { checkEl, scrollEl, nativeEl: el };
+                    break;
+                }
+            }
+
+            if (firstInvalid) {
+                requestAnimationFrame(() => {
+                    firstInvalid.scrollEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalid.checkEl.focus?.({ preventScroll: true });
+                });
                 this.$wire.showRequiredFieldsToast();
                 return;
             }
