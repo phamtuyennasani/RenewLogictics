@@ -200,9 +200,9 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                             </label>
                         </th>
 
-                        <th class="w-24 px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center">
+                        {{-- <th class="w-24 px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide text-center">
                             STT
-                        </th>
+                        </th> --}}
                         <th class="px-4 py-3.5 text-xs font-semibold text-neutral-500 uppercase tracking-wide">
                             Tiêu đề
                         </th>
@@ -238,7 +238,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                 </label>
                             </td>
 
-                            <td class="px-4 py-3.5 text-center">
+                            {{-- <td class="px-4 py-3.5 text-center">
                                 <input
                                     type="number"
                                     value="{{ $v->numb }}"
@@ -248,7 +248,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                            px-2 py-1 bg-transparent hover:border-primary-400
                                            focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all cursor-pointer"
                                 >
-                            </td>
+                            </td> --}}
                             <td class="px-4 py-3.5">
                                 <a href="{{route($this->config['route_group'].'.edit', ['type' => $type, 'id' => $v->id])}}" wire:navigate
                                    class="text-sm font-medium text-neutral-900 hover:text-primary-600 transition-colors line-clamp-2">

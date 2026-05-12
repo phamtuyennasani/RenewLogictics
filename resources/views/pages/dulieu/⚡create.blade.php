@@ -55,7 +55,7 @@ new class extends Component {
            
         }
         
-        $this->formData['numb'] = 1;
+        // $this->formData['numb'] = 1;
         if($id){
             $item = News::find($id);
             foreach ($this->config['formFields'] ?? [] as $key => $field) {
@@ -79,7 +79,15 @@ new class extends Component {
             throw $e; 
         }
         $this->formData = $this->trimRecursive($this->formData);
-        dd($this->formData);
+        foreach ($this->formData as $key => $value) {
+            if (is_array($value)) {
+               foreach ($value as $subKey => $subValue) {
+                    if($subKey=='price') {
+                        $this->formData[$key][$subKey] = str_replace(['.', ','], '', $subValue);
+                    }
+               }
+            }
+        }
         $itemSaved = News::updateOrCreate(
             ['id' => $this->itemId],
             array_merge($this->formData, [
@@ -206,7 +214,7 @@ new class extends Component {
                 />
             </flux:field>
             @endforeach
-            <flux:field class="w-40">
+            {{-- <flux:field class="w-40">
                 <flux:label>Số thứ tự</flux:label>
                 <flux:input 
                     :type="'number'"
@@ -218,7 +226,7 @@ new class extends Component {
                         'focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500',
                     ]"
                 />
-            </flux:field>
+            </flux:field> --}}
         </div>
 
         {{-- ======================= ACTION BUTTONS ======================= --}}

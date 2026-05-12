@@ -24,7 +24,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public $listReceiver = [];
     public $listSender = [];
     public $itemServices;
-
+    public $phuphihaiquan = [];
     public array $service = [
         'id_dichvu' => null,
         'id_chitiet_dichvu' => null,
@@ -112,7 +112,6 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         $this->service['lydoguihang'] = $itemServices->where('type', 'lydoguihang')->first()['id'] ?? null;
         $this->service['hinhthucguihang'] = $itemServices->where('type', 'hinhthucgui')->first()['id'] ?? null;
         $this->service['deliveryterm'] = $itemServices->where('type', 'deliveryterm')->first()['id'] ?? null;
-        $this->service['tinhtrangdon'] = $itemServices->where('type', 'tinhtrangdon')->first()['id'] ?? null;
     }
     #[On('serviceProductUpdated')]
     public function handleServiceUpdated(string $tensanpham): void{
@@ -202,7 +201,8 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         }
     }
 
-    public function submit(): void{
+    public function submit(bool $agreedToTerms = false): void{
+        $this->agreedToTerms = $agreedToTerms;
         $this->normalizeAssignmentByRole();
         $this->validate($this->rules());
         if (!$this->agreedToTerms) {

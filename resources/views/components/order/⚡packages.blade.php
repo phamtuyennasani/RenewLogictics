@@ -170,7 +170,7 @@ $packageTypes = $this->loaikien();
             <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
             </svg>
-            Kiện hàng
+            Thông Tin Kiện Hàng
         </h2>
         <flux:button wire:click="addPackage" size="sm" variant="primary">
             + Thêm kiện
@@ -293,7 +293,7 @@ $packageTypes = $this->loaikien();
                     </div>
                 </div>
             </div>
-            <div class="col-span-full flex items-center justify-end"><p class="flex justify-end mb-0 mt-2 text-xs text-red-800">Các thông tin  <b>*</b>  là bắt buộc</p></div>
+            <div class="col-span-full flex items-center justify-end"><p class="flex justify-end mb-0 mt-2 text-xs text-red-800">Các thông tin  <b class="mx-1"> * </b>  là bắt buộc</p></div>
         </div>
     </div>
 </div>

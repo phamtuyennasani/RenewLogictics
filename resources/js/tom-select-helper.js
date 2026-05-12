@@ -15,6 +15,8 @@ function renderDefaultItem(data, escape) {
 function buildTomSelectOptions(select) {
     const placeholder = select.getAttribute('data-placeholder') || '';
     const template = select.getAttribute('data-template') || 'default';
+    const livewireModel = select.getAttribute('data-livewire-model');
+    let isBooting = true;
     let renderOption = renderDefaultOption;
     let renderItem = renderDefaultItem;
     if (template === 'custom-sender') {
@@ -54,7 +56,23 @@ function buildTomSelectOptions(select) {
             option: renderDefaultOption,
             item: renderItem,
         },
-        onChange: function () {},
+        onInitialize: function () {
+            isBooting = false;
+            select.dataset.tomselectInit = 'true';
+        },
+        onChange: function (value) {
+            if (isBooting) return;
+            select.value = value || '';
+            if (livewireModel) {
+                const componentEl = select.closest('[wire\\:id]');
+                const componentId = componentEl?.getAttribute('wire:id');
+
+                if (componentId && window.Livewire?.find) {
+                    window.Livewire.find(componentId)?.set(livewireModel, value || null);
+                }
+            }
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        },
     };
 }
 
@@ -71,6 +89,7 @@ export function destroyTomSelectEml(container = document, selector = DEFAULT_SEL
     container.querySelectorAll(selector).forEach((select) => {
         if (!(select instanceof HTMLSelectElement)) return;
         select.tomselect?.destroy();
+        delete select.dataset.tomselectInit;
     });
 }
 

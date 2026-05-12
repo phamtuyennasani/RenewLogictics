@@ -1,6 +1,7 @@
 <div
     class="mx-auto space-y-6"
     x-data="{
+        agreedToTerms: false,
         isEmptyField(field) {
             if (field.type === 'checkbox') {
                 return !field.checked;
@@ -46,18 +47,12 @@
                 return;
             }
 
-            this.$wire.submit();
+            this.$wire.submit(this.agreedToTerms);
         }
     }"
 >
     {{-- Header --}}
     <div class="flex items-center gap-3">
-        <button wire:click="goBack"
-                class="p-2 rounded-xl text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-all cursor-pointer">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
-        </button>
         <div>
             <p class="text-sm text-neutral-500 capitalize">Tác vụ / Đơn hàng</p>
             <h1 class="text-2xl font-bold text-neutral-900">Tạo mới đơn hàng</h1>
@@ -66,8 +61,6 @@
     {{-- Form --}}
     <form x-ref="orderForm" x-on:submit.prevent="validateAndSubmit()" novalidate class="space-y-6">
         <div class="grid grid-cols-2 gap-5">
-            {{-- Left Column --}}
-            <div></div>
             @if($showSaleSelector)
                 <div wire:ignore>
                      <flux:field >
@@ -81,48 +74,29 @@
                     </flux:field>
                 </div>
             @endif
-            <div class="space-y-5">
+            <div></div>
+            <div><livewire:order.sender wire:model="sender" :list-customer="$listCustomer" :list-sender="$listSender" :id-sale="$idSale" wire:key="sender" /></div>
+            <div><livewire:order.receiver wire:model="receiver" :list-receiver="$listReceiver" :id-sale="$idSale" :sender-id="$this->sender['id']" wire:key="receiver" /></div>
+            <div class="col-span-full">
                 <livewire:order.service wire:model="service" :item-services="$itemServices" wire:key="service" />
-                <livewire:order.packages wire:model="packages" :service="$service" :dim="$dim" wire:key="packages" />
             </div>
-            {{-- Right Column --}}
-            <div class="space-y-5">
-                <livewire:order.sender wire:model="sender" :list-customer="$listCustomer" :list-sender="$listSender" :id-sale="$idSale" wire:key="sender" />
-                <livewire:order.receiver wire:model="receiver" :list-receiver="$listReceiver" :id-sale="$idSale" :sender-id="$this->sender['id']" wire:key="receiver" />
-                <div class="bg-white rounded-lg p-5">
-                    <h2 class="text-main-1 font-medium mb-4">Ghi chú</h2>
-                    <textarea wire:model="notes" rows="4" class="w-full border border-neutral-200 rounded-lg p-3" placeholder="Nhập ghi chú cho đơn hàng..."></textarea>
+            <div class="col-span-full"><livewire:order.packages wire:model="packages" :service="$service" :dim="$dim" wire:key="packages" /></div>
+            <div class="col-span-full">
+                <livewire:order.phuphi wire:model="phuphihaiquan" wire:key="phuphihaiquan" />
+            </div>
+            <div class=""></div>
+            <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6 space-y-3">
+                <div class="flex items-center justify-end">
+                    <flux:field variant="inline" >
+                        <flux:checkbox x-model="agreedToTerms" />
+                        <flux:label> Tôi đã đọc và đồng ý với <b class="text-blue-500 ml-1 cursor-pointer">Quy định tạo đơn</b> </flux:label>
+                    </flux:field>
                 </div>
-                <div class="bg-white rounded-lg p-5">
-                    @error('submit')
-                        <div class="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
-                            {{ $message }}
-                        </div>
-                    @enderror
-
-                    <div class="flex items-center justify-end gap-3 mb-3">
-                        <a href="{{ route('orders.index') }}" class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-                            Thoát
-                        </a>
-                        <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                            Tạo đơn
-                        </button>
-                    </div>
-
-                    <div class="flex items-center justify-end">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="checkbox" wire:model.live="agreedToTerms" class="w-4 h-4 text-blue-500 border-neutral-300 rounded focus:ring-blue-500"/>
-                            <span class="text-sm">
-                                Tôi đã đọc và đồng ý với
-                                <button type="button" class="text-blue-500 font-medium" data-bs-toggle="modal" data-bs-target="#termsModal">
-                                    Quy định tạo đơn
-                                </button>
-                            </span>
-                        </label>
-                    </div>
-                    @error('agreedToTerms')
-                        <p class="text-red-500 text-sm mt-2 text-right">{{ $message }}</p>
-                    @enderror
+                <div class="flex items-center justify-end gap-3">
+                    <a href="{{ route('orders.index') }}" class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                        Thoát
+                    </a>
+                    <flux:button variant="primary" type="submit" x-bind:disabled="!agreedToTerms" :loading="false">Tạo đơn</flux:button>
                 </div>
             </div>
         </div>
