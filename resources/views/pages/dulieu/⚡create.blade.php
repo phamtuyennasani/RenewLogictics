@@ -23,7 +23,7 @@ new class extends Component {
         $this->config = config("dulieu.{$this->type}", []);
         // Build form fields và validation rules động
         foreach ($this->config['formFields'] ?? [] as $key => $field) {
-            $this->formData[$key] = null;
+            data_set($this->formData, $key, null);
             // Build validation rule động
             $rule = [];
             if (!empty($field['required'])) {
@@ -54,17 +54,19 @@ new class extends Component {
             }
            
         }
+        
         $this->formData['numb'] = 1;
         if($id){
             $item = News::find($id);
             foreach ($this->config['formFields'] ?? [] as $key => $field) {
-                $this->formData[$key] = $item->{$key} ?? null;
+                data_set($this->formData, $key, data_get($item, $key));
             }
             foreach ($this->config['formOptions'] ?? [] as $key => $field) {
                 $name = explode('.', $field['name']);
                 $this->formData[$name[0]][$name[1]] = $item->{$name[0]}[$name[1]] ?? null;
             }
         }
+        
     }
 
     public function save()
@@ -77,6 +79,7 @@ new class extends Component {
             throw $e; 
         }
         $this->formData = $this->trimRecursive($this->formData);
+        dd($this->formData);
         $itemSaved = News::updateOrCreate(
             ['id' => $this->itemId],
             array_merge($this->formData, [
@@ -151,6 +154,26 @@ new class extends Component {
             @foreach($this->config['formFields']??[] as $k => $v)
             <flux:field>
                 <flux:label :badge="@$v['required'] ? 'Bắt buộc' : null">{{ $v['label'] }}</flux:label>
+                
+                @if((!empty($v['format'])) && $v['format']=='price')
+                <flux:input.group>
+                    <flux:input 
+                        :type="$v['type'] ?? 'text'"
+                        :required="@$v['required']"
+                        wire:model.defer="formData.{{ $k }}"
+                        :placeholder="$v['placeholder'] ?? ''"
+                        @focus="$el.removeAttribute('data-invalid')"
+                        mask:dynamic="$money($input)"
+                        :class:input="[
+                            $v['class'] ?? '',
+                            'w-full px-4 py-2.5 text-sm border transition-all',
+                            'placeholder:text-neutral-400',
+                            'focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500',
+                        ]"
+                    />
+                    <flux:input.group.suffix>VNĐ</flux:input.group.suffix>
+                </flux:input.group>
+                @else
                 <flux:input 
                     :type="$v['type'] ?? 'text'"
                     :required="@$v['required']"
@@ -164,6 +187,7 @@ new class extends Component {
                         'focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500',
                     ]"
                 />
+                @endif
             </flux:field>
             @endforeach
             @foreach($this->config['formOptions']??[] as $k => $v)

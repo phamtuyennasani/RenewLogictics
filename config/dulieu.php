@@ -244,11 +244,10 @@ return [
         'group'  => 'Phụ phí',
         'route_group' => 'phuphi',
         'title'  => 'Phụ phí đơn hàng',
-        'columns'    => ['namevi' => 'Tên phụ phí', 'descvi' => 'Ghi chú'],
+        'columns'    => ['namevi' => 'Tên phụ phí', 'price' => 'Giá phụ phí'],
         'formFields' => [
             'namevi' => ['label' => 'Tên phụ phí', 'type' => 'text', 'required' => true],
-            'descvi' => ['label' => 'Ghi chú', 'type' => 'textarea'],
-            'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
+            'options2.price'    => ['label' => 'Giá phụ phí', 'type' => 'text','format'=>'price','class' => ''],
         ],
         'canCreate' => true,
         'canEdit'   => true,
