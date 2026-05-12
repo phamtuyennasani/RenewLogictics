@@ -14,7 +14,7 @@
     @livewireStyles
     @stack('styles')
 </head>
-<body class="h-full bg-neutral-50 font-sans antialiased">
+<body class=" bg-neutral-50 font-sans antialiased h-screen overflow-hidden">
     @persist('loader')
     <x-global-loader />
     @endpersist
@@ -25,11 +25,11 @@
         @persist('sidebar')
         <x-sidebar />
         @endpersist
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col ">
             @persist('header')
             <x-header :page-title="$pageTitle ?? null" />
             @endpersist
-            <main class="flex-1 overflow-y-auto p-6">
+            <main class="overflow-y-auto p-6 flex-1">
                 {{$slot}}
             </main>
             @persist('footer')

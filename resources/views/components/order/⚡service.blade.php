@@ -23,7 +23,6 @@ new class extends Component
     {
         $this->loadOptions();
     }
-
     protected function loadOptions(): void
     {
         $itemServices = collect($this->itemServices);
@@ -39,11 +38,9 @@ new class extends Component
     }
 };
 ?>
-
 @php
 $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
 @endphp
-
 <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm">
     <div class="px-6 py-5 border-b border-neutral-100">
         <h2 class="text-sm font-semibold text-neutral-700 uppercase tracking-wide flex items-center gap-2">
@@ -66,11 +63,7 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
                         @endforeach
                     </select>
                 </div>
-                @error('service.id_dichvu')
-                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                @enderror
             </flux:field>
-
             <flux:field>
                 <flux:label>Dịch vụ chi tiết</flux:label>
                 <div wire:ignore>
@@ -82,7 +75,6 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
                     </select>
                 </div>
             </flux:field>
-
             <flux:field>
                 <flux:label>Chi nhánh nhận hàng</flux:label>
                 <div wire:ignore>
@@ -95,7 +87,6 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
                 </div>
             </flux:field>
         </div>
-
         @if(!empty($dichvudikemOptions))
         <flux:checkbox.group label="Dịch vụ đi kèm:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.dichvudikem">
             @foreach($dichvudikemOptions as $option)
@@ -108,7 +99,6 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
             @endforeach
         </flux:checkbox.group>
         @endif
-
         <flux:radio.group label="Loại bưu gửi:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.loaibuugui">
             @foreach($loaibuuguiOptions as $option)
             <flux:radio value="{{ $option['id'] }}">
@@ -119,7 +109,6 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
             </flux:radio>
             @endforeach
         </flux:radio.group>
-
         <flux:radio.group label="Lý do gửi hàng:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.lydoguihang">
             @foreach($lydoguihangOptions as $option)
             <flux:radio value="{{ $option['id'] }}">
@@ -130,7 +119,6 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
             </flux:radio>
             @endforeach
         </flux:radio.group>
-
         <flux:radio.group label="Hình thức gửi hàng:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.hinhthucguihang">
             @foreach($hinhthucguihangOptions as $option)
             <flux:radio value="{{ $option['id'] }}">
@@ -141,7 +129,6 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
             </flux:radio>
             @endforeach
         </flux:radio.group>
-
         <flux:radio.group label="Delivery Term:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.deliveryterm">
             @foreach($deliverytermOptions as $option)
             <flux:radio value="{{ $option['id'] }}">
@@ -152,7 +139,6 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
             </flux:radio>
             @endforeach
         </flux:radio.group>
-
         <flux:radio.group label="Tình trạng đơn:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.tinhtrangdon">
             <div class="flex flex-wrap gap-4">
                 @foreach($tinhtrangdonOptions as $option)

@@ -34,7 +34,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
             Người nhận
         </h2>
     </div>
-
     <div class="p-6 space-y-5">
         <div wire:ignore wire:key="select-receiver-{{ $idSale ?? 'none' }}-{{ $SenderID ?? 'none' }}">
             <flux:field>
@@ -49,7 +48,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                 </select>
             </flux:field>
         </div>
-
         <flux:field>
             <flux:label badge="Bắt buộc">Tên công ty nhận</flux:label>
             <flux:input
@@ -63,7 +61,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
             @enderror
         </flux:field>
-
         <div class="grid grid-cols-3 gap-5">
             <flux:field>
                 <flux:label badge="Bắt buộc">Tên người nhận</flux:label>
@@ -74,11 +71,8 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     placeholder="Tên người nhận"
                     :class:input="$errors->has('receiver.fullname') ? $inputClass.' '.$inputErrorClass : $inputClass"
                 />
-                @error('receiver.fullname')
-                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                @enderror
+               
             </flux:field>
-
             <flux:field>
                 <flux:label badge="Bắt buộc">Số điện thoại</flux:label>
                 <flux:input
@@ -89,11 +83,7 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     :class:input="$errors->has('receiver.phone') ? $inputClass.' '.$inputErrorClass : $inputClass"
                     mask:dynamic="$input.startsWith('+') ? '+' + '9'.repeat(15) : '9'.repeat(15)"
                 />
-                @error('receiver.phone')
-                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                @enderror
             </flux:field>
-
             <flux:field>
                 <flux:label>Email</flux:label>
                 <flux:input
@@ -103,7 +93,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     :class:input="$inputClass"
                 />
             </flux:field>
-
             <flux:field>
                 <flux:label badge="Bắt buộc">Quốc gia</flux:label>
                 <x-select-search
@@ -121,12 +110,9 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     placeholder="Địa chỉ chi tiết"
                     :class:input="$errors->has('receiver.address') ? $inputClass.' '.$inputErrorClass : $inputClass"
                 />
-                @error('receiver.address')
-                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                @enderror
+                
             </flux:field>
         </div>
-
         <div class="grid grid-cols-3 gap-5">
             <flux:field>
                 <flux:label badge="Bắt buộc">Tỉnh / Bang</flux:label>
@@ -141,7 +127,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
             </flux:field>
-
             <flux:field>
                 <flux:label badge="Bắt buộc">Thành phố</flux:label>
                 <flux:input
@@ -155,7 +140,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                 @enderror
             </flux:field>
-
             <flux:field>
                 <flux:label badge="Bắt buộc">Postcode</flux:label>
                 <flux:input

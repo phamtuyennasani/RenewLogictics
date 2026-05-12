@@ -86,7 +86,7 @@
                 <livewire:order.packages wire:model="packages" :service="$service" :dim="$dim" wire:key="packages" />
             </div>
             {{-- Right Column --}}
-           <div class="space-y-5">
+            <div class="space-y-5">
                 <livewire:order.sender wire:model="sender" :list-customer="$listCustomer" :list-sender="$listSender" :id-sale="$idSale" wire:key="sender" />
                 <livewire:order.receiver wire:model="receiver" :list-receiver="$listReceiver" :id-sale="$idSale" :sender-id="$this->sender['id']" wire:key="receiver" />
                 <div class="bg-white rounded-lg p-5">

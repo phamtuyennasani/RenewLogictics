@@ -141,10 +141,10 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public function showRequiredFieldsToast(): void
     {
         Flux::toast(
-            duration: 2000,
+            duration: 200000,
             heading: 'Cảnh báo',
             text: 'Bạn cần nhập đầy đủ các trường dữ liệu bắt buộc',
-            variant: 'warning'
+            variant: 'danger'
         );
     }
 

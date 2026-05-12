@@ -197,7 +197,7 @@ $packageTypes = $this->loaikien();
                     <span class="text-sm font-medium text-neutral-700">Thông tin kiện</span>
                     @if(count($packages) > 1)
                         <flux:button wire:click="removePackage({{ $index }})" size="sm">
-                            <flux:icon.trash variant="mini" color="red" />
+                            <flux:icon.trash variant="mini" />
                         </flux:button>
                     @endif
                 </div>
@@ -213,81 +213,66 @@ $packageTypes = $this->loaikien();
                             mask:dynamic="Math.max(1, parseInt($input.replace(/\D/g, '')) || 1).toString()"
                         />
                     </flux:field>
-
                     <flux:field class="col-span-2">
                         <flux:label badge="*">Loại kiện</flux:label>
-                        <flux:select wire:model="packages.{{ $index }}.package_type" placeholder="Loại kiện">
+                        <flux:select wire:model="packages.{{ $index }}.package_type" >
+                            <flux:select.option value="">Chọn loại kiện</flux:select.option>
                             @foreach($packageTypes as $id => $name)
                                 <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
                             @endforeach
                         </flux:select>
                     </flux:field>
-
                     <flux:field>
-                        <flux:label badge="*">Dài (cm)</flux:label>
+                        <flux:label badge="*">Dài</flux:label>
                         <flux:input
                             type="text"
                             required
                             wire:model.live.debounce.300ms="packages.{{ $index }}.length"
-                            placeholder=""
+                            placeholder="cm"
                             :class:input="$errors->has('packages.'.$index.'.length') ? $inputClass.' '.$inputErrorClass : $inputClass"
                             mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
-                        @error('packages.'.$index.'.length')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
                     </flux:field>
-
                     <flux:field>
-                        <flux:label badge="*">Rộng (cm)</flux:label>
+                        <flux:label badge="*">Rộng </flux:label>
                         <flux:input
                             type="text"
                             required
                             wire:model.live.debounce.300ms="packages.{{ $index }}.width"
-                            placeholder=""
+                            placeholder="cm"
                             :class:input="$errors->has('packages.'.$index.'.width') ? $inputClass.' '.$inputErrorClass : $inputClass"
                             mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
-                        @error('packages.'.$index.'.width')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
+                        
                     </flux:field>
-
                     <flux:field>
-                        <flux:label badge="*">Cao (cm)</flux:label>
+                        <flux:label badge="*">Cao </flux:label>
                         <flux:input
                             type="text"
                             required
                             wire:model.live.debounce.300ms="packages.{{ $index }}.height"
-                            placeholder=""
+                            placeholder="cm"
                             :class:input="$errors->has('packages.'.$index.'.height') ? $inputClass.' '.$inputErrorClass : $inputClass"
                             mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
-                        @error('packages.'.$index.'.height')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
                     </flux:field>
-
                     <flux:field>
-                        <flux:label badge="*">Cân nặng KG</flux:label>
+                        <flux:label badge="*">Cân nặng</flux:label>
                         <flux:input
                             type="text"
                             required
                             wire:model.live.debounce.300ms="packages.{{ $index }}.g_weight"
-                            placeholder=""
+                            placeholder="KG"
                             :class:input="$errors->has('packages.'.$index.'.g_weight') ? $inputClass.' '.$inputErrorClass : $inputClass"
                             mask:dynamic="$input.replace(/[^0-9.,]/g, '').replace(/([.,])[.,]+/g, '$1').replace(/^[.,]/, '0$&').replace(/([.,]\d*)[.,]/g, '$1')"
                         />
-                        @error('packages.'.$index.'.g_weight')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                        @enderror
                     </flux:field>
                 </div>
+                
             </div>
         @endforeach
-
-        <div class="grid grid-cols-2 gap-3">
-            <div>
+        <div class="grid grid-cols-7 gap-3">
+            <div class="col-span-3">
                 <div class="text-sm text-gray-500 flex items-center gap-2">
                     Tổng số kiện:
                     <div class="inline-flex max-w-[100px]">
@@ -295,7 +280,7 @@ $packageTypes = $this->loaikien();
                     </div>
                 </div>
             </div>
-            <div>
+            <div class="col-span-4">
                 <div class="text-sm text-gray-500 flex items-center gap-2 justify-end">
                     Tổng cân nặng Quy đổi / Tính phí (Kg):
                     <div class="flex items-center justify-end gap-3">
@@ -308,6 +293,7 @@ $packageTypes = $this->loaikien();
                     </div>
                 </div>
             </div>
+            <div class="col-span-full flex items-center justify-end"><p class="flex justify-end mb-0 mt-2 text-xs text-red-800">Các thông tin  <b>*</b>  là bắt buộc</p></div>
         </div>
     </div>
 </div>

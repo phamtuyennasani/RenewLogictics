@@ -45,14 +45,13 @@ new class extends Component
             ->toArray();
     }
 };
-?>
 
+?>
 @php
-$inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text-neutral-400 focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500';
+    $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text-neutral-400 focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500';
 $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
 @endphp
 <div>
-   
     <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm">
         <div class="px-6 py-5 border-b border-neutral-100">
             <h2 class="text-sm font-semibold text-neutral-700 uppercase tracking-wide flex items-center gap-2">
@@ -96,9 +95,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     </x-slot>
                     @endif
                     </flux:input>
-                    @error('sender.company')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
                     <div class="select-hidden absolute top-full p-2 bg-white shadow-sm left-0 z-10 w-full" wire:ignore wire:show="showSelectSender" >
                         <select data-template='custom-danhsachgui' wire:change="toggleSelectSender" class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="danhsachgui-select" autocomplete="off">
                             @foreach($listSender as $item)
@@ -118,9 +114,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                         placeholder="Tên người gửi"
                         :class:input="$errors->has('sender.fullname') ? $inputClass.' '.$inputErrorClass : $inputClass"
                     />
-                    @error('sender.fullname')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
                 </flux:field>
                 <flux:field>
                     <flux:label badge="Bắt buộc">Số điện thoại</flux:label>
@@ -136,9 +129,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                                 : '999 9999 9999'
                         "
                     />
-                    @error('sender.phone')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
                 </flux:field>
                 <flux:field>
                     <flux:label>Email</flux:label>
@@ -148,9 +138,6 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                         placeholder="Email"
                         :class:input="$errors->has('sender.address') ? $inputClass.' '.$inputErrorClass : $inputClass"
                     />
-                    @error('sender.address')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
                 </flux:field>
                 <flux:field>
                     <flux:label>Quốc gia</flux:label>
