@@ -87,9 +87,12 @@
             <div class=""></div>
             <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6 space-y-3">
                 <div class="flex items-center justify-end">
-                    <flux:field variant="inline" >
+                    <flux:field variant="inline" class="!flex items-center !gap-0">
                         <flux:checkbox x-model="agreedToTerms" />
-                        <flux:label> Tôi đã đọc và đồng ý với <b class="text-blue-500 ml-1 cursor-pointer">Quy định tạo đơn</b> </flux:label>
+                        <flux:label class="ml-2 mr-1 text-sm">Tôi đã đọc và đồng ý với</flux:label>
+                        <flux:modal.trigger name="quy-dinh-tao-don">
+                            <b class="text-blue-500 hover:text-blue-600 text-sm cursor-pointer">Quy định tạo đơn</b>
+                        </flux:modal.trigger>
                     </flux:field>
                 </div>
                 <div class="flex items-center justify-end gap-3">
@@ -101,4 +104,18 @@
             </div>
         </div>
     </form>
+
+    <flux:modal name="quy-dinh-tao-don" class="max-w-[80rem] w-[80rem]" scroll="body">
+        <div class="space-y-6">
+            <div class="prose prose-neutral max-w-none text-neutral-700 show-content">
+                {!! $this->chinhsach !!}
+            </div>
+            <div class="flex">
+                <flux:spacer />
+                <flux:modal.close>
+                    <flux:button type="button" variant="primary">Đóng</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
 </div>

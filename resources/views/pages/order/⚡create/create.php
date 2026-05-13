@@ -4,8 +4,7 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\On;
-use App\Actions\Order\CreateOrderAction;
-use App\DataTransferObjects\OrderFormData;
+use Livewire\Attributes\Computed;
 use App\Models\Member;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -585,5 +584,12 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             'packages.*.height' => 'Chiều cao kiện',
             'packages.*.g_weight' => 'Cân nặng kiện',
         ];
+    }
+    #[Computed]
+    public function chinhsach()
+    {
+        return Cache::remember('chinhsach', 3600, function() {
+            return DB::table('static')->where('type', 'quy-dinh-tao-don')->first()->contentvi ?? '';
+        });
     }
 };
