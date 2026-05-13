@@ -12,12 +12,10 @@ new class extends Component
     #[Modelable]
     public array $phuphihaiquan = [];
     protected bool $syncingPhuphi = false;
-
     public function mount(array $phuphihaiquan = []): void
     {
         $this->phuphihaiquan = $phuphihaiquan ?: [];
     }
-
     protected function defaultPhuphi(): array
     {
         return [
@@ -28,16 +26,26 @@ new class extends Component
         ];
     }
 
+    protected function normalizeMoneyValue(mixed $value): float
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+        if (! is_string($value)) {
+            return 0;
+        }
+        $normalized = preg_replace('/[^\d]/', '', $value);
+        return $normalized === '' ? 0 : (float) $normalized;
+    }
+
     protected function recalculateRow(int $index): void
     {
         if (! isset($this->phuphihaiquan[$index])) {
             return;
         }
-
         $soluong = max(1, (int) ($this->phuphihaiquan[$index]['soluong'] ?? 1));
-        $price = (float) ($this->phuphihaiquan[$index]['price'] ?? 0);
+        $price = $this->normalizeMoneyValue($this->phuphihaiquan[$index]['price'] ?? 0);
         $total = $soluong * $price;
-
         // Chỉ gán khi giá trị thực sự thay đổi để tránh trigger updated() loop
         if ($this->phuphihaiquan[$index]['soluong'] != $soluong) {
             $this->phuphihaiquan[$index]['soluong'] = $soluong;
@@ -53,10 +61,8 @@ new class extends Component
     public function addPhuphi(): void
     {
         $this->syncingPhuphi = true;
-
         try {
             $this->phuphihaiquan[] = $this->defaultPhuphi();
-
             $this->js("
                 requestAnimationFrame(() => {
                     window.TomSelectHelper?.init();
@@ -66,13 +72,11 @@ new class extends Component
             $this->syncingPhuphi = false;
         }
     }
-
     public function removePhuphi(int $index): void
     {
         if (count($this->phuphihaiquan) <= 1) {
             return;
         }
-
         unset($this->phuphihaiquan[$index]);
         $this->phuphihaiquan = array_values($this->phuphihaiquan);
     }
@@ -104,29 +108,23 @@ new class extends Component
         if ($this->syncingPhuphi) {
             return;
         }
-
         if (! str_starts_with($property, 'phuphihaiquan.')) {
             return;
         }
-
         [, $index, $field] = array_pad(explode('.', $property), 3, null);
 
         if ($index === null || $field === null || ! isset($this->phuphihaiquan[(int) $index])) {
             return;
         }
-
         $index = (int) $index;
         $this->syncingPhuphi = true;
-
         try {
             if ($field === 'id_loaiphuphi') {
                 $selected = collect($this->loaiphuphi)->firstWhere('id', (int) $value);
                 $this->phuphihaiquan[$index]['price'] = (float) ($selected['price'] ?? 0);
                 $this->recalculateRow($index);
-
                 return;
             }
-
             if (in_array($field, ['soluong', 'price'], true)) {
                 $this->recalculateRow($index);
             }
@@ -134,12 +132,11 @@ new class extends Component
             $this->syncingPhuphi = false;
         }
     }
-
     #[Computed]
     public function totalPhuphi(): float
     {
         return collect($this->phuphihaiquan)->sum(function (array $phuphi) {
-            return ((float) ($phuphi['soluong'] ?? 0)) * ((float) ($phuphi['price'] ?? 0));
+            return ((float) ($phuphi['soluong'] ?? 0)) * $this->normalizeMoneyValue($phuphi['price'] ?? 0);
         });
     }
 };
@@ -162,14 +159,14 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
         </flux:button>
     </div>
 
-    <div class="p-6 space-y-4">
-        @foreach ($phuphihaiquan as $index => $phuphi)
+    <div class=" space-y-4 {{ count($this->phuphihaiquan) > 0 ? 'p-6' : '' }}">
+        @foreach ($this->phuphihaiquan as $index => $phuphi)
             <div wire:key="phuphi-row-{{ $index }}" class="grid grid-cols-12 gap-3 items-end">
                 <flux:field class="col-span-6">
-                    <flux:label badge="Bắt buộc">Loại phụ phí</flux:label>
+                    <flux:label badge="Bắt buộc">Loại phụ phí</flux:label>
                     <div wire:ignore @class([$selectErrorClass => $errors->has('phuphihaiquan.' . $index . '.id_loaiphuphi')])>
-                        <select class="tomselectEml" data-placeholder="Chọn loại phụ phí" data-livewire-model="phuphihaiquan.{{ $index }}.id_loaiphuphi" required autocomplete="off">
-                            <option value="">-- Chọn loại phụ phí --</option>
+                        <select class="tomselectEml" data-placeholder="Chọn loại phụ phí" data-livewire-model="phuphihaiquan.{{ $index }}.id_loaiphuphi" required autocomplete="off">
+                            <option value="">-- Chọn loại phụ phí --</option>
                             @foreach($this->loaiphuphi as $k => $v)
                                 <option value="{{ $v['id'] }}">{{ $v['name'] }}</option>
                             @endforeach
@@ -177,7 +174,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     </div>
                 </flux:field>
                 <flux:field class="col-span-2">
-                    <flux:label>Số lượng</flux:label>
+                    <flux:label>Số lượng</flux:label>
                     <flux:input
                         type="text"
                         required
@@ -188,7 +185,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     />
                 </flux:field>
                 <flux:field class="col-span-2">
-                    <flux:label>Đơn giá</flux:label>
+                    <flux:label>Đơn giá</flux:label>
                     <flux:input
                         type="text"
                         required
@@ -201,23 +198,33 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 </flux:field>
                 
                 <flux:field class="col-span-2">
-                    <flux:label>Tổng giá</flux:label>
-                    <flux:input
-                        type="text"
-                        readonly
-                        value="{{ $phuphi['total'] ?? 0 }}"
-                        placeholder=""
-                        variant="filled"
-                        :class:input="$inputClass"
-                        mask:dynamic="$money($input)"
-                    />
+                    <flux:label>Tổng giá</flux:label>
+                    <div class="flex items-center gap-2">
+                        <flux:input
+                            type="text"
+                            readonly
+                            wire:model="phuphihaiquan.{{ $index }}.total"
+                            placeholder=""
+                            variant="filled"
+                            :class:input="$inputClass"
+                            mask:dynamic="$money($input)"
+                        />
+                        <flux:button type="button" wire:click="removePhuphi({{ $index }})" >
+                            <flux:icon.minus-circle />
+                        </flux:button>
+                    </div>
                 </flux:field>
             </div>
         @endforeach
-        <div class="flex items-center justify-end border-t border-neutral-100 pt-4">
-            <div class="text-sm font-semibold text-neutral-700">
-                Tổng phụ phí: <span class="text-primary-600">{{ number_format($this->totalPhuphi) }}</span>
+        @if (count($this->phuphihaiquan) > 0)
+        <div class="flex items-center justify-end pt-4">
+            <div class="text-sm font-semibold text-neutral-70 flex items-center justify-end gap-2">
+                Tổng phụ phí: 
+                <div class="inline-flex max-w-[100px]">
+                    <flux:input type="text" readonly variant="filled" value="{{ number_format($this->totalPhuphi) }}" />
+                </div>
             </div>
         </div>
+        @endif
     </div>
 </div>
