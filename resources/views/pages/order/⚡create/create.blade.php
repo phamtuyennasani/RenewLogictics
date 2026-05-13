@@ -84,6 +84,9 @@
             <div class="col-span-full">
                 <livewire:order.phuphi wire:model="phuphihaiquan" wire:key="phuphihaiquan" />
             </div>
+            <div class="col-span-full">
+                <livewire:order.invoice wire:model="invoices" wire:key="invoices" />
+            </div>
             <div class=""></div>
             <div class="bg-white rounded-2xl border border-neutral-200 shadow-sm p-6 space-y-3">
                 <div class="flex items-center justify-end">

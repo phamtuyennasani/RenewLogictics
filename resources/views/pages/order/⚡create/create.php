@@ -24,6 +24,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public $listSender = [];
     public $itemServices;
     public $phuphihaiquan = [];
+    public $invoices = [];
     public array $service = [
         'id_dichvu' => null,
         'id_chitiet_dichvu' => null,
