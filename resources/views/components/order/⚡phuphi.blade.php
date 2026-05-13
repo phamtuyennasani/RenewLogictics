@@ -74,9 +74,7 @@ new class extends Component
     }
     public function removePhuphi(int $index): void
     {
-        if (count($this->phuphihaiquan) <= 1) {
-            return;
-        }
+        
         unset($this->phuphihaiquan[$index]);
         $this->phuphihaiquan = array_values($this->phuphihaiquan);
     }
