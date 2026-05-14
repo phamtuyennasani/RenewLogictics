@@ -7,8 +7,10 @@ use App\Enums\OrderStatusEnum;
 use App\Models\Invoice;
 use App\Models\Member;
 use App\Models\Order;
+use App\Models\OrderPhoto;
 use App\Models\OrderPackage;
 use App\Models\User;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -124,6 +126,12 @@ class CreateOrderAction
 
         try {
             $this->createInvoices($order, $formData->invoiceItems);
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        try {
+            $this->createPhotos($order, $formData->orderPhotos);
         } catch (Throwable $e) {
             report($e);
         }
@@ -245,6 +253,45 @@ class CreateOrderAction
         ], $invoiceItems);
 
         Invoice::insert($rows);
+    }
+
+    protected function createPhotos(Order $order, array $photos): void
+    {
+        $photos = array_values(array_filter($photos));
+
+        if ($photos === []) {
+            return;
+        }
+
+        $uploadDir = public_path('uploads'.DIRECTORY_SEPARATOR.'order');
+        File::ensureDirectoryExists($uploadDir);
+
+        foreach ($photos as $photo) {
+            if (! is_object($photo) || ! method_exists($photo, 'getRealPath') || ! method_exists($photo, 'getClientOriginalName')) {
+                continue;
+            }
+
+            $filename = $this->makePhotoFilename($photo);
+            $targetPath = $uploadDir.DIRECTORY_SEPARATOR.$filename;
+
+            if (! copy($photo->getRealPath(), $targetPath)) {
+                continue;
+            }
+
+            OrderPhoto::create([
+                'id_order' => $order->id,
+                'photo' => $filename,
+            ]);
+        }
+    }
+
+    protected function makePhotoFilename(object $file): string
+    {
+        $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'jpg');
+        $name = Str::slug($originalName) ?: 'order-photo';
+
+        return $name.'-'.now()->format('YmdHis').'-'.Str::lower(Str::random(8)).'.'.$extension;
     }
 
     protected function saveContacts(OrderFormData $formData, Order $order): void

@@ -52,7 +52,7 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
     </div>
 
     <div class="p-6 space-y-5">
-        <div class="grid grid-cols-3 gap-3">
+        <div class="space-y-5 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0">
             <flux:field>
                 <flux:label badge="Bắt buộc">Dịch vụ chính</flux:label>
                 <div wire:ignore @class([$selectErrorClass => $errors->has('service.id_dichvu')])>

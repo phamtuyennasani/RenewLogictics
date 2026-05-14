@@ -69,6 +69,13 @@ class Order extends Model
         'bill_status' => OrderStatusEnum::class,
     ];
 
+    protected static function booted(): void
+    {
+        static::deleting(function (Order $order): void {
+            $order->photos()->get()->each->delete();
+        });
+    }
+
     // ============================================
     // RELATIONSHIPS
     // ============================================
@@ -166,5 +173,9 @@ class Order extends Model
     public function doiTacChungChuyen()
     {
         return $this->belongsTo(News::class, 'service->id_doitacchungchuyen');
+    }
+    public function photos()
+    {
+        return $this->hasMany(OrderPhoto::class, 'id_order');
     }
 }

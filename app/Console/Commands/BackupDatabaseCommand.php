@@ -148,7 +148,7 @@ class BackupDatabaseCommand extends Command
             2 => ['pipe', 'w'],
         ];
 
-        $process = proc_open($command, $descriptors, $pipes, base_path(), array_merge($_ENV, $env));
+        $process = proc_open($command, $descriptors, $pipes, base_path(), $this->processEnvironment($env));
 
         if (! is_resource($process)) {
             throw new RuntimeException('Unable to start process: '.$command[0]);
@@ -167,5 +167,12 @@ class BackupDatabaseCommand extends Command
         if ($exitCode !== 0) {
             throw new RuntimeException(trim($stderr) ?: $command[0].' failed with exit code '.$exitCode);
         }
+    }
+
+    protected function processEnvironment(array $env = []): array
+    {
+        $environment = array_replace(getenv() ?: [], $_ENV, $env);
+
+        return array_filter($environment, static fn ($value): bool => is_scalar($value));
     }
 }

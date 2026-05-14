@@ -17,6 +17,7 @@ class OrderFormData
         public float $dim,
         public array $phuphihaiquan = [],
         public array $invoiceItems = [],
+        public array $orderPhotos = [],
         public ?int $idCs = null,
     ) {}
 
@@ -34,6 +35,7 @@ class OrderFormData
             'ghichu' => $this->notes?? '',
             'dim' => $this->dim,
             'phuphihaiquan' => $this->phuphihaiquan,
+            'order_photos' => $this->orderPhotos,
         ];
     }
 }

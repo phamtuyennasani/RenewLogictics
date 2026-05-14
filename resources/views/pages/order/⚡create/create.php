@@ -16,9 +16,12 @@ use Illuminate\Validation\ValidationException;
 use App\Models\News;
 use Flux\Flux;
 use Livewire\Attributes\Locked;
+use Livewire\WithFileUploads;
 
 new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Component
 {
+    use WithFileUploads;
+
     public ?int $idSale = null;
     public ?int $idCustomer = null;
     public $listSale = [];
@@ -71,7 +74,11 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         'address' => '',
     ];
     public array $packages = [];
-    public ?string $notes = null;
+    public array $ghichu = [
+        'note' => '',
+        'photos' => [],
+    ];
+    public array $newPhotos = [];
     public bool $saveInfoSender = false;
     public bool $saveInfoReceiver = false;
     public bool $agreedToTerms = false;
@@ -517,6 +524,56 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     {
         $this->syncReceivers();
     }
+
+    public function updatedNewPhotos(): void
+    {
+        $this->validate([
+            'newPhotos' => 'nullable|array|max:5',
+            'newPhotos.*' => 'image|max:20480',
+        ]);
+
+        $currentPhotos = $this->ghichu['photos'] ?? [];
+        $remainingSlots = max(0, 5 - count($currentPhotos));
+        $this->ghichu['photos'] = array_merge($currentPhotos, array_slice($this->newPhotos, 0, $remainingSlots));
+        $this->newPhotos = [];
+    }
+
+    public function removeOrderPhoto(int $index): void
+    {
+        unset($this->ghichu['photos'][$index]);
+        $this->ghichu['photos'] = array_values($this->ghichu['photos'] ?? []);
+    }
+
+    public function fileSize($photo): string
+    {
+        if (! is_object($photo) || ! method_exists($photo, 'getSize')) {
+            return '';
+        }
+
+        $bytes = (int) $photo->getSize();
+
+        if ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 2).' MB';
+        }
+
+        return number_format($bytes / 1024, 1).' KB';
+    }
+
+    public function imageDimensions($photo): string
+    {
+        if (! is_object($photo) || ! method_exists($photo, 'getRealPath')) {
+            return '';
+        }
+
+        $size = @getimagesize($photo->getRealPath());
+
+        if (! $size) {
+            return '';
+        }
+
+        return $size[0].' x '.$size[1].' px';
+    }
+
     public function submit(bool $agreedToTerms = false): void{
         $this->agreedToTerms = $agreedToTerms;
         try {
@@ -556,7 +613,6 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             }, $v);
         }
         unset($v);
-        
         if (!$this->agreedToTerms) {
             Flux::toast(
                 duration: 200000,
@@ -575,11 +631,12 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
                 receiver: $receiver,
                 packages: $packages,
                 invoiceItems: $this->invoices,
-                notes: $this->notes?? '',
+                notes: trim((string) ($this->ghichu['note'] ?? '')),
                 saveInfoSender: $this->saveInfoSender ?? false,
                 saveInfoReceiver: $this->saveInfoReceiver ?? false,
                 dim: $this->dim,
                 phuphihaiquan: $phuphihaiquan,
+                orderPhotos: $this->ghichu['photos'] ?? [],
             ));
 
             Flux::toast(

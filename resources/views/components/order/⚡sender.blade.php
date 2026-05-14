@@ -104,32 +104,36 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     </div>
                 </div>
             </flux:field>
-            <div class="grid grid-cols-3 gap-5">
-                <flux:field>
-                    <flux:label badge="Bắt buộc">Tên người gửi</flux:label>
-                    <flux:input
-                        type="text"
-                        required
-                        wire:model.blur="sender.fullname"
-                        placeholder="Tên người gửi"
-                        :class:input="$errors->has('sender.fullname') ? $inputClass.' '.$inputErrorClass : $inputClass"
-                    />
-                </flux:field>
-                <flux:field>
-                    <flux:label badge="Bắt buộc">Số điện thoại</flux:label>
-                    <flux:input
-                        type="text"
-                        required
-                        wire:model.blur="sender.phone"
-                        placeholder="Số điện thoại"
-                        :class:input="$errors->has('sender.phone') ? $inputClass.' '.$inputErrorClass : $inputClass"
-                        mask:dynamic="
-                            /^(03|05|07|08|09)/.test($input.replace(/\D/g, ''))
-                                ? '9999 999 999'
-                                : '999 9999 9999'
-                        "
-                    />
-                </flux:field>
+            <div class="space-y-5 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0">
+                <div>
+                    <flux:field>
+                        <flux:label badge="Bắt buộc">Tên người gửi</flux:label>
+                        <flux:input
+                            type="text"
+                            required
+                            wire:model.blur="sender.fullname"
+                            placeholder="Tên người gửi"
+                            :class:input="$errors->has('sender.fullname') ? $inputClass.' '.$inputErrorClass : $inputClass"
+                        />
+                    </flux:field>
+                </div>
+                <div>
+                    <flux:field>
+                        <flux:label badge="Bắt buộc">Số điện thoại</flux:label>
+                        <flux:input
+                            type="text"
+                            required
+                            wire:model.blur="sender.phone"
+                            placeholder="Số điện thoại"
+                            :class:input="$errors->has('sender.phone') ? $inputClass.' '.$inputErrorClass : $inputClass"
+                            mask:dynamic="
+                                /^(03|05|07|08|09)/.test($input.replace(/\D/g, ''))
+                                    ? '9999 999 999'
+                                    : '999 9999 9999'
+                            "
+                        />
+                    </flux:field>
+                </div>
                 <flux:field>
                     <flux:label>Email</flux:label>
                     <flux:input

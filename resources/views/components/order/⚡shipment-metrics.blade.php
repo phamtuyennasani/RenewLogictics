@@ -1,15 +1,210 @@
 <?php
 
-use Livewire\Component;
+use App\Actions\Order\CalculateChargeableWeightAction;
+use App\Models\News;
 use App\Models\Order;
+use App\Models\OrderPackage;
+use Flux\Flux;
+use Illuminate\Support\Facades\Cache;
+use Livewire\Attributes\Computed;
+use Livewire\Component;
 
 new class extends Component
 {
     public Order $order;
+    public array $packageForm = [];
+
+    public function mount(): void
+    {
+        $this->fillPackageForm();
+    }
+
+    public function fillPackageForm(): void
+    {
+        $this->packageForm = $this->order->packages
+            ->sortBy('id')
+            ->map(fn (OrderPackage $package) => [
+                'id' => $package->id,
+                'code' => $package->code,
+                'package_type' => $package->package_type,
+                'number_of_package' => $package->number_of_package ?: 1,
+                'length' => $package->length,
+                'width' => $package->width,
+                'height' => $package->height,
+                'g_weight' => $package->g_weight,
+                'v_weight' => $package->v_weight,
+                'c_weight' => $package->c_weight,
+                'row_g_weight' => $package->row_g_weight,
+                'row_v_weight' => $package->row_v_weight,
+                'row_c_weight' => $package->row_c_weight,
+            ])
+            ->values()
+            ->all();
+
+        if ($this->packageForm === []) {
+            $this->packageForm[] = $this->defaultPackage();
+        }
+
+        $this->recalculateAll();
+    }
+
+    protected function defaultPackage(): array
+    {
+        return [
+            'id' => null,
+            'code' => null,
+            'package_type' => null,
+            'number_of_package' => 1,
+            'length' => '',
+            'width' => '',
+            'height' => '',
+            'g_weight' => '',
+            'v_weight' => 0,
+            'c_weight' => 0,
+            'row_g_weight' => 0,
+            'row_v_weight' => 0,
+            'row_c_weight' => 0,
+        ];
+    }
+
+    public function addPackage(): void
+    {
+        $this->packageForm[] = $this->defaultPackage();
+    }
+
+    public function removePackage(int $index): void
+    {
+        if (count($this->packageForm) <= 1) {
+            return;
+        }
+
+        unset($this->packageForm[$index]);
+        $this->packageForm = array_values($this->packageForm);
+        $this->recalculateAll();
+    }
+
+    public function updated(string $propertyName): void
+    {
+        if (! str_starts_with($propertyName, 'packageForm.')) {
+            return;
+        }
+
+        $parts = explode('.', $propertyName);
+        $index = isset($parts[1]) ? (int) $parts[1] : null;
+
+        if ($index === null || ! isset($this->packageForm[$index])) {
+            return;
+        }
+
+        $this->calculatePackageRow($index);
+    }
+
+    public function savePackages(): void
+    {
+        $this->recalculateAll();
+
+        $this->validate([
+            'packageForm' => 'required|array|min:1',
+            'packageForm.*.package_type' => 'nullable|exists:news,id',
+            'packageForm.*.number_of_package' => 'required|integer|min:1',
+            'packageForm.*.length' => 'required|numeric|min:0.1',
+            'packageForm.*.width' => 'required|numeric|min:0.1',
+            'packageForm.*.height' => 'required|numeric|min:0.1',
+            'packageForm.*.g_weight' => 'required|numeric|min:0.1',
+        ]);
+
+        $keptIds = collect($this->packageForm)->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
+
+        if ($keptIds === []) {
+            $this->order->packages()->delete();
+        } else {
+            $this->order->packages()->whereNotIn('id', $keptIds)->delete();
+        }
+
+        foreach ($this->packageForm as $index => $package) {
+            $payload = $this->packagePayload($package, $index);
+
+            if (! empty($package['id'])) {
+                $this->order->packages()->whereKey($package['id'])->update($payload);
+                continue;
+            }
+
+            $this->order->packages()->create($payload);
+        }
+
+        $this->order->refresh();
+        $this->order->load('packages');
+        $this->fillPackageForm();
+
+        Flux::modal('edit-packages')->close();
+        Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã cập nhật cân nặng & kiện hàng.', variant: 'success');
+    }
+
+    protected function packagePayload(array $package, int $index): array
+    {
+        $this->calculatePackageRow($index);
+        $package = $this->packageForm[$index];
+
+        return [
+            'code' => $package['code'] ?: $this->generatePackageCode($index + 1),
+            'package_type' => $package['package_type'] ?: null,
+            'number_of_package' => (int) ($package['number_of_package'] ?? 1),
+            'length' => (float) ($package['length'] ?? 0),
+            'width' => (float) ($package['width'] ?? 0),
+            'height' => (float) ($package['height'] ?? 0),
+            'g_weight' => (float) ($package['g_weight'] ?? 0),
+            'v_weight' => (float) ($package['v_weight'] ?? 0),
+            'c_weight' => (float) ($package['c_weight'] ?? 0),
+            'row_g_weight' => (float) ($package['row_g_weight'] ?? 0),
+            'row_v_weight' => (float) ($package['row_v_weight'] ?? 0),
+            'row_c_weight' => (float) ($package['row_c_weight'] ?? 0),
+        ];
+    }
+
+    protected function calculatePackageRow(int $index): void
+    {
+        $package = $this->packageForm[$index] ?? $this->defaultPackage();
+        $qty = max(1, (int) ($package['number_of_package'] ?? 1));
+
+        $weights = CalculateChargeableWeightAction::execute(
+            length: (float) ($package['length'] ?? 0),
+            width: (float) ($package['width'] ?? 0),
+            height: (float) ($package['height'] ?? 0),
+            gWeight: (float) ($package['g_weight'] ?? 0),
+            dim: (float) ($this->order->dim ?: 6000),
+        );
+
+        $this->packageForm[$index]['number_of_package'] = $qty;
+        $this->packageForm[$index]['v_weight'] = $weights['v_weight'];
+        $this->packageForm[$index]['c_weight'] = $weights['c_weight'];
+        $this->packageForm[$index]['row_g_weight'] = round((float) ($package['g_weight'] ?? 0) * $qty, 2);
+        $this->packageForm[$index]['row_v_weight'] = round($weights['v_weight'] * $qty, 2);
+        $this->packageForm[$index]['row_c_weight'] = round($weights['c_weight'] * $qty, 2);
+    }
+
+    protected function recalculateAll(): void
+    {
+        foreach (array_keys($this->packageForm) as $index) {
+            $this->calculatePackageRow((int) $index);
+        }
+    }
+
+    protected function generatePackageCode(int $index): string
+    {
+        return ($this->order->id_bill ?: 'ORDER-'.$this->order->id).'-'.str_pad((string) $index, 2, '0', STR_PAD_LEFT);
+    }
 
     public function number(mixed $value, int $decimals = 2): string
     {
         return is_numeric($value) ? number_format((float) $value, $decimals) : '—';
+    }
+
+    #[Computed]
+    public function packageTypes(): array
+    {
+        return Cache::remember('order_package_types', now()->addDay(), fn () =>
+            News::whereType('loaikien')->orderBy('numb')->pluck('namevi', 'id')->toArray()
+        );
     }
 
     public function render()
@@ -34,7 +229,16 @@ new class extends Component
             <h2 class="text-sm font-semibold text-neutral-900">Cân nặng & kiện hàng</h2>
             <p class="text-xs text-neutral-500">Tổng hợp theo cân nặng gross, volume và chargeable</p>
         </div>
-        <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ $packages->count() }} dòng kiện</span>
+        <div class="flex items-center gap-2">
+            <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ $packages->count() }} dòng kiện</span>
+            <flux:modal.trigger name="edit-packages">
+                <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600" aria-label="Sửa cân nặng & kiện hàng">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                    </svg>
+                </button>
+            </flux:modal.trigger>
+        </div>
     </div>
 
     <div class="grid gap-3 border-b border-neutral-100 p-5 sm:grid-cols-4">
@@ -60,7 +264,7 @@ new class extends Component
                 @forelse($packages as $package)
                     <tr class="hover:bg-neutral-50/60">
                         <td class="px-5 py-3 text-sm font-medium text-neutral-800">{{ $package->code ?: '—' }}</td>
-                        <td class="px-4 py-3 text-sm text-neutral-600">{{ $this->number($package->length, 0) }} × {{ $this->number($package->width, 0) }} × {{ $this->number($package->height, 0) }}</td>
+                        <td class="px-4 py-3 text-sm text-neutral-600">{{ $this->number($package->length, 0) }} x {{ $this->number($package->width, 0) }} x {{ $this->number($package->height, 0) }}</td>
                         <td class="px-4 py-3 text-right text-sm text-neutral-600">{{ $this->number($package->number_of_package, 0) }}</td>
                         <td class="px-4 py-3 text-right text-sm text-neutral-600">{{ $this->number($package->row_g_weight) }}</td>
                         <td class="px-4 py-3 text-right text-sm text-neutral-600">{{ $this->number($package->row_v_weight) }}</td>
@@ -72,4 +276,86 @@ new class extends Component
             </tbody>
         </table>
     </div>
+
+    <flux:modal name="edit-packages" class="w-full max-w-6xl">
+        <form wire:submit="savePackages" class="space-y-6">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <flux:heading size="lg">Sửa cân nặng & kiện hàng</flux:heading>
+                    <flux:subheading>Thông tin cân quy đổi và tính phí được tự tính lại theo DIM {{ $order->dim ?: 6000 }}.</flux:subheading>
+                </div>
+                <flux:button type="button" variant="primary" wire:click="addPackage">+ Thêm kiện</flux:button>
+            </div>
+
+            <div class="space-y-3">
+                @foreach($packageForm as $index => $package)
+                    <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-semibold text-neutral-800">Dòng kiện {{ $index + 1 }}</p>
+                                <p class="text-xs text-neutral-500">{{ $package['code'] ?: 'Mã kiện sẽ được tạo khi lưu' }}</p>
+                            </div>
+                            @if(count($packageForm) > 1)
+                                <button type="button" wire:click="removePackage({{ $index }})" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Xóa kiện">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            @endif
+                        </div>
+
+                        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+                            <flux:field class="xl:col-span-2">
+                                <flux:label>Loại kiện</flux:label>
+                                <flux:select wire:model="packageForm.{{ $index }}.package_type">
+                                    <flux:select.option value="">Chọn loại kiện</flux:select.option>
+                                    @foreach($this->packageTypes as $id => $name)
+                                        <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
+                                    @endforeach
+                                </flux:select>
+                            </flux:field>
+                            <flux:field>
+                                <flux:label>Số kiện</flux:label>
+                                <flux:input type="number" min="1" step="1" wire:model.live.debounce.300ms="packageForm.{{ $index }}.number_of_package" />
+                                @error("packageForm.$index.number_of_package") <flux:error>{{ $message }}</flux:error> @enderror
+                            </flux:field>
+                            <flux:field>
+                                <flux:label>Dài</flux:label>
+                                <flux:input type="number" min="0.1" step="0.1" wire:model.live.debounce.300ms="packageForm.{{ $index }}.length" />
+                                @error("packageForm.$index.length") <flux:error>{{ $message }}</flux:error> @enderror
+                            </flux:field>
+                            <flux:field>
+                                <flux:label>Rộng</flux:label>
+                                <flux:input type="number" min="0.1" step="0.1" wire:model.live.debounce.300ms="packageForm.{{ $index }}.width" />
+                                @error("packageForm.$index.width") <flux:error>{{ $message }}</flux:error> @enderror
+                            </flux:field>
+                            <flux:field>
+                                <flux:label>Cao</flux:label>
+                                <flux:input type="number" min="0.1" step="0.1" wire:model.live.debounce.300ms="packageForm.{{ $index }}.height" />
+                                @error("packageForm.$index.height") <flux:error>{{ $message }}</flux:error> @enderror
+                            </flux:field>
+                            <flux:field>
+                                <flux:label>GW / kiện</flux:label>
+                                <flux:input type="number" min="0.1" step="0.1" wire:model.live.debounce.300ms="packageForm.{{ $index }}.g_weight" />
+                                @error("packageForm.$index.g_weight") <flux:error>{{ $message }}</flux:error> @enderror
+                            </flux:field>
+                        </div>
+
+                        <div class="mt-3 grid gap-2 text-xs text-neutral-500 sm:grid-cols-3">
+                            <div class="rounded-lg bg-white px-3 py-2">Row GW: <span class="font-semibold text-neutral-800">{{ $this->number($package['row_g_weight'] ?? 0) }} kg</span></div>
+                            <div class="rounded-lg bg-white px-3 py-2">Row VW: <span class="font-semibold text-neutral-800">{{ $this->number($package['row_v_weight'] ?? 0) }} kg</span></div>
+                            <div class="rounded-lg bg-white px-3 py-2">Row CW: <span class="font-semibold text-primary-700">{{ $this->number($package['row_c_weight'] ?? 0) }} kg</span></div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button type="button" variant="ghost">Hủy</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary">Lưu</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 </section>

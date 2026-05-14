@@ -61,7 +61,7 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                 <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
             @enderror
         </flux:field>
-        <div class="grid grid-cols-3 gap-5">
+        <div class="space-y-5 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0">
             <flux:field>
                 <flux:label badge="Bắt buộc">Tên người nhận</flux:label>
                 <flux:input
@@ -113,7 +113,7 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                 
             </flux:field>
         </div>
-        <div class="grid grid-cols-3 gap-5">
+        <div class="space-y-5 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0">
             <flux:field>
                 <flux:label badge="Bắt buộc">Tỉnh / Bang</flux:label>
                 <flux:input

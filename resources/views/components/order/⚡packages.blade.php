@@ -201,19 +201,9 @@ $packageTypes = $this->loaikien();
                         </flux:button>
                     @endif
                 </div>
-                <div class="grid grid-cols-7 gap-3">
-                    <flux:field>
-                        <flux:label badge="*">Số lượng</flux:label>
-                        <flux:input
-                            type="text"
-                            required
-                            wire:model.live.debounce.300ms="packages.{{ $index }}.number_of_package"
-                            placeholder=""
-                            :class:input="$inputClass"
-                            mask:dynamic="Math.max(1, parseInt($input.replace(/\D/g, '')) || 1).toString()"
-                        />
-                    </flux:field>
-                    <flux:field class="col-span-2">
+                <div class="grid grid-cols-2 lg:grid-cols-7 gap-3">
+                    
+                    <flux:field class="lg:col-span-3">
                         <flux:label badge="*">Loại kiện</flux:label>
                         <flux:select wire:model="packages.{{ $index }}.package_type" >
                             <flux:select.option value="">Chọn loại kiện</flux:select.option>
@@ -268,26 +258,25 @@ $packageTypes = $this->loaikien();
                         />
                     </flux:field>
                 </div>
-                
             </div>
         @endforeach
         <div class="grid grid-cols-7 gap-3">
-            <div class="col-span-3">
+            <div class="col-span-full lg:col-span-3">
                 <div class="text-sm text-gray-500 flex items-center gap-2">
                     Tổng số kiện:
-                    <div class="inline-flex max-w-[100px]">
+                    <div class="inline-flex lg:max-w-[100px]">
                         <flux:input type="text" readonly variant="filled" wire:model="totalNumber" />
                     </div>
                 </div>
             </div>
-            <div class="col-span-4">
-                <div class="text-sm text-gray-500 flex items-center gap-2 justify-end">
+            <div class="col-span-full lg:col-span-4">
+                <div class="text-sm text-gray-500 flex lg:items-center gap-2 justify-end flex-col lg:flex-row">
                     Tổng cân nặng Quy đổi / Tính phí (Kg):
                     <div class="flex items-center justify-end gap-3">
-                        <div class="inline-flex max-w-[100px]">
+                        <div class="inline-flex lg:max-w-[100px]">
                             <flux:input type="text" readonly variant="filled" wire:model="totalV_Weight" />
                         </div>
-                        <div class="inline-flex max-w-[100px]">
+                        <div class="inline-flex lg:max-w-[100px]">
                             <flux:input type="text" readonly variant="filled" wire:model="totalC_Weight" />
                         </div>
                     </div>
