@@ -22,7 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::livewire('/', 'pages::order.index')->name('index');
         Route::livewire('/create', 'pages::order.create')->name('create');
-        Route::livewire('/{id}', 'pages::order.show')->name('show');
+        Route::livewire('/{uuid}', 'pages::order.show')->name('show');
     })->middleware('can:orders.index');
     // --- Pickup ---
     Route::prefix('pickups')->name('pickups.')->group(function () {

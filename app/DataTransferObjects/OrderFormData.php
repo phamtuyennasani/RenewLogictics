@@ -6,7 +6,6 @@ class OrderFormData
 {
     public function __construct(
         public ?int $idSale,
-        public ?int $idCtv,
         public ?int $idCustomer,
         public array $service,
         public array $sender,
@@ -16,20 +15,25 @@ class OrderFormData
         public bool $saveInfoSender,
         public bool $saveInfoReceiver,
         public float $dim,
+        public array $phuphihaiquan = [],
+        public array $invoiceItems = [],
+        public ?int $idCs = null,
     ) {}
 
     public function toArray(): array
     {
         return [
             'id_sale' => $this->idSale ?? 0,
-            'id_ctv' => $this->idCtv ?? 0,
             'id_customer' => $this->idCustomer ?? 0,
-            'dichvu' => $this->service,
-            'info_sender' => $this->sender,
-            'info_receiver' => $this->receiver,
+            'id_cs' => $this->idCs ?? 0,
+            'service' => $this->service,
+            'sender' => $this->sender,
+            'receiver' => $this->receiver,
             'packages' => $this->packages,
-            'ghichu' => $this->notes,
+            'invoice_items' => $this->invoiceItems,
+            'ghichu' => $this->notes?? '',
             'dim' => $this->dim,
+            'phuphihaiquan' => $this->phuphihaiquan,
         ];
     }
 }

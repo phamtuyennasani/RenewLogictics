@@ -2,7 +2,6 @@
 
 namespace App\Actions\Order;
 
-use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 
 class GenerateOrderCodeAction
@@ -10,27 +9,43 @@ class GenerateOrderCodeAction
     /**
      * Generate order code với DB transaction lock
      * Thread-safe khi nhiều user cùng thao tác
-     * Format: BEE{YYMMDD}{NNN}
+     * Format: {ORDER_CODE_PREFIX}{YYMMDD}{NNN}
      */
     public function execute(): string
     {
-        $prefix = 'BEE' . now()->format('ymd');
+        $date = now();
+        $sequenceDate = $date->toDateString();
+        $prefix = config('order.code_prefix', 'BEE') . $date->format('ymd');
 
-        return DB::transaction(function () use ($prefix) {
-            // Lock row cuối cùng có cùng prefix để prevent race condition
-            $lastOrder = Order::where('id_bill', 'like', $prefix . '%')
-                ->orderByDesc('id_bill')
+        $nextNumber = DB::transaction(function () use ($sequenceDate) {
+            $sequence = DB::table('order_sequences')
+                ->where('sequence_date', $sequenceDate)
                 ->lockForUpdate()
                 ->first();
 
-            if ($lastOrder) {
-                $numberPart = (int) substr($lastOrder->id_bill, strlen($prefix));
-                $nextNumber = $numberPart + 1;
-            } else {
-                $nextNumber = 1;
+            if (! $sequence) {
+                DB::table('order_sequences')->insert([
+                    'sequence_date' => $sequenceDate,
+                    'current_number' => 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                return 1;
             }
 
-            return $prefix . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
+            $nextNumber = ((int) $sequence->current_number) + 1;
+
+            DB::table('order_sequences')
+                ->where('sequence_date', $sequenceDate)
+                ->update([
+                    'current_number' => $nextNumber,
+                    'updated_at' => now(),
+                ]);
+
+            return $nextNumber;
         });
+
+        return $prefix . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
     }
 }

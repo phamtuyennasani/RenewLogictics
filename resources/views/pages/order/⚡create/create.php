@@ -5,11 +5,14 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Computed;
+use App\Actions\Order\CreateOrderAction;
+use App\DataTransferObjects\OrderFormData;
 use App\Models\Member;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 use App\Models\News;
 use Flux\Flux;
 use Livewire\Attributes\Locked;
@@ -174,7 +177,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             $this->idCustomer = $user->id;
             return;
         }
-
+        
         if (!$this->idSale) {
             throw new AuthorizationException('Vui lòng chọn sale phụ trách.');
         }
@@ -201,21 +204,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         }
     }
 
-    public function submit(bool $agreedToTerms = false): void{
-        $this->agreedToTerms = $agreedToTerms;
-        $this->normalizeAssignmentByRole();
-        $this->validate($this->rules());
-        if (!$this->agreedToTerms) {
-            $this->addError('agreedToTerms', 'Bạn phải đồng ý với quy định tạo đơn');
-            return;
-        }
-        try {
-           
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $this->addError('submit', 'Có lỗi xảy ra: ' . $e->getMessage());
-        }
-    }
+    
 
     protected function defaultSender(): array
     {
@@ -528,7 +517,87 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     {
         $this->syncReceivers();
     }
-    
+    public function submit(bool $agreedToTerms = false): void{
+        $this->agreedToTerms = $agreedToTerms;
+        try {
+            $this->normalizeAssignmentByRole();
+            $this->validate($this->rules());
+        } catch (AuthorizationException $e) {
+            Flux::toast(
+                duration: 200000,
+                heading: 'Không có quyền',
+                text: $e->getMessage(),
+                variant: 'danger'
+            );
+            return;
+        } catch (ValidationException $e) {
+            $this->setErrorBag($e->validator->errors());
+            $this->showRequiredFieldsToast();
+            return;
+        }
+
+        $sender = $this->sender;
+        $receiver = $this->receiver;
+        $service = $this->service;
+        $packages = $this->packages;
+        $phuphihaiquan = $this->phuphihaiquan;
+        foreach($phuphihaiquan as $k => &$v) {
+            $v['price'] = str_replace(['.', ','], '', $v['price'] ?? 0);
+            $v['total'] = str_replace(['.', ','], '', $v['total'] ?? 0);
+        }
+        unset($v);
+
+        foreach($service as $k => &$v) {
+            if(is_numeric($v)) $v = (int) $v;
+            if(in_array($k, ['tensanpham'])) $v = trim($v);
+            if(is_array($v)) $v = array_map(function($item) {
+                if(is_numeric($item)) return (int) $item;
+                return trim($item);
+            }, $v);
+        }
+        unset($v);
+        
+        if (!$this->agreedToTerms) {
+            Flux::toast(
+                duration: 200000,
+                heading: 'Cảnh báo',
+                text: 'Bạn cần đồng ý với chính sách tạo đơn hàng để tiếp tục',
+                variant: 'danger'
+            );
+            return;
+        }
+        try {
+            $order = app(CreateOrderAction::class)->execute(new OrderFormData(
+                idSale: $this->idSale,
+                idCustomer: $this->idCustomer,
+                service: $service,
+                sender: $sender,
+                receiver: $receiver,
+                packages: $packages,
+                invoiceItems: $this->invoices,
+                notes: $this->notes?? '',
+                saveInfoSender: $this->saveInfoSender ?? false,
+                saveInfoReceiver: $this->saveInfoReceiver ?? false,
+                dim: $this->dim,
+                phuphihaiquan: $phuphihaiquan,
+            ));
+
+            Flux::toast(
+                duration: 5000,
+                heading: 'Thành công',
+                text: 'Tạo đơn hàng ' . $order->id_bill . ' thành công',
+                variant: 'success'
+            );
+            $this->redirectRoute('orders.show', ['uuid' => $order->uuid]);
+        } catch (\Exception $e) {
+            Flux::toast(
+                duration: 200000,
+                heading: 'Lỗi',
+                text: 'Có lỗi xảy ra khi tạo đơn hàng: ' . $e->getMessage(),
+                variant: 'danger'
+            );
+        }
+    }
     protected function rules(): array{
         return [
             'service.id_dichvu' => 'required|exists:news,id',
@@ -549,7 +618,6 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             'packages.*.g_weight' => 'nullable|numeric|min:0.1',
         ];
     }
-
     protected function messages(): array
     {
         return [
@@ -562,7 +630,6 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             'array' => ':attribute không hợp lệ.',
         ];
     }
-
     protected function validationAttributes(): array
     {
         return [

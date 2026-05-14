@@ -203,16 +203,16 @@ html {
 }
 /* End TomSelect */
 
-table {
+div.show-content table {
     @apply w-full border-collapse;
 }
-table th, table td {
+div.show-content table th, div.show-content table td {
     @apply border border-neutral-200 px-4 py-2 text-left;
 }
-table th {
+div.show-content table th {
     @apply bg-neutral-100 text-sm font-medium text-neutral-700;
 }
-table tbody tr:hover {
+div.show-content table tbody tr:hover {
     @apply bg-neutral-50;
 }
 div.show-content p{
