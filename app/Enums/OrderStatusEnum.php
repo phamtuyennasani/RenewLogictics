@@ -16,7 +16,7 @@ enum OrderStatusEnum: string
     case DA_XAC_NHAN      = 'da_xac_nhan';
     case DA_NHAN_HANG     = 'da_nhan_hang';
     case DUYET_XUAT_HANG  = 'duyet_xuat_hang';
-    case DANG_PHAT_HANG   = 'dang_phaT_hang';
+    case DANG_PHAT_HANG   = 'dang_phat_hang';
     case DA_GIAO          = 'da_giao';
 
     // ---- Trạng thái đặc biệt ----

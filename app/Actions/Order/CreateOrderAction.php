@@ -208,25 +208,32 @@ class CreateOrderAction
         $now = now();
         $packages = $this->calculatePackageWeights($packages, $dim);
 
-        $rows = array_map(function ($package, $index) use ($order, $now) {
-            return [
-                'id_order' => $order->id,
-                'code' => $this->generatePackageCode($order->id_bill, $index + 1),
-                'length' => $package['length'] ?? 0,
-                'width' => $package['width'] ?? 0,
-                'height' => $package['height'] ?? 0,
-                'g_weight' => $package['g_weight'] ?? 0,
-                'v_weight' => $package['v_weight'] ?? 0,
-                'c_weight' => $package['c_weight'] ?? 0,
-                'number_of_package' => $package['number_of_package'] ?? 1,
-                'row_g_weight' => $package['row_g_weight'] ?? 0,
-                'row_v_weight' => $package['row_v_weight'] ?? 0,
-                'row_c_weight' => $package['row_c_weight'] ?? 0,
-                'package_type' => $package['package_type'] ?? null,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
-        }, $packages, array_keys($packages));
+        $rows = [];
+        $packageIndex = 1;
+
+        foreach ($packages as $package) {
+            $qty = max(1, (int) ($package['number_of_package'] ?? 1));
+
+            for ($i = 0; $i < $qty; $i++) {
+                $rows[] = [
+                    'id_order' => $order->id,
+                    'code' => $this->generatePackageCode($order->id_bill, $packageIndex++),
+                    'length' => $package['length'] ?? 0,
+                    'width' => $package['width'] ?? 0,
+                    'height' => $package['height'] ?? 0,
+                    'g_weight' => $package['g_weight'] ?? 0,
+                    'v_weight' => $package['v_weight'] ?? 0,
+                    'c_weight' => $package['c_weight'] ?? 0,
+                    'number_of_package' => 1,
+                    'row_g_weight' => $package['g_weight'] ?? 0,
+                    'row_v_weight' => $package['v_weight'] ?? 0,
+                    'row_c_weight' => $package['c_weight'] ?? 0,
+                    'package_type' => $package['package_type'] ?? null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
 
         OrderPackage::insert($rows);
     }

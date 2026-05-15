@@ -1,7 +1,7 @@
 <?php
 
-use Livewire\Component;
 use App\Models\Order;
+use Livewire\Component;
 
 new class extends Component
 {
@@ -17,7 +17,7 @@ new class extends Component
 
 <section class="rounded-xl border border-neutral-200 bg-white shadow-xs">
     <div class="border-b border-neutral-100 px-5 py-4">
-        <h2 class="text-sm font-semibold text-neutral-900">Mốc thời gian & ghi chú</h2>
+        <h2 class="text-sm font-semibold text-neutral-900 uppercase">Mốc thời gian</h2>
         <p class="text-xs text-neutral-500">Các ngày nghiệp vụ chính của đơn</p>
     </div>
     <div class="space-y-5 p-5">
@@ -37,11 +37,6 @@ new class extends Component
                     </div>
                 </div>
             @endforeach
-        </div>
-
-        <div class="rounded-lg bg-neutral-50 p-4">
-            <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Ghi chú</p>
-            <p class="mt-2 whitespace-pre-line text-sm leading-6 text-neutral-700">{{ $order->ghichu ?: 'Chưa có ghi chú' }}</p>
         </div>
     </div>
 </section>

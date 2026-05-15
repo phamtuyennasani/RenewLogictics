@@ -178,4 +178,9 @@ class Order extends Model
     {
         return $this->hasMany(OrderPhoto::class, 'id_order');
     }
+
+    public function histories()
+    {
+        return $this->hasMany(OrderHistory::class, 'id_order')->latest();
+    }
 }

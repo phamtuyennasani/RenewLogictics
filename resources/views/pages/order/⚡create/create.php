@@ -73,7 +73,21 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         'vsvx' => false,
         'address' => '',
     ];
-    public array $packages = [];
+    public array $packages = [
+        [
+            'number_of_package' => 1,
+            'package_type' => null,
+            'length' => '',
+            'width' => '',
+            'height' => '',
+            'g_weight' => '',
+            'v_weight' => 0,
+            'c_weight' => 0,
+            'row_g_weight' => 0,
+            'row_v_weight' => 0,
+            'row_c_weight' => 0,
+        ],
+    ];
     public array $ghichu = [
         'note' => '',
         'photos' => [],
@@ -127,22 +141,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public function handleServiceUpdated(string $tensanpham): void{
         $this->service['tensanpham'] = $tensanpham;
     }
-    #[On('senderUpdated')]
-    public function handleSenderUpdated($sender): void{
-        // Không cần nữa vì component con không dispatch event
-        // $this->sender = array_merge($this->sender, $sender);
-    }
-    #[On('receiverUpdated')]
-    public function handleReceiverUpdated(): void{
-        // if($this->receiver['postcode'] ?? null) {
-        //     $this->receiver['vsvx'] = true;
-        // }
-    }
-    #[On('packagesUpdated')]
-    public function handlePackagesUpdated($packages): void{
-        // Không cần nữa vì component con không dispatch event
-        // $this->packages = $packages;
-    }
+    
     public function goBack(): void{
         redirect()->route('orders.index');
     }
@@ -669,6 +668,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             'receiver.address' => 'required|string|max:500',
             'receiver.postcode' => 'required|string|max:20',
             'packages' => 'nullable|array',
+            'packages.*.number_of_package' => 'nullable|integer|min:1',
             'packages.*.length' => 'nullable|numeric|min:0.1',
             'packages.*.width' => 'nullable|numeric|min:0.1',
             'packages.*.height' => 'nullable|numeric|min:0.1',
@@ -704,6 +704,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             'receiver.city' => 'Thành phố',
             'receiver.postcode' => 'Postcode',
             'packages' => 'Danh sách kiện',
+            'packages.*.number_of_package' => 'Số kiện',
             'packages.*.length' => 'Chiều dài kiện',
             'packages.*.width' => 'Chiều rộng kiện',
             'packages.*.height' => 'Chiều cao kiện',

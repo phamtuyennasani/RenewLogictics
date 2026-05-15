@@ -1,8 +1,12 @@
 import './bootstrap';
 import TomSelect from 'tom-select';
 import { registerTomSelectNavigation } from './tom-select-helper';
+import { Fancybox } from '@fancyapps/ui';
+import '@fancyapps/ui/dist/fancybox/fancybox.css';
 
 window.TomSelect = TomSelect;
+window.Fancybox = Fancybox;
+Fancybox.bind('[data-fancybox]', {});
 import Scrollbar from 'smooth-scrollbar';
 const sidebarEl = document.querySelector('#sidebar-scrollbar');
 if (sidebarEl) {

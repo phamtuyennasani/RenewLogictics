@@ -18,9 +18,12 @@ new class extends Component
     public float $totalC_Weight = 0;
     public float $dim;
 
-    public function mount(array $packages = [],array $service = [], float $dim = 6000): void
+    public function mount(array $service = [], float $dim = 6000): void
     {
-        $this->packages = $packages ?: [$this->defaultPackage()];
+        if (empty($this->packages)) {
+            $this->packages[] = $this->defaultPackage();
+        }
+
         $this->service = $service;
         $this->tensanpham = (string) ($service['tensanpham'] ?? '');
         $this->dim = $dim;
@@ -92,7 +95,7 @@ new class extends Component
     protected function calculatePackageRow(int $index): void
     {
         $pkg = $this->packages[$index] ?? $this->defaultPackage();
-        $num = (int) ($pkg['number_of_package'] ?? 1);
+        $num = max(1, (int) ($pkg['number_of_package'] ?? 1));
         $calcWeight = \App\Actions\Order\CalculateChargeableWeightAction::execute(
             length: (float) ($pkg['length'] ?? 0),
             width: (float) ($pkg['width'] ?? 0),
@@ -101,6 +104,7 @@ new class extends Component
             dim: $this->dim
         );
 
+        $this->packages[$index]['number_of_package'] = $num;
         $this->packages[$index]['v_weight'] = $calcWeight['v_weight'];
         $this->packages[$index]['c_weight'] = $calcWeight['c_weight'];
         $this->packages[$index]['row_g_weight'] = round((float) ($pkg['g_weight'] ?? 0) * $num, 2);
@@ -111,8 +115,9 @@ new class extends Component
     protected function updatePackageRowFromUnitWeights(int $index): void
     {
         $pkg = $this->packages[$index] ?? $this->defaultPackage();
-        $num = (int) ($pkg['number_of_package'] ?? 1);
+        $num = max(1, (int) ($pkg['number_of_package'] ?? 1));
 
+        $this->packages[$index]['number_of_package'] = $num;
         $this->packages[$index]['row_g_weight'] = round((float) ($pkg['g_weight'] ?? 0) * $num, 2);
         $this->packages[$index]['row_v_weight'] = round((float) ($pkg['v_weight'] ?? 0) * $num, 2);
         $this->packages[$index]['row_c_weight'] = round((float) ($pkg['c_weight'] ?? 0) * $num, 2);
@@ -201,7 +206,7 @@ $packageTypes = $this->loaikien();
                         </flux:button>
                     @endif
                 </div>
-                <div class="grid grid-cols-2 lg:grid-cols-7 gap-3">
+                <div class="grid grid-cols-2 lg:grid-cols-8 gap-3">
                     
                     <flux:field class="lg:col-span-3">
                         <flux:label badge="*">Loại kiện</flux:label>
@@ -211,6 +216,18 @@ $packageTypes = $this->loaikien();
                                 <flux:select.option value="{{ $id }}">{{ $name }}</flux:select.option>
                             @endforeach
                         </flux:select>
+                    </flux:field>
+                    <flux:field>
+                        <flux:label badge="*">Số kiện</flux:label>
+                        <flux:input
+                            type="number"
+                            min="1"
+                            step="1"
+                            required
+                            value="{{ $package['number_of_package'] ?? 1 }}"
+                            wire:model.live.debounce.300ms="packages.{{ $index }}.number_of_package"
+                            :class:input="$errors->has('packages.'.$index.'.number_of_package') ? $inputClass.' '.$inputErrorClass : $inputClass"
+                        />
                     </flux:field>
                     <flux:field>
                         <flux:label badge="*">Dài</flux:label>
