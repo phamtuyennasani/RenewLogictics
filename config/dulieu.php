@@ -253,4 +253,16 @@ return [
         'canEdit'   => true,
         'canDelete' => true,
     ],
+    'loai-chi-hhkh' => [
+        'group'  => 'Phụ phí',
+        'route_group' => 'phuphi',
+        'title'  => 'Loại chi phí HHKH',
+        'columns'    => ['namevi' => 'Tên loại chi phí', 'price' => 'Giá chi phí'],
+        'formFields' => [
+            'namevi' => ['label' => 'Tên loại chi phí', 'type' => 'text', 'required' => true],
+        ],
+        'canCreate' => true,
+        'canEdit'   => true,
+        'canDelete' => true,
+    ],
 ];

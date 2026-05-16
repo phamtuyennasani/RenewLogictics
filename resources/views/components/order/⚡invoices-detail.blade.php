@@ -310,7 +310,7 @@ new class extends Component
             <tbody class="divide-y divide-neutral-100">
                 @forelse($order->invoices as $invoice)
                     <tr class="hover:bg-neutral-50/60">
-                        <td class="px-5 py-3 text-sm font-medium text-neutral-800">{{ $invoice->tenhang ?: '—' }}</td>
+                        <td class="px-5 py-3 text-sm font-medium text-neutral-800">{!! nl2br(e($invoice->tenhang ?: '—')) !!}</td>
                         <td class="px-4 py-3 text-sm text-neutral-600">{{ $this->loaihangName($invoice->loaihang) }}</td>
                         <td class="px-4 py-3 text-sm text-neutral-600">{{ $invoice->xuatxu ?: '—' }}</td>
                         <td class="px-4 py-3 text-sm text-neutral-600">{{ $invoice->hscode ?: '—' }}</td>

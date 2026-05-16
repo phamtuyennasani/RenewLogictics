@@ -40,6 +40,7 @@ class CreateOrderAction
                 'total_phuphi' => 0,
                 'total_hh_khachhang' => 0,
                 'total_tongcuoc_no_vat' => 0,
+                'total_vat' => 0,
                 'total_tongcuoc' => 0,
             ],
             'cuocvon' => [
@@ -54,6 +55,7 @@ class CreateOrderAction
                 'total_vat_phuphi' => 0,
                 'total_phuphi_no_vat' => 0,
                 'total_phuphi' => 0,
+                'total_vat' => 0,
                 'total_tongcuoc' => 0,
                 'total_tongcuoc_no_vat' => 0,
                 'bonus_sale_percent' => 0,
@@ -70,6 +72,7 @@ class CreateOrderAction
                 'total_vat_phuphi' => 0,
                 'total_phuphi_no_vat' => 0,
                 'total_phuphi' => 0,
+                'total_vat' => 0,
                 'total_tongcuoc_no_vat' => 0,
                 'total_tongcuoc' => 0,
             ],

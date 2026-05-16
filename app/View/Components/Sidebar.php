@@ -276,6 +276,7 @@ class Sidebar extends Component
                     'route_params' => ['type' => 'phu-phi'],
                     'children' => [
                         ['route' => 'phuphi.index', 'route_params' => ['type' => 'phuphidonhang'], 'label' => 'Phụ phí đơn hàng', 'roles' => ['admin', 'ketoan']],
+                        ['route' => 'phuphi.index', 'route_params' => ['type' => 'loai-chi-hhkh'], 'label' => 'Loại chi phí HHKH', 'roles' => ['admin', 'ketoan']],
                     ],
                 ],
             ],
@@ -353,7 +354,6 @@ class Sidebar extends Component
                 }
             }
         }
-
         return empty($filteredItems) ? [] : [
             'label' => $group['label'],
             'items' => $filteredItems,

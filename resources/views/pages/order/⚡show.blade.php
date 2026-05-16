@@ -385,7 +385,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
     {
         $this->printBillWithCvck = $withCvck;
         Flux::modal('print-bill-confirm')->close();
-        $this->dispatch('print-bill-ready');
+        $this->js(<<<'JS'
+            requestAnimationFrame(() => {
+                document.body.dataset.printTarget = 'bill';
+                window.print();
+            });
+        JS);
     }
 
     public function render()
@@ -570,12 +575,18 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 <span>Sale: <span class="font-medium text-neutral-700">{{ $order->sale?->fullname ?: $order->sale?->username ?: '—' }}</span></span>
                 @if($customerCompanyName)
                     <span>-</span>
-                    <span>Thông tin Khách hàng: <span class="font-medium text-neutral-700">{{ $customerCompanyName }}</span></span>
+                    <span>Khách hàng: <span class="font-medium text-neutral-700">{{ $customerCompanyName }}</span></span>
                 @endif
             </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+            
+            <a href="{{ route('orders.index') }}" wire:navigate
+                class="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-xs transition-all hover:bg-neutral-50">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                Quay lại
+            </a>
             @if(OrderAccess::canToggleLock(auth()->user()))
                 <button type="button"
                     wire:click="toggleOrderLock"
@@ -590,16 +601,6 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     @endif
                 </button>
             @endif
-            <a href="{{ route('orders.index') }}" wire:navigate
-                class="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-xs transition-all hover:bg-neutral-50">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                Quay lại
-            </a>
-            <a href="{{ route('tracking', ['idbill' => $order->id_bill ?: $order->id]) }}" target="_blank"
-                class="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-xs transition-all hover:bg-neutral-50">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-                Theo dõi
-            </a>
             <button type="button"
                 onclick="document.body.dataset.printTarget = 'label'; window.print()"
                 class="inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-medium text-violet-700 shadow-xs transition-all hover:border-violet-300 hover:bg-violet-100">
@@ -618,12 +619,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M5 19h14"/></svg>
                 Export Invoice
             </button>
-            <a href="{{ route('orders.create') }}" wire:navigate
-                class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white shadow-sm transition-all hover:shadow-md"
-                style="{{ $gradientStyle }}">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Tạo đơn mới
-            </a>
+            
         </div>
     </div>
 
@@ -684,11 +680,9 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                             {{ $button['label'] }}
                         </button>
                     @elseif($button['type'] === 'price')
-                        <flux:modal.trigger name="edit-payment">
-                            <button type="button" class="{{ $this->actionButtonClass($button) }}">
-                                {{ $button['label'] }}
-                            </button>
-                        </flux:modal.trigger>
+                        <a href="{{ route('orders.payment', ['uuid' => $order->uuid]) }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
+                            {{ $button['label'] }}
+                        </a>
                     @elseif($button['type'] === 'tracking')
                         <flux:modal.trigger name="edit-tracking">
                             <button type="button" class="{{ $this->actionButtonClass($button) }}">
@@ -1019,14 +1013,4 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         @endif
     </div>
 
-    <script>
-        document.addEventListener('livewire:init', () => {
-            Livewire.on('print-bill-ready', () => {
-                requestAnimationFrame(() => {
-                    document.body.dataset.printTarget = 'bill';
-                    window.print();
-                });
-            });
-        });
-    </script>
 </div>
