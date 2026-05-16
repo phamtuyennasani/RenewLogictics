@@ -5,6 +5,7 @@ use App\Enums\OrderStatusEnum;
 use App\Models\Invoice;
 use App\Models\News;
 use App\Models\Order;
+use App\Support\OrderAccess;
 use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -95,7 +96,8 @@ new class extends Component
 
     public function canEditInvoices(): bool
     {
-        return ! in_array($this->order->bill_status, [
+        return OrderAccess::canEditOrder(auth()->user(), $this->order)
+            && ! in_array($this->order->bill_status, [
             OrderStatusEnum::DA_GIAO,
             OrderStatusEnum::HUY,
         ], true);
@@ -107,6 +109,8 @@ new class extends Component
             Flux::toast(duration: 2500, heading: 'Không thể chỉnh sửa', text: 'Không được sửa invoice khi đơn đã giao hoặc đã hủy.', variant: 'warning');
             return;
         }
+
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->validate([
             'invoiceForm' => 'required|array|min:1',

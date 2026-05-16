@@ -4,6 +4,7 @@ use App\Actions\Order\RecordOrderEditHistoryAction;
 use App\Enums\OrderStatusEnum;
 use App\Models\OrderPhoto;
 use App\Models\Order;
+use App\Support\OrderAccess;
 use Flux\Flux;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -87,7 +88,8 @@ new class extends Component
 
     public function canEditSenderReceiver(): bool
     {
-        return in_array($this->order->bill_status, [
+        return OrderAccess::canEditOrder(auth()->user(), $this->order)
+            && in_array($this->order->bill_status, [
             OrderStatusEnum::MOI_TAO,
             OrderStatusEnum::DA_XAC_NHAN,
             OrderStatusEnum::DA_NHAN_HANG,
@@ -96,7 +98,8 @@ new class extends Component
 
     public function canEditService(): bool
     {
-        return in_array($this->order->bill_status, [
+        return OrderAccess::canEditOrder(auth()->user(), $this->order)
+            && in_array($this->order->bill_status, [
             OrderStatusEnum::MOI_TAO,
             OrderStatusEnum::DA_XAC_NHAN,
             OrderStatusEnum::DA_NHAN_HANG,
@@ -106,7 +109,8 @@ new class extends Component
 
     public function canEditNotesAndPhotos(): bool
     {
-        return $this->order->bill_status instanceof OrderStatusEnum
+        return OrderAccess::canEditOrder(auth()->user(), $this->order)
+            && $this->order->bill_status instanceof OrderStatusEnum
             && $this->order->bill_status->sortOrder() < OrderStatusEnum::DANG_PHAT_HANG->sortOrder()
             && ! $this->order->bill_status->isSpecial();
     }
@@ -152,6 +156,8 @@ new class extends Component
             Flux::toast(duration: 2500, heading: 'Không thể chỉnh sửa', text: 'Chỉ được sửa người gửi ở trạng thái mới tạo, đã xác nhận hoặc đã nhận hàng.', variant: 'warning');
             return;
         }
+
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->validate([
             'senderForm.company' => 'nullable|string|max:255',
@@ -209,6 +215,8 @@ new class extends Component
             return;
         }
 
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
+
         $this->checkReceiverVsvx();
 
         $this->validate([
@@ -244,6 +252,8 @@ new class extends Component
             Flux::toast(duration: 2500, heading: 'Không thể chỉnh sửa', text: 'Không được sửa dịch vụ ở trạng thái hiện tại.', variant: 'warning');
             return;
         }
+
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->validate([
             'serviceForm.id_dichvu' => 'required|exists:news,id',
@@ -306,6 +316,8 @@ new class extends Component
             Flux::toast(duration: 2500, heading: 'Không thể chỉnh sửa', text: 'Chỉ được sửa ghi chú và ảnh trước trạng thái đang phát hàng.', variant: 'warning');
             return;
         }
+
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->validate([
             'noteForm' => 'nullable|string|max:5000',

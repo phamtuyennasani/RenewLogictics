@@ -7,6 +7,7 @@ use App\Actions\Order\RecordOrderEditHistoryAction;
 use App\Models\Order;
 use App\Models\User;
 use App\Enums\OrderStatusEnum;
+use App\Support\OrderAccess;
 use Flux\Flux;
 
 new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Component
@@ -36,6 +37,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             ])
             ->where('uuid', $uuid)
             ->firstOrFail();
+
+        abort_unless(OrderAccess::canView(auth()->user(), $this->order), 403);
 
         $this->trackingForm = (string) ($this->order->tracking_code ?? '');
 
@@ -91,6 +94,21 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
 
     public function actionButtons(): array
     {
+        $user = auth()->user();
+
+        if ($user->hasRole('ketoan') && ! $user->hasAnyRole(['admin', 'manager'])) {
+            return [
+                ['type' => 'price', 'label' => 'Cập nhật Giá'],
+                ['type' => 'exit', 'label' => 'Thoát'],
+            ];
+        }
+
+        if (! OrderAccess::canEditOrder($user, $this->order)) {
+            return [
+                ['type' => 'exit', 'label' => 'Thoát'],
+            ];
+        }
+
         return match ($this->order->bill_status) {
             OrderStatusEnum::MOI_TAO => [
                 ['type' => 'status', 'label' => 'Xác nhận đơn', 'status' => OrderStatusEnum::DA_XAC_NHAN->value, 'variant' => 'primary'],
@@ -147,8 +165,36 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         };
     }
 
+    public function toggleOrderLock(): void
+    {
+        abort_unless(OrderAccess::canToggleLock(auth()->user()), 403);
+
+        $before = [
+            'lock_order' => (bool) $this->order->lock_order,
+        ];
+
+        $this->order->forceFill([
+            'lock_order' => ! (bool) $this->order->lock_order,
+        ])->save();
+        $this->order->refresh();
+
+        RecordOrderEditHistoryAction::execute($this->order, 'toggle_lock_order', 'khóa đơn', $before, [
+            'lock_order' => (bool) $this->order->lock_order,
+        ], $this->order->lock_order ? 'khóa đơn hàng' : 'mở khóa đơn hàng');
+
+        $this->dispatch('order-history-updated');
+        Flux::toast(
+            duration: 2500,
+            heading: $this->order->lock_order ? 'Đã khóa đơn' : 'Đã mở khóa đơn',
+            text: $this->order->lock_order ? 'Đơn hàng không thể chỉnh sửa cho đến khi admin mở khóa.' : 'Đơn hàng đã trở về luồng phân quyền bình thường.',
+            variant: 'success'
+        );
+    }
+
     public function updateStatus(string $status): void
     {
+        abort_unless(OrderAccess::canEditOrder(auth()->user(), $this->order), 403);
+
         $nextStatus = OrderStatusEnum::tryFrom($status);
 
         if (! $nextStatus) {
@@ -171,6 +217,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             $payload['ngayxuathang'] = now();
         }
 
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
+
         $this->order->forceFill($payload)->save();
         $this->order->refresh();
 
@@ -184,6 +232,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
 
     public function saveTracking(): void
     {
+        abort_unless(OrderAccess::canEditOrder(auth()->user(), $this->order), 403);
+
         $this->validate([
             'trackingForm' => 'nullable|string|max:255',
         ]);
@@ -191,6 +241,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         $before = [
             'tracking_code' => $this->order->tracking_code,
         ];
+
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->order->forceFill([
             'tracking_code' => trim($this->trackingForm),
@@ -524,6 +576,20 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
+            @if(OrderAccess::canToggleLock(auth()->user()))
+                <button type="button"
+                    wire:click="toggleOrderLock"
+                    wire:loading.attr="disabled"
+                    class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium shadow-xs transition-all {{ $order->lock_order ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100' : 'border-red-200 bg-red-50 text-red-700 hover:border-red-300 hover:bg-red-100' }}">
+                    @if($order->lock_order)
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.5 10.5V6.75a3.75 3.75 0 1 1 7.5 0v3.75M6.75 10.5h10.5A1.5 1.5 0 0 1 18.75 12v7.5A1.5 1.5 0 0 1 17.25 21H6.75a1.5 1.5 0 0 1-1.5-1.5V12a1.5 1.5 0 0 1 1.5-1.5Z"/></svg>
+                        Mở khóa đơn
+                    @else
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 0h10.5A1.5 1.5 0 0 1 18.75 12v7.5A1.5 1.5 0 0 1 17.25 21H6.75a1.5 1.5 0 0 1-1.5-1.5V12a1.5 1.5 0 0 1 1.5-1.5Z"/></svg>
+                        Khóa đơn
+                    @endif
+                </button>
+            @endif
             <a href="{{ route('orders.index') }}" wire:navigate
                 class="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-xs transition-all hover:bg-neutral-50">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>

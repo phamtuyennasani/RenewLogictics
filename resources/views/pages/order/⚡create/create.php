@@ -103,6 +103,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public function mount(): void
     {
         $user = auth()->user();
+
         $this->dim = \App\Models\Setting::selectRaw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.dim')) as dim")->value('dim');
         if ($user->hasRole('sale')) {
             $this->idSale = $user->id;

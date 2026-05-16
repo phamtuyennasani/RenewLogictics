@@ -2,6 +2,7 @@
 
 use App\Actions\Order\RecordOrderEditHistoryAction;
 use App\Models\Order;
+use App\Support\OrderAccess;
 use Flux\Flux;
 use Livewire\Component;
 
@@ -45,8 +46,17 @@ new class extends Component
         return (float) data_get($payment, 'tongcuoc', 0);
     }
 
+    public function canEditPayment(): bool
+    {
+        return OrderAccess::canEditPayment(auth()->user(), $this->order);
+    }
+
     public function savePayment(): void
     {
+        abort_unless($this->canEditPayment(), 403);
+
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
+
         $this->validate([
             'paymentForm.cost' => 'required|numeric|min:0',
             'paymentForm.base' => 'required|numeric|min:0',
@@ -132,13 +142,15 @@ new class extends Component
             <h2 class="text-sm font-semibold text-neutral-900 uppercase">Cước & thanh toán</h2>
             <p class="text-xs text-neutral-500">Tóm tắt cước vốn, cước gốc, cước bán và lợi nhuận</p>
         </div>
-        <flux:modal.trigger name="edit-payment">
-            <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600" aria-label="Sửa payment">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
-                </svg>
-            </button>
-        </flux:modal.trigger>
+        @if($this->canEditPayment())
+            <flux:modal.trigger name="edit-payment">
+                <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600" aria-label="Sửa payment">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" />
+                    </svg>
+                </button>
+            </flux:modal.trigger>
+        @endif
     </div>
     <div class="space-y-3 p-5">
         <div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">

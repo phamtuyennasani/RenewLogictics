@@ -6,6 +6,7 @@ use App\Enums\OrderStatusEnum;
 use App\Models\News;
 use App\Models\Order;
 use App\Models\OrderPackage;
+use App\Support\OrderAccess;
 use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -112,7 +113,8 @@ new class extends Component
 
     public function canEditPackages(): bool
     {
-        return $this->order->bill_status === OrderStatusEnum::DA_NHAN_HANG;
+        return OrderAccess::canEditOrder(auth()->user(), $this->order)
+            && $this->order->bill_status === OrderStatusEnum::DA_NHAN_HANG;
     }
 
     public function savePackages(): void
@@ -121,6 +123,8 @@ new class extends Component
             Flux::toast(duration: 2500, heading: 'Không thể chỉnh sửa', text: 'Chỉ được sửa kiện hàng khi đơn đã nhận hàng.', variant: 'warning');
             return;
         }
+
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->recalculateAll();
         $before = $this->packagesSnapshot();
