@@ -10,6 +10,7 @@ use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
@@ -44,6 +45,14 @@ new class extends Component
         }
 
         $this->recalculateAll();
+    }
+
+    #[On('order-lock-updated')]
+    public function refreshOrderLock(): void
+    {
+        $this->order->refresh();
+        $this->order->load('invoices');
+        $this->fillInvoiceForm();
     }
 
     protected function defaultInvoice(): array
@@ -96,8 +105,10 @@ new class extends Component
 
     public function canEditInvoices(): bool
     {
-        return OrderAccess::canEditOrder(auth()->user(), $this->order)
-            && ! in_array($this->order->bill_status, [
+        $order = $this->order->fresh() ?? $this->order;
+
+        return OrderAccess::canEditOrder(auth()->user(), $order)
+            && ! in_array($order->bill_status, [
             OrderStatusEnum::DA_GIAO,
             OrderStatusEnum::HUY,
         ], true);

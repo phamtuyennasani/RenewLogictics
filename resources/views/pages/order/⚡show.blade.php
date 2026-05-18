@@ -117,6 +117,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         }
 
         $buttons = collect($this->order->bill_status?->allowedTransitions(false) ?? [])
+            ->reject(fn (OrderStatusEnum $status) => in_array($status, [
+                OrderStatusEnum::DA_GIAO,
+                OrderStatusEnum::RETURN_ORDER,
+                OrderStatusEnum::CAUTION,
+                OrderStatusEnum::CUSTOM_RELEASING,
+            ], true))
             ->map(fn (OrderStatusEnum $status) => [
                 'type' => 'status',
                 'label' => $status->label(),
@@ -195,6 +201,16 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         };
     }
 
+    public function actionButtonLabel(array $button): string
+    {
+        return match ($button['type'] ?? null) {
+            'price' => 'Cập nhật giá',
+            'tracking' => 'Cập nhật tracking',
+            'exit' => 'Thoát',
+            default => (string) ($button['label'] ?? ''),
+        };
+    }
+
     public function toggleOrderLock(): void
     {
         abort_unless(OrderAccess::canToggleLock(auth()->user()), 403);
@@ -213,6 +229,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         ], $this->order->lock_order ? 'khóa đơn hàng' : 'mở khóa đơn hàng');
 
         $this->dispatch('order-history-updated');
+        $this->dispatch('order-lock-updated');
         Flux::toast(
             duration: 2500,
             heading: $this->order->lock_order ? 'Đã khóa đơn' : 'Đã mở khóa đơn',
@@ -722,19 +739,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                             wire:loading.attr="disabled"
                             class="{{ $this->actionButtonClass($button) }}"
                         >
-                            {{ $button['label'] }}
+                            {{ $this->actionButtonLabel($button) }}
                         </button>
                     @elseif($button['type'] === 'price')
                         <a href="{{ route('orders.payment', ['uuid' => $order->uuid]) }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
-                            {{ $button['label'] }}
+                            {{ $this->actionButtonLabel($button) }}
                         </a>
                     @elseif($button['type'] === 'tracking')
                         <a href="{{ route('orders.tracking', ['uuid' => $order->uuid]) }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
-                            {{ $button['label'] }}
+                            {{ $this->actionButtonLabel($button) }}
                         </a>
                     @else
                         <a href="{{ route('orders.index') }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
-                            {{ $button['label'] }}
+                            {{ $this->actionButtonLabel($button) }}
                         </a>
                     @endif
                 @endforeach
