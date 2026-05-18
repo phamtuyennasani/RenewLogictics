@@ -22,6 +22,12 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    'trackingmore' => [
+        'key' => env('TRACKINGMORE_API_KEY'),
+        'base_url' => env('TRACKINGMORE_BASE_URL', 'https://api.trackingmore.com/v4'),
+        'timeout' => (float) env('TRACKINGMORE_TIMEOUT', 20),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

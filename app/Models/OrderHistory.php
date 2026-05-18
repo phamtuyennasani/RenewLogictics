@@ -16,12 +16,19 @@ class OrderHistory extends Model
         'id_user',
         'action',
         'content',
+        'thoigian',
+        'trangthai',
+        'diadiem',
+        'ghichu',
+        'main',
         'created_at',
     ];
 
     protected $casts = [
+        'thoigian' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'main' => 'boolean',
     ];
 
     public function order()

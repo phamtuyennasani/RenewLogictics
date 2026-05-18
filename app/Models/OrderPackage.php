@@ -27,6 +27,9 @@ class OrderPackage extends Model
         'row_v_weight',
         'row_c_weight',
         'number_of_package',
+        'id_thamchieu',
+        'mathamchieu',
+        'tracking_id',
     ];
     // Relationships
     public function order()

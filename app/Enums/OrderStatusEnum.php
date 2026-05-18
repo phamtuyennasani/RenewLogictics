@@ -148,6 +148,64 @@ enum OrderStatusEnum: string
     }
 
     /**
+     * Danh sách trạng thái được phép chuyển tiếp từ trạng thái hiện tại.
+     */
+    public function allowedTransitions(bool $admin = false): array
+    {
+        if ($this === self::DA_GIAO) {
+            return [];
+        }
+
+        if ($admin) {
+            return array_values(array_filter(
+                self::cases(),
+                fn (self $status) => $status !== $this
+            ));
+        }
+
+        return match ($this) {
+            self::MOI_TAO => [
+                self::DA_XAC_NHAN,
+                self::HUY,
+            ],
+            self::DA_XAC_NHAN => [
+                self::DA_NHAN_HANG,
+                self::HUY,
+            ],
+            self::DA_NHAN_HANG => [
+                self::DUYET_XUAT_HANG,
+                self::HUY,
+            ],
+            self::DUYET_XUAT_HANG => [
+                self::DANG_PHAT_HANG,
+                self::HUY,
+            ],
+            self::DANG_PHAT_HANG => [
+                self::DA_GIAO,
+                self::RETURN_ORDER,
+                self::CAUTION,
+                self::CUSTOM_RELEASING,
+            ],
+            self::RETURN_ORDER => [
+                self::DANG_PHAT_HANG,
+                self::DA_GIAO,
+                self::CAUTION,
+                self::CUSTOM_RELEASING,
+            ],
+            self::CAUTION => [
+                self::DA_GIAO,
+                self::RETURN_ORDER,
+                self::CUSTOM_RELEASING,
+            ],
+            self::CUSTOM_RELEASING => [
+                self::DA_GIAO,
+                self::RETURN_ORDER,
+            ],
+            default => [],
+        };
+    }
+
+    /**
      * Tất cả values
      */
     public static function values(): array

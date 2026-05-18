@@ -17,6 +17,7 @@
     },
     "dependencies": {
         "@fancyapps/ui": "^6.1.14",
+        "flatpickr": "^4.6.13",
         "primeicons": "^7.0.0",
         "smooth-scrollbar": "^8.8.4",
         "tom-select": "^2.6.0"

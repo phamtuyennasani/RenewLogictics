@@ -277,6 +277,7 @@ class Sidebar extends Component
                     'children' => [
                         ['route' => 'phuphi.index', 'route_params' => ['type' => 'phuphidonhang'], 'label' => 'Phụ phí đơn hàng', 'roles' => ['admin', 'ketoan']],
                         ['route' => 'phuphi.index', 'route_params' => ['type' => 'loai-chi-hhkh'], 'label' => 'Loại chi phí HHKH', 'roles' => ['admin', 'ketoan']],
+                        ['route' => 'phuphi.index', 'route_params' => ['type' => 'loai-chi-ho'], 'label' => 'Loại phí chi hộ', 'roles' => ['admin', 'ketoan']],
                     ],
                 ],
             ],

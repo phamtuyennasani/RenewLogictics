@@ -121,6 +121,8 @@ class CreateOrderAction
             'payment_loinhuan' => $payment['payment_loinhuan'],
         ]);
 
+        RecordTrackingHistoryAction::execute($order, OrderStatusEnum::MOI_TAO, $order->created_at);
+
         try {
             $this->createPackages($order, $formData->packages, $formData->dim);
         } catch (Throwable $e) {

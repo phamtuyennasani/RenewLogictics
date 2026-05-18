@@ -22,7 +22,10 @@ new class extends Component
             'id_loaiphuphi' => null,
             'soluong' => 1,
             'price' => 0,
+            'vat_percent' => 0,
+            'vat_amount' => 0,
             'total' => 0,
+            'total_after_vat' => 0,
         ];
     }
 
@@ -46,7 +49,6 @@ new class extends Component
         $soluong = max(1, (int) ($this->phuphihaiquan[$index]['soluong'] ?? 1));
         $price = $this->normalizeMoneyValue($this->phuphihaiquan[$index]['price'] ?? 0);
         $total = $soluong * $price;
-        // Chỉ gán khi giá trị thực sự thay đổi để tránh trigger updated() loop
         if ($this->phuphihaiquan[$index]['soluong'] != $soluong) {
             $this->phuphihaiquan[$index]['soluong'] = $soluong;
         }
@@ -55,6 +57,7 @@ new class extends Component
         }
         if (($this->phuphihaiquan[$index]['total'] ?? 0) != $total) {
             $this->phuphihaiquan[$index]['total'] = $total;
+            $this->phuphihaiquan[$index]['total_after_vat'] = $total;
         }
     }
 

@@ -23,6 +23,7 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/', 'pages::order.index')->name('index');
         Route::livewire('/create', 'pages::order.create')->name('create');
         Route::livewire('/{uuid}/payment', 'pages::order.payment')->name('payment');
+        Route::livewire('/{uuid}/tracking', 'pages::order.tracking')->name('tracking');
         Route::livewire('/{uuid}', 'pages::order.show')->name('show');
     })->middleware('can:orders.index');
     // --- Pickup ---

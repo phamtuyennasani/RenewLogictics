@@ -4,6 +4,7 @@ use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use App\Actions\Order\RecordOrderEditHistoryAction;
+use App\Actions\Order\RecordTrackingHistoryAction;
 use App\Models\Order;
 use App\Models\User;
 use App\Enums\OrderStatusEnum;
@@ -96,6 +97,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
     {
         $user = auth()->user();
 
+        if ($this->order->lock_order) {
+            return [
+                ['type' => 'exit', 'label' => 'Thoát'],
+            ];
+        }
+
         if ($user->hasRole('ketoan') && ! $user->hasAnyRole(['admin', 'manager'])) {
             return [
                 ['type' => 'price', 'label' => 'Cập nhật Giá'],
@@ -109,6 +116,28 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             ];
         }
 
+        $buttons = collect($this->order->bill_status?->allowedTransitions(false) ?? [])
+            ->map(fn (OrderStatusEnum $status) => [
+                'type' => 'status',
+                'label' => $status->label(),
+                'status' => $status->value,
+                'variant' => in_array($status, [OrderStatusEnum::HUY, OrderStatusEnum::RETURN_ORDER, OrderStatusEnum::CAUTION], true) ? 'danger' : 'primary',
+            ])
+            ->values()
+            ->all();
+
+        if ($this->order->bill_status !== OrderStatusEnum::MOI_TAO) {
+            $buttons[] = ['type' => 'price', 'label' => 'Cáº­p nháº­t GiÃ¡'];
+        }
+
+        if (! in_array($this->order->bill_status, [OrderStatusEnum::MOI_TAO, OrderStatusEnum::DA_XAC_NHAN, OrderStatusEnum::HUY, OrderStatusEnum::DA_GIAO], true)) {
+            $buttons[] = ['type' => 'tracking', 'label' => 'Cáº­p nháº­t tracking'];
+        }
+
+        $buttons[] = ['type' => 'exit', 'label' => 'ThoÃ¡t'];
+
+        return $buttons;
+/*
         return match ($this->order->bill_status) {
             OrderStatusEnum::MOI_TAO => [
                 ['type' => 'status', 'label' => 'Xác nhận đơn', 'status' => OrderStatusEnum::DA_XAC_NHAN->value, 'variant' => 'primary'],
@@ -146,6 +175,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 ['type' => 'exit', 'label' => 'Thoát'],
             ],
         };
+*/
     }
 
     public function actionButtonClass(array $button): string
@@ -201,6 +231,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             return;
         }
 
+        if ($this->order->bill_status === $nextStatus) {
+            return;
+        }
+
+        if (! in_array($nextStatus, $this->order->bill_status?->allowedTransitions(false) ?? [], true)) {
+            Flux::toast(duration: 2500, heading: 'Không hợp lệ', text: 'Trạng thái này không được phép chuyển từ trạng thái hiện tại.', variant: 'danger');
+            return;
+        }
+
         $before = [
             'bill_status' => $this->order->bill_status?->value,
         ];
@@ -220,6 +259,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->order->forceFill($payload)->save();
+        RecordTrackingHistoryAction::execute($this->order, $nextStatus);
         $this->order->refresh();
 
         RecordOrderEditHistoryAction::execute($this->order, 'update_status', 'trạng thái', $before, [
@@ -614,6 +654,11 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     Print Bill
                 </button>
             </flux:modal.trigger>
+            <a href="{{ route('orders.tracking', ['uuid' => $order->uuid]) }}" wire:navigate
+                class="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 shadow-xs transition-all hover:border-indigo-300 hover:bg-indigo-100">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                Tracking
+            </a>
             <button type="button"
                 class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-xs transition-all hover:border-emerald-300 hover:bg-emerald-100">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M5 19h14"/></svg>
@@ -684,11 +729,9 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                             {{ $button['label'] }}
                         </a>
                     @elseif($button['type'] === 'tracking')
-                        <flux:modal.trigger name="edit-tracking">
-                            <button type="button" class="{{ $this->actionButtonClass($button) }}">
-                                {{ $button['label'] }}
-                            </button>
-                        </flux:modal.trigger>
+                        <a href="{{ route('orders.tracking', ['uuid' => $order->uuid]) }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
+                            {{ $button['label'] }}
+                        </a>
                     @else
                         <a href="{{ route('orders.index') }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
                             {{ $button['label'] }}

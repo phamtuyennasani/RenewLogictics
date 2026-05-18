@@ -1,6 +1,6 @@
 @php
     $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text-neutral-400 focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500';
-    $moneyMask = "(() => { const digits = \$input.replace(/\\D/g, ''); if (digits === '') return ''; return String(parseInt(digits, 10) || 0).replace(/\\B(?=(\\d{3})+(?!\\d))/g, ','); })()";
+    $moneyMask = "\$money(\$input, '.', ',', 0)";
 @endphp
 
 <section class="rounded-xl border border-neutral-200 bg-white shadow-xs">
@@ -23,7 +23,7 @@
                     type="text"
                     wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $priceKey }}"
                     placeholder=""
-                    mask:dynamic="{{ $moneyMask }}"
+                    mask:dynamic="$money($input, '.', ',', 0)"
                     :class:input="$inputClass"
                 />
             </flux:field>
@@ -42,7 +42,7 @@
                         placeholder=""
                         readonly
                         variant="filled"
-                        mask:dynamic="{{ $moneyMask }}"
+                        mask:dynamic="$money($input, '.', ',', 0)"
                         class="col-span-2"
                         :class:input="$inputClass"
                     />
@@ -64,7 +64,7 @@
                         readonly
                         variant="filled"
                         class="col-span-2"
-                        mask:dynamic="{{ $moneyMask }}"
+                        mask:dynamic="$money($input, '.', ',', 0)"
                         :class:input="$inputClass"
                     />
                 </flux:field>
@@ -78,7 +78,7 @@
                         placeholder=""
                         readonly
                         variant="filled"
-                        mask:dynamic="{{ $moneyMask }}"
+                        mask:dynamic="$money($input, '.', ',', 0)"
                         :class:input="$inputClass"
                     />
                     <flux:input
@@ -87,7 +87,7 @@
                         placeholder=""
                         readonly
                         variant="filled"
-                        mask:dynamic="{{ $moneyMask }}"
+                        mask:dynamic="$money($input, '.', ',', 0)"
                         :class:input="$inputClass"
                     />
                 </flux:field>
@@ -112,6 +112,7 @@
             @php
                 $bucketKey = $bucket['key'];
                 $rows = data_get($payment, "$group.$bucketKey", []);
+                $feeOptionsForBucket = $this->feeOptionsForBucket($bucketKey);
             @endphp
 
             <div class=" rounded-xl border border-neutral-100">
@@ -119,32 +120,36 @@
                     <div>
                         <p class="text-sm font-semibold text-neutral-800">{{ $bucket['label'] }}</p>
                         <p class="text-xs text-neutral-500">
-                            {{ $bucketKey === 'hh_khachhang' ? 'Chọn loại chi, nhập diễn giải và số tiền chi hoa hồng.' : 'Tổng tiền phụ phí = đơn giá x số lượng; VAT phụ phí được cộng vào giá sau VAT.' }}
+                            {{ $bucketKey === 'hh_khachhang' ? 'Chọn loại chi, nhập diễn giải và số tiền chi hoa hồng.' : ($bucketKey === 'phichiho' ? 'Chọn loại chi hộ, nhập ghi chú nếu có và giá chi hộ.' : 'Tổng tiền phụ phí = đơn giá x số lượng; VAT phụ phí được cộng vào giá sau VAT.') }}
                         </p>
                     </div>
                     <flux:button type="button" size="sm" wire:click="addFee('{{ $group }}', '{{ $bucketKey }}')">+ Thêm</flux:button>
                 </div>
 
                 <div class="p-4">
-                    <div class="{{ $bucketKey === 'hh_khachhang' ? 'min-w-[760px]' : 'min-w-[1260px]' }} space-y-4">
+                    <div class="{{ $bucketKey === 'hh_khachhang' ? 'min-w-[760px]' : ($bucketKey === 'phichiho' ? 'min-w-[760px]' : 'min-w-[1260px]') }} space-y-4">
                         @forelse($rows as $index => $row)
                             @if($bucketKey === 'hh_khachhang')
                                 <div wire:key="{{ $group }}-{{ $bucketKey }}-{{ data_get($row, '_key', $index) }}" class="grid grid-cols-[minmax(220px,1fr)_minmax(260px,1.4fr)_160px_56px] items-end gap-3">
-                                    <flux:field class="min-w-0">
+                                    <flux:field class="min-w-0 [&_.ts-control]:min-h-[42px] [&_.ts-control]:whitespace-nowrap [&_.ts-control_input]:min-w-0">
                                         <flux:label badge="Bắt buộc">Loại chi</flux:label>
-                                        <select
-                                            class="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm text-neutral-800 transition-all placeholder:text-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                            wire:model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.id_loaichi"
-                                            wire:change="selectExpense('{{ $group }}', '{{ $bucketKey }}', {{ $index }})"
-                                            required
-                                        >
-                                            <option value="">-- Chọn loại chi --</option>
-                                            @foreach($expenseOptions as $expenseOption)
-                                                <option value="{{ $expenseOption['id'] }}" @selected((int) data_get($payment, "$group.$bucketKey.$index.id_loaichi") === (int) $expenseOption['id'])>
-                                                    {{ $expenseOption['name'] }}
-                                                </option>
-                                            @endforeach
-                                        </select>
+                                        <div wire:ignore>
+                                            <select
+                                                class="tomselectEml"
+                                                data-placeholder="Chọn loại chi"
+                                                data-livewire-model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.id_loaichi"
+                                                data-livewire-live="false"
+                                                required
+                                                autocomplete="off"
+                                            >
+                                                <option value="">-- Chọn loại chi --</option>
+                                                @foreach($expenseOptions as $expenseOption)
+                                                    <option value="{{ $expenseOption['id'] }}" @selected((int) data_get($payment, "$group.$bucketKey.$index.id_loaichi") === (int) $expenseOption['id'])>
+                                                        {{ $expenseOption['name'] }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
                                         <input type="hidden" wire:model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.name">
                                     </flux:field>
 
@@ -165,12 +170,65 @@
                                             wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.so_tien"
                                             placeholder=""
                                             :class:input="$inputClass"
-                                            mask:dynamic="{{ $moneyMask }}"
+                                            mask:dynamic="$money($input, '.', ',', 0)"
                                         />
                                     </flux:field>
 
                                     <div class="flex justify-end pb-[1px]">
                                         <button type="button" wire:click="removeFee('{{ $group }}', '{{ $bucketKey }}', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Xóa khoản chi">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            @elseif($bucketKey === 'phichiho')
+                                <div wire:key="{{ $group }}-{{ $bucketKey }}-{{ data_get($row, '_key', $index) }}" class="grid grid-cols-[minmax(240px,1fr)_minmax(260px,1.3fr)_160px_56px] items-end gap-3">
+                                    <flux:field class="min-w-0 [&_.ts-control]:min-h-[42px] [&_.ts-control]:whitespace-nowrap [&_.ts-control_input]:min-w-0">
+                                        <flux:label badge="Bắt buộc">Loại chi hộ</flux:label>
+                                        <div wire:ignore>
+                                            <select
+                                                class="tomselectEml"
+                                                data-placeholder="Chọn loại chi hộ"
+                                                data-livewire-model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.id_loaiphuphi"
+                                                data-livewire-live="false"
+                                                required
+                                                autocomplete="off"
+                                            >
+                                                <option value="">-- Chọn loại chi hộ --</option>
+                                                @foreach($feeOptionsForBucket as $feeOption)
+                                                    <option value="{{ $feeOption['id'] }}" @selected((int) data_get($payment, "$group.$bucketKey.$index.id_loaiphuphi") === (int) $feeOption['id'])>
+                                                        {{ $feeOption['name'] }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <input type="hidden" wire:model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.name">
+                                    </flux:field>
+
+                                    <flux:field class="min-w-0">
+                                        <flux:label>Ghi chú</flux:label>
+                                        <flux:input
+                                            type="text"
+                                            wire:model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.note"
+                                            :class:input="$inputClass"
+                                        />
+                                    </flux:field>
+
+                                    <flux:field>
+                                        <flux:label>Giá</flux:label>
+                                        <flux:input
+                                            type="text"
+                                            required
+                                            wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.price"
+                                            placeholder=""
+                                            :class:input="$inputClass"
+                                            mask:dynamic="$money($input, '.', ',', 0)"
+                                        />
+                                    </flux:field>
+
+                                    <div class="flex justify-end pb-[1px]">
+                                        <button type="button" wire:click="removeFee('{{ $group }}', '{{ $bucketKey }}', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Xóa khoản chi hộ">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
                                             </svg>
@@ -190,7 +248,7 @@
                                             autocomplete="off"
                                         >
                                             <option value="">-- Chọn loại phụ phí --</option>
-                                            @foreach($feeOptions as $feeOption)
+                                            @foreach($feeOptionsForBucket as $feeOption)
                                                 <option value="{{ $feeOption['id'] }}" @selected((int) data_get($payment, "$group.$bucketKey.$index.id_loaiphuphi") === (int) $feeOption['id'])>
                                                     {{ $feeOption['name'] }}
                                                 </option>
@@ -204,7 +262,7 @@
                                     <flux:label>Ghi chú</flux:label>
                                     <flux:input
                                         type="text"
-                                        wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.note"
+                                        wire:model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.note"
                                         :class:input="$inputClass"
                                     />
                                 </flux:field>
@@ -229,7 +287,7 @@
                                         wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.price"
                                         placeholder=""
                                         :class:input="$inputClass"
-                                        mask:dynamic="{{ $moneyMask }}"
+                                        mask:dynamic="$money($input, '.', ',', 0)"
                                     />
                                 </flux:field>
 
@@ -281,6 +339,10 @@
                 @if($bucketKey === 'hh_khachhang')
                     <div class="flex flex-wrap justify-end gap-3 border-t border-neutral-100 bg-neutral-50 px-4 py-3 text-sm">
                         <div class="text-primary-700">Tổng hoa hồng khách hàng: <span class="font-semibold">{{ $this->money(data_get($payment, "$group.total_hh_khachhang")) }}</span></div>
+                    </div>
+                @elseif($bucketKey === 'phichiho')
+                    <div class="flex flex-wrap justify-end gap-3 border-t border-neutral-100 bg-neutral-50 px-4 py-3 text-sm">
+                        <div class="text-primary-700">Tổng phí chi hộ: <span class="font-semibold">{{ $this->money(data_get($payment, "$group.total_phichiho")) }}</span></div>
                     </div>
                 @else
                 <div class="flex flex-wrap justify-end gap-3 border-t border-neutral-100 bg-neutral-50 px-4 py-3 text-sm">

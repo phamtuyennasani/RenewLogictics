@@ -16,6 +16,7 @@ function buildTomSelectOptions(select) {
     const placeholder = select.getAttribute('data-placeholder') || '';
     const template = select.getAttribute('data-template') || 'default';
     const livewireModel = select.getAttribute('data-livewire-model');
+    const livewireLive = select.getAttribute('data-livewire-live') !== 'false';
     let isBooting = true;
     let renderOption = renderDefaultOption;
     let renderItem = renderDefaultItem;
@@ -68,7 +69,7 @@ function buildTomSelectOptions(select) {
                 const componentId = componentEl?.getAttribute('wire:id');
 
                 if (componentId && window.Livewire?.find) {
-                    window.Livewire.find(componentId)?.set(livewireModel, value || null);
+                    window.Livewire.find(componentId)?.set(livewireModel, value || null, livewireLive);
                 }
             }
             select.dispatchEvent(new Event('change', { bubbles: true }));

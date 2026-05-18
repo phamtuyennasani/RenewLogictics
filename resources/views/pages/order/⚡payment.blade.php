@@ -17,6 +17,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     public Order $order;
     public array $payment = [];
     public array $feeOptions = [];
+    public array $chiHoOptions = [];
     public array $expenseOptions = [];
 
     public function mount(string $uuid): void
@@ -34,6 +35,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             'cuocgoc' => $this->normalizePayment($this->order->payment_cuocgoc, 'dongiagoc'),
         ];
         $this->feeOptions = $this->loadFeeOptions();
+        $this->chiHoOptions = $this->loadChiHoOptions();
         $this->expenseOptions = $this->loadExpenseOptions();
         $this->hydrateFeeSelections();
 
@@ -75,6 +77,32 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                 ])
                 ->toArray();
         });
+    }
+
+    protected function loadChiHoOptions(): array
+    {
+        return Cache::remember('payment_page_loai_chi_ho', now()->addDay(), function () {
+            return News::query()
+                ->select([
+                    'id',
+                    'namevi',
+                    DB::raw("COALESCE(JSON_UNQUOTE(JSON_EXTRACT(options2, '$.price')), 0) as price"),
+                ])
+                ->whereType('loai-chi-ho')
+                ->orderBy('numb')
+                ->get()
+                ->map(fn (News $item) => [
+                    'id' => $item->id,
+                    'name' => $item->namevi,
+                    'price' => (float) $item->price,
+                ])
+                ->toArray();
+        });
+    }
+
+    public function feeOptionsForBucket(string $bucket): array
+    {
+        return $bucket === 'phichiho' ? $this->chiHoOptions : $this->feeOptions;
     }
 
     protected function normalizePayment(?array $payment, string $priceKey): array
@@ -204,7 +232,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             return;
         }
 
-        $option = collect($this->feeOptions)->firstWhere('id', (int) ($row['id_loaiphuphi'] ?? 0));
+        $option = collect($this->feeOptionsForBucket($bucket))->firstWhere('id', (int) ($row['id_loaiphuphi'] ?? 0));
 
         if (! $option) {
             $this->payment[$group][$bucket][$index]['name'] = '';
@@ -269,7 +297,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                         continue;
                     }
 
-                    $option = collect($this->feeOptions)->first(fn ($item) => strcasecmp($item['name'], $name) === 0);
+                    $option = collect($this->feeOptionsForBucket($bucket))->first(fn ($item) => strcasecmp($item['name'], $name) === 0);
 
                     if ($option) {
                         $this->payment[$group][$bucket][$index]['id_loaiphuphi'] = $option['id'];
@@ -290,24 +318,26 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     {
         abort_unless(OrderAccess::canEditPayment(auth()->user(), $this->order), 403);
 
+        $this->syncSelectedOptionNames();
+
         $this->validate([
-            'payment.cuocban.dongiaban' => 'nullable|numeric|min:0',
+            'payment.cuocban.dongiaban' => 'nullable|regex:/^[0-9,]+$/',
             'payment.cuocban.vat_percent' => 'nullable|numeric|min:0',
             'payment.cuocban.ppxd_percent' => 'nullable|numeric|min:0',
-            'payment.cuocvon.dongiavon' => 'nullable|numeric|min:0',
+            'payment.cuocvon.dongiavon' => 'nullable|regex:/^[0-9,]+$/',
             'payment.cuocvon.vat_percent' => 'nullable|numeric|min:0',
             'payment.cuocvon.ppxd_percent' => 'nullable|numeric|min:0',
-            'payment.cuocgoc.dongiagoc' => 'nullable|numeric|min:0',
+            'payment.cuocgoc.dongiagoc' => 'nullable|regex:/^[0-9,]+$/',
             'payment.cuocgoc.vat_percent' => 'nullable|numeric|min:0',
             'payment.cuocgoc.ppxd_percent' => 'nullable|numeric|min:0',
             'payment.*.*.*.soluong' => 'nullable|numeric|min:0',
-            'payment.*.*.*.price' => 'nullable|numeric|min:0',
+            'payment.*.*.*.price' => 'nullable|regex:/^[0-9,]+$/',
             'payment.*.*.*.vat_percent' => 'nullable|numeric|min:0',
             'payment.*.*.*.note' => 'nullable|string|max:500',
             'payment.*.*.*.diengiai_chi' => 'nullable|string|max:500',
             'payment.*.*.*.id_loaiphuphi' => 'nullable|integer',
             'payment.*.*.*.id_loaichi' => 'nullable|integer',
-            'payment.*.*.*.so_tien' => 'nullable|numeric|min:0',
+            'payment.*.*.*.so_tien' => 'nullable|regex:/^[0-9,]+$/',
         ]);
 
         $before = $this->orderPaymentSnapshot();
@@ -334,20 +364,41 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         );
 
         Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã cập nhật giá đơn hàng.', variant: 'success');
-        $this->redirectRoute('orders.show', ['uuid' => $this->order->uuid]);
+        //$this->redirectRoute('orders.show', ['uuid' => $this->order->uuid]);
+    }
+
+    protected function syncSelectedOptionNames(): void
+    {
+        foreach (['cuocban', 'cuocvon', 'cuocgoc'] as $group) {
+            foreach (['phuphi', 'phichiho'] as $bucket) {
+                foreach (($this->payment[$group][$bucket] ?? []) as $index => $row) {
+                    $option = collect($this->feeOptionsForBucket($bucket))
+                        ->firstWhere('id', (int) ($row['id_loaiphuphi'] ?? 0));
+
+                    $this->payment[$group][$bucket][$index]['name'] = $option['name'] ?? '';
+                }
+            }
+
+            foreach (($this->payment[$group]['hh_khachhang'] ?? []) as $index => $row) {
+                $option = collect($this->expenseOptions)
+                    ->firstWhere('id', (int) ($row['id_loaichi'] ?? 0));
+
+                $this->payment[$group]['hh_khachhang'][$index]['name'] = $option['name'] ?? '';
+            }
+        }
     }
 
     protected function recalculateAll(): void
     {
         $this->payment['cuocban'] = $this->recalculateGroup($this->payment['cuocban'] ?? [], 'dongiaban', ['phuphi', 'hh_khachhang']);
-        $this->payment['cuocvon'] = $this->recalculateGroup($this->payment['cuocvon'] ?? [], 'dongiavon', ['phuphi', 'phichiho']);
+        $this->payment['cuocvon'] = $this->recalculateGroup($this->payment['cuocvon'] ?? [], 'dongiavon', ['phuphi', 'phichiho'], ['phichiho']);
         $this->payment['cuocgoc'] = $this->recalculateGroup($this->payment['cuocgoc'] ?? [], 'dongiagoc', ['phuphi']);
 
         $saleBonusPercent = $this->number($this->payment['cuocvon']['bonus_sale_percent'] ?? 0);
         $this->payment['cuocvon']['bonus_sale_amount'] = round($this->number($this->payment['cuocban']['total_tongcuoc_no_vat'] ?? 0) * $saleBonusPercent / 100);
     }
 
-    protected function recalculateGroup(array $group, string $priceKey, array $buckets): array
+    protected function recalculateGroup(array $group, string $priceKey, array $buckets, array $excludedBuckets = []): array
     {
         $price = $this->number($group[$priceKey] ?? 0);
         $vatPercent = $this->number($group['vat_percent'] ?? 0);
@@ -379,6 +430,11 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                 $rows[$index]['vat_amount'] = $rowVatAmount;
                 $rows[$index]['total'] = $rowTotal;
                 $rows[$index]['total_after_vat'] = $rowTotal + $rowVatAmount;
+
+                if (in_array($bucket, $excludedBuckets, true)) {
+                    continue;
+                }
+
                 $feeTotalNoVat += $rowTotal;
                 $feeVatTotal += $rowVatAmount;
                 $feeTotal += $rows[$index]['total_after_vat'];
@@ -390,10 +446,14 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         $group[$priceKey] = $price;
         $group['ppxd_amount'] = $ppxdAmount;
         $group['vat_amount'] = $vatAmount;
-        $group['total_vat'] = $feeTotalNoVat + $vatAmount;
+        $group['total_vat'] = $vatAmount + $feeVatTotal;
         $group['total_vat_phuphi'] = $feeVatTotal;
         $group['total_phuphi_no_vat'] = $feeTotalNoVat;
         $group['total_phuphi'] = $feeTotal;
+        $group['total_phichiho'] = array_sum(array_map(
+            fn ($row) => $this->number($row['price'] ?? ($row['so_tien'] ?? 0)),
+            $group['phichiho'] ?? []
+        ));
         $group['total_hh_khachhang'] = array_sum(array_map(
             fn ($row) => $this->number($row['so_tien'] ?? ($row['price'] ?? 0)),
             $group['hh_khachhang'] ?? []
@@ -470,7 +530,11 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             return (float) $value;
         }
 
-        $normalized = preg_replace('/[^\d.-]/', '', (string) $value);
+        $normalized = preg_replace('/[^\d.,-]/', '', (string) $value);
+
+        if (preg_match('/^-?\d{1,3}(,\d{3})+$/', $normalized)) {
+            $normalized = str_replace(',', '', $normalized);
+        }
 
         return $normalized === '' || $normalized === '-' ? 0 : (float) $normalized;
     }

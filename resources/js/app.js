@@ -1,10 +1,13 @@
 import './bootstrap';
 import TomSelect from 'tom-select';
+import flatpickr from 'flatpickr';
+import 'flatpickr/dist/flatpickr.min.css';
 import { registerTomSelectNavigation } from './tom-select-helper';
 import { Fancybox } from '@fancyapps/ui';
 import '@fancyapps/ui/dist/fancybox/fancybox.css';
 
 window.TomSelect = TomSelect;
+window.flatpickr = flatpickr;
 window.Fancybox = Fancybox;
 Fancybox.bind('[data-fancybox]', {});
 import Scrollbar from 'smooth-scrollbar';
