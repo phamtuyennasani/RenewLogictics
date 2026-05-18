@@ -57,8 +57,11 @@ class OrderAccess
             return false;
         }
 
-        return $user->hasAnyRole(['admin', 'manager', 'ketoan'])
-            || self::canEditOrder($user, $order);
+        if ($user->hasAnyRole(['admin', 'manager', 'ketoan'])) {
+            return true;
+        }
+
+        return $user->hasRole('sale') && self::canView($user, $order);
     }
 
     public static function canToggleLock(User $user): bool

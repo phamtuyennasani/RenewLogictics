@@ -50,6 +50,7 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                 $package->id => [
                     'id_thamchieu' => (string) ($package->id_thamchieu ?? $this->order->id_thamchieu ?? ''),
                     'mathamchieu' => (string) ($package->mathamchieu ?? $this->order->mathamchieu ?? ''),
+                    'package_delivery_status' => (string) ($package->package_delivery_status ?? ''),
                 ],
             ])
             ->toArray();
@@ -195,6 +196,8 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
             ->map(function (OrderPackage $package) {
                 $courierCode = trim((string) data_get($this->packageTracking, "{$package->id}.id_thamchieu", $package->id_thamchieu));
                 $trackingNumber = trim((string) data_get($this->packageTracking, "{$package->id}.mathamchieu", $package->mathamchieu));
+                $trackingResult = $this->trackingResultFor($trackingNumber, $courierCode);
+                $deliveryStatus = $this->syncPackageDeliveryFromTracking($package, $trackingResult);
 
                 return array_merge([
                     'id' => $package->id,
@@ -202,11 +205,13 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                     'code' => $package->code ?: 'Kien #'.$package->id,
                     'courier_code' => $courierCode,
                     'tracking_number' => $trackingNumber,
+                    'delivery_status' => $deliveryStatus,
+                    'delivered_at' => $package->package_delivered_at,
                     'latest_status' => null,
                     'latest_time' => null,
                     'events' => [],
                     'error' => null,
-                ], $this->trackingResultFor($trackingNumber, $courierCode));
+                ], $trackingResult);
             })
             ->values()
             ->all();
@@ -278,6 +283,117 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
         ];
     }
 
+    protected function syncPackageDeliveryFromTracking(OrderPackage $package, array $trackingResult): ?string
+    {
+        if (! $this->trackingMoreEnabled() || filled($trackingResult['error'] ?? null)) {
+            return $package->package_delivery_status;
+        }
+
+        $latestStatus = (string) ($trackingResult['latest_status'] ?? '');
+        $latestTime = $trackingResult['latest_time'] ?? null;
+
+        if ($latestStatus === '') {
+            return $package->package_delivery_status;
+        }
+
+        $nextStatus = $this->isDeliveredTrackingStatus($latestStatus)
+            ? 'delivered'
+            : ($package->package_delivery_status ?: 'in_transit');
+
+        $payload = [
+            'package_delivery_status' => $nextStatus,
+        ];
+
+        if ($nextStatus === 'delivered') {
+            $payload['package_delivered_at'] = $package->package_delivered_at ?: $latestTime ?: now();
+        }
+
+        $dirty = collect($payload)->contains(function ($value, string $key) use ($package) {
+            if ($value instanceof Carbon) {
+                return ! $package->{$key} || ! $package->{$key}->equalTo($value);
+            }
+
+            return $package->{$key} !== $value;
+        });
+
+        if ($dirty) {
+            $payload['package_delivery_synced_at'] = now();
+            $package->forceFill($payload)->save();
+            $package->refresh();
+        }
+
+        return $package->package_delivery_status;
+    }
+
+    public function packageDeliverySummary(array $packageTrackingHistories): array
+    {
+        if ($this->trackingMode !== 'packages') {
+            return [
+                'label' => null,
+                'class' => null,
+                'delivered' => 0,
+                'total' => 0,
+            ];
+        }
+
+        $total = $this->order->packages->count();
+
+        if ($total <= 1) {
+            return [
+                'label' => null,
+                'class' => null,
+                'delivered' => 0,
+                'total' => $total,
+            ];
+        }
+
+        $delivered = $this->order->packages
+            ->filter(fn (OrderPackage $package) => $package->package_delivery_status === 'delivered')
+            ->count();
+
+        if ($delivered > 0 && $delivered < $total) {
+            return [
+                'label' => "Giao một phần {$delivered}/{$total} kiện",
+                'class' => 'bg-amber-100 text-amber-800',
+                'delivered' => $delivered,
+                'total' => $total,
+            ];
+        }
+
+        if ($delivered === $total && $this->order->bill_status !== OrderStatusEnum::DA_GIAO) {
+            return [
+                'label' => "Tất cả kiện đã giao {$delivered}/{$total}",
+                'class' => 'bg-emerald-100 text-emerald-800',
+                'delivered' => $delivered,
+                'total' => $total,
+            ];
+        }
+
+        return [
+            'label' => null,
+            'class' => null,
+            'delivered' => $delivered,
+            'total' => $total,
+        ];
+    }
+
+    protected function isDeliveredTrackingStatus(string $status): bool
+    {
+        $normalized = str($status)->lower()->ascii()->replace(['_', '-'], ' ')->squish()->toString();
+
+        if (str_contains($normalized, 'delivered') || str_contains($normalized, 'da giao')) {
+            return true;
+        }
+
+        return in_array($normalized, [
+            'delivered',
+            'da giao',
+            'signed',
+            'success',
+            'completed',
+        ], true);
+    }
+
     public function statusOptions(): array
     {
         $current = $this->order->bill_status;
@@ -311,6 +427,15 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
     public function trackingMoreEnabled(): bool
     {
         return filled(config('services.trackingmore.key'));
+    }
+
+    public function packageDeliveryStatusOptions(): array
+    {
+        return [
+            '' => 'Chưa xác định',
+            'in_transit' => 'Đang vận chuyển',
+            'delivered' => 'Đã giao',
+        ];
     }
 
     protected function loadCourierOptions(): array
@@ -362,10 +487,12 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
             $rules['commonCourierCode'] = 'nullable|string|max:100';
             $rules['packageTracking.*.id_thamchieu'] = 'nullable|string|max:100';
             $rules['packageTracking.*.mathamchieu'] = 'nullable|string|max:255';
+            $rules['packageTracking.*.package_delivery_status'] = 'nullable|in:in_transit,delivered';
         } else {
             foreach ($this->order->packages as $package) {
                 $rules["packageTracking.{$package->id}.id_thamchieu"] = 'nullable|string|max:100';
                 $rules["packageTracking.{$package->id}.mathamchieu"] = 'required|string|max:255';
+                $rules["packageTracking.{$package->id}.package_delivery_status"] = 'nullable|in:in_transit,delivered';
             }
         }
 
@@ -383,6 +510,8 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                 $package->id => [
                     'id_thamchieu' => $package->id_thamchieu,
                     'mathamchieu' => $package->mathamchieu,
+                    'package_delivery_status' => $package->package_delivery_status,
+                    'package_delivered_at' => $package->package_delivered_at?->toDateTimeString(),
                 ],
             ])->toArray(),
         ];
@@ -432,6 +561,15 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
         $this->trackingCode = (string) ($this->order->tracking_code ?? '');
         $this->commonCourierCode = (string) ($this->order->id_thamchieu ?? '');
         $this->billStatus = $this->order->bill_status?->value ?? '';
+        $this->packageTracking = $this->order->packages
+            ->mapWithKeys(fn (OrderPackage $package) => [
+                $package->id => [
+                    'id_thamchieu' => (string) ($package->id_thamchieu ?? $this->order->id_thamchieu ?? ''),
+                    'mathamchieu' => (string) ($package->mathamchieu ?? $this->order->mathamchieu ?? ''),
+                    'package_delivery_status' => (string) ($package->package_delivery_status ?? ''),
+                ],
+            ])
+            ->toArray();
         $this->trackingMode = $this->detectTrackingMode();
 
         RecordOrderEditHistoryAction::execute($this->order, 'edit_tracking', 'tracking', $before, [
@@ -455,6 +593,9 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                     'id_thamchieu' => trim($this->commonCourierCode) ?: null,
                     'mathamchieu' => trim($this->trackingCode) ?: null,
                     'tracking_id' => $this->order->trackingmore_id,
+                    'package_delivery_status' => null,
+                    'package_delivered_at' => null,
+                    'package_delivery_synced_at' => null,
                 ])->save();
 
                 continue;
@@ -462,13 +603,23 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
 
             $courierCode = trim((string) ($tracking['id_thamchieu'] ?? ''));
             $trackingNumber = trim((string) ($tracking['mathamchieu'] ?? ''));
+            $deliveryStatus = $this->normalizePackageDeliveryStatus($tracking['package_delivery_status'] ?? null);
 
             $package->forceFill([
                 'id_thamchieu' => $courierCode ?: null,
                 'mathamchieu' => $trackingNumber ?: null,
                 'tracking_id' => $this->ensureTrackingRegistered($trackingNumber, $courierCode, $package->tracking_id),
+                'package_delivery_status' => $deliveryStatus,
+                'package_delivered_at' => $deliveryStatus === 'delivered' ? ($package->package_delivered_at ?: now()) : null,
             ])->save();
         }
+    }
+
+    protected function normalizePackageDeliveryStatus(mixed $status): ?string
+    {
+        $status = trim((string) $status);
+
+        return in_array($status, ['in_transit', 'delivered'], true) ? $status : null;
     }
 
     protected function ensureTrackingRegistered(string $trackingNumber, string $courierCode, ?string $currentId = null): ?string
@@ -604,6 +755,7 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
     $progressStep = $this->progressStep();
     $historyRows = $this->trackingHistories;
     $packageTrackingHistories = $this->packageTrackingHistories;
+    $packageDeliverySummary = $this->packageDeliverySummary($packageTrackingHistories);
 @endphp
 
 <div class="space-y-5">
@@ -615,6 +767,11 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                 <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {{ $order->bill_status?->color() ?? 'bg-neutral-100 text-neutral-700' }}">
                     {{ $order->bill_status?->label() ?? 'Chưa rõ' }}
                 </span>
+                @if($packageDeliverySummary['label'])
+                    <span class="inline-flex rounded-full px-3 py-1 text-xs font-semibold {{ $packageDeliverySummary['class'] }}">
+                        {{ $packageDeliverySummary['label'] }}
+                    </span>
+                @endif
                 @if($order->lock_order)
                     <span class="inline-flex rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700">Đã khóa</span>
                 @endif
@@ -650,6 +807,13 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
             </div>
             <span class="rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-700">{{ $trackingCode ?: 'Chưa có mã tracking' }}</span>
         </div>
+
+        @if($packageDeliverySummary['label'])
+            <div class="mb-4 rounded-xl border px-4 py-3 text-sm {{ $packageDeliverySummary['delivered'] === $packageDeliverySummary['total'] ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800' }}">
+                Trạng thái đơn vẫn giữ là <span class="font-semibold">{{ $order->bill_status?->label() ?? 'Chưa rõ' }}</span>.
+                {{ $packageDeliverySummary['label'] }} theo tracking từng kiện.
+            </div>
+        @endif
 
         <div class="grid gap-3 md:grid-cols-3">
             @foreach([
@@ -918,6 +1082,9 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                             <th class="px-5 py-3">Mã hãng vận chuyển</th>
                         @endif
                         <th class="px-5 py-3">Mã tham chiếu</th>
+                        @if($trackingMode === 'packages')
+                            <th class="px-5 py-3">Trạng thái giao</th>
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-neutral-100">
@@ -946,10 +1113,26 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                                 <input type="text" wire:model="packageTracking.{{ $package->id }}.mathamchieu" @disabled(! $this->canUpdate || $trackingMode === 'common') class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500" placeholder="Tracking number">
                                 @error("packageTracking.{$package->id}.mathamchieu") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                             </td>
+                            @if($trackingMode === 'packages')
+                                <td class="px-5 py-4">
+                                    <select wire:model="packageTracking.{{ $package->id }}.package_delivery_status" @disabled(! $this->canUpdate) class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500">
+                                        @foreach($this->packageDeliveryStatusOptions() as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    @if($package->package_delivery_synced_at)
+                                        <p class="mt-1 text-xs text-neutral-500">Sync API: {{ $package->package_delivery_synced_at->format('d/m/Y H:i') }}</p>
+                                    @endif
+                                    @if($package->package_delivered_at)
+                                        <p class="mt-1 text-xs text-emerald-600">Giao lúc: {{ $package->package_delivered_at->format('d/m/Y H:i') }}</p>
+                                    @endif
+                                    @error("packageTracking.{$package->id}.package_delivery_status") <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                </td>
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-5 py-8 text-center text-neutral-500">Đơn hàng chưa có kiện hàng.</td>
+                            <td colspan="{{ $trackingMode === 'packages' ? 6 : 5 }}" class="px-5 py-8 text-center text-neutral-500">Đơn hàng chưa có kiện hàng.</td>
                         </tr>
                     @endforelse
                 </tbody>

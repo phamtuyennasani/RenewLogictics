@@ -40,6 +40,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         $this->hydrateFeeSelections();
 
         $this->recalculateAll();
+        $this->enforceEditableChargeScope();
     }
 
     protected function loadExpenseOptions(): array
@@ -318,6 +319,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     {
         abort_unless(OrderAccess::canEditPayment(auth()->user(), $this->order), 403);
 
+        $this->enforceEditableChargeScope();
         $this->syncSelectedOptionNames();
 
         $this->validate([
@@ -342,24 +344,38 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
         $before = $this->orderPaymentSnapshot();
 
-        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
         $this->recalculateAll();
+
+        $cuocvon = $this->canEditAllCharges()
+            ? $this->payment['cuocvon']
+            : $this->normalizePayment($this->order->payment_cuocvon, 'dongiavon');
+        $cuocgoc = $this->canEditAllCharges()
+            ? $this->payment['cuocgoc']
+            : $this->normalizePayment($this->order->payment_cuocgoc, 'dongiagoc');
+
+        $this->payment['cuocvon'] = $cuocvon;
+        $this->payment['cuocgoc'] = $cuocgoc;
+        $profitSnapshot = $this->profitSnapshot();
+
+        OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->order->forceFill([
             'payment_cuocban' => $this->payment['cuocban'],
-            'payment_cuocvon' => $this->payment['cuocvon'],
-            'payment_cuocgoc' => $this->payment['cuocgoc'],
-            'payment_loinhuan' => $this->profitSnapshot(),
+            'payment_cuocvon' => $cuocvon,
+            'payment_cuocgoc' => $cuocgoc,
+            'payment_loinhuan' => $profitSnapshot,
         ])->save();
 
         $this->order->refresh();
+        $after = $this->orderPaymentSnapshot();
+        $this->enforceEditableChargeScope();
 
         RecordOrderEditHistoryAction::execute(
             $this->order,
             'edit_payment',
             'payment',
             $before,
-            $this->paymentSnapshot(),
+            $after,
             'cập nhật giá đơn hàng'
         );
 
@@ -386,6 +402,16 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                 $this->payment[$group]['hh_khachhang'][$index]['name'] = $option['name'] ?? '';
             }
         }
+    }
+
+    protected function enforceEditableChargeScope(): void
+    {
+        if ($this->canEditAllCharges()) {
+            return;
+        }
+
+        $this->payment['cuocvon'] = $this->normalizePayment([], 'dongiavon');
+        $this->payment['cuocgoc'] = $this->normalizePayment([], 'dongiagoc');
     }
 
     protected function recalculateAll(): void
@@ -541,15 +567,20 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
     public function showSaleCharge(): bool
     {
-        return ! auth()->user()->hasRole('ketoan') || auth()->user()->hasAnyRole(['admin', 'manager']);
+        return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan', 'sale']);
     }
 
     public function showCostCharge(): bool
     {
-        return ! auth()->user()->hasRole('sale') || auth()->user()->hasAnyRole(['admin', 'manager']);
+        return $this->canEditAllCharges();
     }
 
     public function showBaseCharge(): bool
+    {
+        return $this->canEditAllCharges();
+    }
+
+    public function canEditAllCharges(): bool
     {
         return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan']);
     }
@@ -628,21 +659,23 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                             <span class="text-sm text-primary-700">Cước bán</span>
                             <span class="text-sm font-semibold text-primary-800">{{ $this->money(data_get($payment, 'cuocban.total_tongcuoc')) }}</span>
                         </div>
-                        <div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
-                            <span class="text-sm text-neutral-600">Cước vốn</span>
-                            <span class="text-sm font-semibold text-neutral-900">{{ $this->money(data_get($payment, 'cuocvon.total_tongcuoc')) }}</span>
-                        </div>
-                        <div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
-                            <span class="text-sm text-neutral-600">Cước gốc</span>
-                            <span class="text-sm font-semibold text-neutral-900">{{ $this->money(data_get($payment, 'cuocgoc.total_tongcuoc')) }}</span>
-                        </div>
-                        <div class="rounded-lg bg-emerald-50 px-4 py-3">
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-emerald-700">Lợi nhuận</span>
-                                <span class="text-sm font-semibold text-emerald-800">{{ $this->money($this->profitValue('loinhuan')) }}</span>
+                        @if($this->canEditAllCharges())
+                            <div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
+                                <span class="text-sm text-neutral-600">Cước vốn</span>
+                                <span class="text-sm font-semibold text-neutral-900">{{ $this->money(data_get($payment, 'cuocvon.total_tongcuoc')) }}</span>
                             </div>
-                            <div class="mt-1 text-right text-xs text-emerald-700">Tỷ suất {{ number_format($this->profitValue('tysuatloinhuan'), 2) }}%</div>
-                        </div>
+                            <div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
+                                <span class="text-sm text-neutral-600">Cước gốc</span>
+                                <span class="text-sm font-semibold text-neutral-900">{{ $this->money(data_get($payment, 'cuocgoc.total_tongcuoc')) }}</span>
+                            </div>
+                            <div class="rounded-lg bg-emerald-50 px-4 py-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-emerald-700">Lợi nhuận</span>
+                                    <span class="text-sm font-semibold text-emerald-800">{{ $this->money($this->profitValue('loinhuan')) }}</span>
+                                </div>
+                                <div class="mt-1 text-right text-xs text-emerald-700">Tỷ suất {{ number_format($this->profitValue('tysuatloinhuan'), 2) }}%</div>
+                            </div>
+                        @endif
                     </div>
                     <div class="flex items-center justify-end gap-3 border-t border-neutral-100 px-5 py-4">
                         <a href="{{ route('orders.show', ['uuid' => $order->uuid]) }}" wire:navigate class="inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">

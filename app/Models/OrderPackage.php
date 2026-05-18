@@ -30,6 +30,14 @@ class OrderPackage extends Model
         'id_thamchieu',
         'mathamchieu',
         'tracking_id',
+        'package_delivery_status',
+        'package_delivered_at',
+        'package_delivery_synced_at',
+    ];
+
+    protected $casts = [
+        'package_delivered_at' => 'datetime',
+        'package_delivery_synced_at' => 'datetime',
     ];
     // Relationships
     public function order()
