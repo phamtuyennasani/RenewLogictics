@@ -48,10 +48,21 @@
 
     <div class="space-y-2 px-4 py-3">
         <div class="flex items-center flex-wrap gap-2">
+            <button
+                type="button"
+                data-status-tab=""
+                data-active="true"
+                class="inline-flex min-h-10 min-w-0 flex-auto cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-center text-xs font-medium text-neutral-700 transition hover:border-transparent hover:bg-neutral-100 data-[active=true]:border-transparent data-[active=true]:bg-neutral-100 2xl:text-sm"
+            >
+                <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"></span>
+                <span class="truncate">Tất cả</span>
+                <span class="rounded-full bg-neutral-100/80 px-1.5 py-0.5 text-[11px] leading-none text-neutral-500" data-status-count="all">0</span>
+            </button>
+
             @foreach ($statusOptions as $status)
                 <button
                     type="button"
-                    data-bulk-status="{{ $status['value'] }}"
+                    data-status-tab="{{ $status['value'] }}"
                     data-active="false"
                     class="{{ $status['textClass'] }} {{ 'hover:'.$status['bgClass'] }} {{ 'data-[active=true]:'.$status['bgClass'] }} inline-flex min-h-10 min-w-0 items-center justify-center flex-auto cursor-pointer gap-1.5 rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-center text-xs font-medium transition hover:border-transparent data-[active=true]:border-transparent 2xl:text-sm"
                 >

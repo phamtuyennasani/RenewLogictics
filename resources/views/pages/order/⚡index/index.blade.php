@@ -127,8 +127,8 @@
 
                 const syncActiveStatus = () => {
                     const currentStatus = field('status')?.value || '';
-                    document.querySelectorAll('[data-bulk-status]').forEach((button) => {
-                        button.dataset.active = button.dataset.bulkStatus === currentStatus ? 'true' : 'false';
+                    document.querySelectorAll('[data-status-tab]').forEach((button) => {
+                        button.dataset.active = button.dataset.statusTab === currentStatus ? 'true' : 'false';
                     });
                 };
 
