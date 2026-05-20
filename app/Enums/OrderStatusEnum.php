@@ -40,8 +40,8 @@ enum OrderStatusEnum: string
             self::DA_GIAO          => 'Đã giao',
             self::HUY              => 'Hủy',
             self::RETURN_ORDER     => 'Hoàn hàng',
-            self::CAUTION         => 'Cảnh báo',
-            self::CUSTOM_RELEASING => 'Hải quan thông quan',
+            self::CAUTION          => 'Cảnh báo',
+            self::CUSTOM_RELEASING => 'Thông quan',
             self::CAP_BEN          => 'Cấp bến',
         };
     }

@@ -17,6 +17,7 @@
         "livewire/flux": "^2.13",
         "livewire/livewire": "^4.2",
         "maatwebsite/excel": "^3.1",
+        "power-components/livewire-powergrid": "^6.10",
         "spatie/laravel-permission": "^7.3",
         "staudenmeir/eloquent-json-relations": "^1.1",
         "yajra/laravel-datatables-oracle": "^13.0"

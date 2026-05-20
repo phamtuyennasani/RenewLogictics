@@ -17,8 +17,8 @@ class OrderDataTableController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
-        return DataTables::eloquent($this->query($request))
-            ->addColumn('check', fn (Order $order) => '<input type="checkbox" class="order-check h-4 w-4 rounded border-neutral-300" value="'.$order->id.'">')
+        $response = DataTables::eloquent($this->query($request))
+            ->addColumn('check', fn (Order $order) => '<label class="order-checkbox relative mx-auto flex w-fit cursor-pointer select-none items-center justify-center"><input type="checkbox" class="order-check peer sr-only" value="'.$order->id.'"><span class="flex h-[18px] w-[18px] items-center justify-center rounded-md border border-neutral-300 bg-white transition peer-checked:border-primary-600 peer-checked:bg-primary-600 peer-hover:border-primary-400"></span><svg class="pointer-events-none absolute hidden h-3 w-3 text-white peer-checked:block" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.5l5 5 10-11" /></svg></label>')
             ->addColumn('order_code', fn (Order $order) => view('pages.order.partials.index.order-code', compact('order'))->render())
             ->addColumn('status_badge', fn (Order $order) => '<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '.($order->bill_status?->color() ?? 'bg-neutral-100 text-neutral-700').'">'.e($order->bill_status?->label() ?? 'Chưa rõ').'</span>')
             ->addColumn('dates', fn (Order $order) => view('pages.order.partials.index.dates', compact('order'))->render())
@@ -31,7 +31,10 @@ class OrderDataTableController extends Controller
             ->addColumn('cost_total', fn (Order $order) => auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan']) ? $this->money(data_get($order->payment_cuocvon, 'total_tongcuoc', data_get($order->payment_cuocvon, 'tongcuoc', 0))) : '—')
             ->addColumn('profit_total', fn (Order $order) => $this->profitHtml($order))
             ->addColumn('payment_state', fn (Order $order) => view('pages.order.partials.index.payment-state', compact('order'))->render())
+            ->addColumn('customer_payment_state', fn () => '&nbsp;')
+            ->addColumn('provider_payment_state', fn () => '&nbsp;')
             ->addColumn('actions', fn (Order $order) => view('pages.order.partials.index.actions', compact('order'))->render())
+            ->setRowId(fn (Order $order) => 'order-'.$order->id)
             ->rawColumns([
                 'check',
                 'order_code',
@@ -46,9 +49,14 @@ class OrderDataTableController extends Controller
                 'cost_total',
                 'profit_total',
                 'payment_state',
+                'customer_payment_state',
+                'provider_payment_state',
                 'actions',
             ])
             ->toJson();
+        $payload = $response->getData(true);
+        $payload['statusCounts'] = $this->statusCounts($request);
+        return response()->json($payload);
     }
 
     public function bulkStatus(Request $request): JsonResponse
@@ -63,7 +71,7 @@ class OrderDataTableController extends Controller
         abort_if(! $status, 422, 'Trạng thái không hợp lệ.');
 
         $count = 0;
-        foreach ($this->query($request)->whereIn('orders.id', $data['ids'])->get() as $order) {
+        foreach ($this->query($request, includeStatus: false)->whereIn('orders.id', $data['ids'])->get() as $order) {
             if (! OrderAccess::canEditOrder($request->user(), $order)) {
                 continue;
             }
@@ -135,7 +143,7 @@ class OrderDataTableController extends Controller
         }, $filename);
     }
 
-    protected function query(Request $request): Builder
+    protected function query(Request $request, bool $includeStatus = true): Builder
     {
         $user = $request->user();
 
@@ -151,7 +159,7 @@ class OrderDataTableController extends Controller
             ->when($user->hasRole('sale'), fn ($q) => $q->where('id_sale', $user->id))
             ->when($user->hasRole('ctv'), fn ($q) => $q->where('id_customer', $user->id))
             ->when($user->hasRole('cs'), fn ($q) => $q->where(fn ($sub) => $sub->whereNull('id_cs')->orWhere('id_cs', $user->id)))
-            ->when($request->filled('status'), fn ($q) => $q->where('bill_status', $request->string('status')))
+            ->when($includeStatus && $request->filled('status'), fn ($q) => $q->where('bill_status', $request->string('status')))
             ->when($request->filled('fromDate'), fn ($q) => $q->whereDate('created_at', '>=', $request->date('fromDate')))
             ->when($request->filled('toDate'), fn ($q) => $q->whereDate('created_at', '<=', $request->date('toDate')))
             ->when($request->filled('saleId'), fn ($q) => $q->where('id_sale', $request->integer('saleId')))
@@ -171,6 +179,21 @@ class OrderDataTableController extends Controller
                 });
             })
             ->latest('orders.id');
+    }
+
+    protected function statusCounts(Request $request): array
+    {
+        $counts = $this->query($request, includeStatus: false)
+            ->reorder()
+            ->selectRaw('bill_status, count(*) as total')
+            ->groupBy('bill_status')
+            ->pluck('total', 'bill_status')
+            ->toArray();
+
+        return [
+            'all' => array_sum($counts),
+            ...$counts,
+        ];
     }
 
     protected function money(mixed $value): string
