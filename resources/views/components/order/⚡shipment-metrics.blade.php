@@ -11,6 +11,7 @@ use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 new class extends Component
@@ -21,6 +22,15 @@ new class extends Component
 
     public function mount(): void
     {
+        $this->dim = $this->order->dim ?: 6000;
+        $this->fillPackageForm();
+    }
+
+    #[On('order-lock-updated')]
+    public function refreshOrderLock(): void
+    {
+        $this->order->refresh();
+        $this->order->load('packages');
         $this->dim = $this->order->dim ?: 6000;
         $this->fillPackageForm();
     }

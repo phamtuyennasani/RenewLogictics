@@ -353,6 +353,11 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             ? $this->payment['cuocgoc']
             : $this->normalizePayment($this->order->payment_cuocgoc, 'dongiagoc');
 
+        if (! $this->canEditAllCharges()) {
+            $cuocvon['bonus_sale_percent'] = $this->number($this->payment['cuocvon']['bonus_sale_percent'] ?? ($cuocvon['bonus_sale_percent'] ?? 0));
+            $cuocvon['bonus_sale_amount'] = $this->number($this->payment['cuocvon']['bonus_sale_amount'] ?? 0);
+        }
+
         $this->payment['cuocvon'] = $cuocvon;
         $this->payment['cuocgoc'] = $cuocgoc;
         $profitSnapshot = $this->profitSnapshot();
@@ -410,7 +415,12 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             return;
         }
 
+        $bonusPercent = $this->number($this->payment['cuocvon']['bonus_sale_percent'] ?? data_get($this->order->payment_cuocvon, 'bonus_sale_percent', 0));
+        $bonusAmount = $this->number($this->payment['cuocvon']['bonus_sale_amount'] ?? data_get($this->order->payment_cuocvon, 'bonus_sale_amount', 0));
+
         $this->payment['cuocvon'] = $this->normalizePayment([], 'dongiavon');
+        $this->payment['cuocvon']['bonus_sale_percent'] = $bonusPercent;
+        $this->payment['cuocvon']['bonus_sale_amount'] = $bonusAmount;
         $this->payment['cuocgoc'] = $this->normalizePayment([], 'dongiagoc');
     }
 
@@ -420,8 +430,12 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         $this->payment['cuocvon'] = $this->recalculateGroup($this->payment['cuocvon'] ?? [], 'dongiavon', ['phuphi', 'phichiho'], ['phichiho']);
         $this->payment['cuocgoc'] = $this->recalculateGroup($this->payment['cuocgoc'] ?? [], 'dongiagoc', ['phuphi']);
 
-        $saleBonusPercent = $this->number($this->payment['cuocvon']['bonus_sale_percent'] ?? 0);
-        $this->payment['cuocvon']['bonus_sale_amount'] = round($this->number($this->payment['cuocban']['total_tongcuoc_no_vat'] ?? 0) * $saleBonusPercent / 100);
+        $saleTotalNoVat = $this->number($this->payment['cuocban']['total_tongcuoc_no_vat'] ?? 0);
+        $saleBonusPercent = $this->canEditAllCharges()
+            ? $this->number($this->payment['cuocvon']['bonus_sale_percent'] ?? 0)
+            : $this->number(data_get($this->order->payment_cuocvon, 'bonus_sale_percent', 0));
+        $this->payment['cuocvon']['bonus_sale_percent'] = $saleBonusPercent;
+        $this->payment['cuocvon']['bonus_sale_amount'] = round($saleTotalNoVat * ($saleBonusPercent / 100));
     }
 
     protected function recalculateGroup(array $group, string $priceKey, array $buckets, array $excludedBuckets = []): array
@@ -499,7 +513,12 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         $cost = $this->number($this->payment['cuocvon']['total_tongcuoc'] ?? 0);
         $baseNoVat = $this->number($this->payment['cuocgoc']['total_tongcuoc_no_vat'] ?? 0);
         $base = $this->number($this->payment['cuocgoc']['total_tongcuoc'] ?? 0);
-        $profit = $sale - $cost;
+        $customerCommission = $this->number($this->payment['cuocban']['total_hh_khachhang'] ?? 0);
+        $saleBonus = $this->number($this->payment['cuocvon']['bonus_sale_amount'] ?? 0);
+        $estimatedProfit = $saleNoVat - $costNoVat - $customerCommission;
+        $profit = $estimatedProfit - $saleBonus;
+        $estimatedProfitRate = $saleNoVat > 0 ? round(($estimatedProfit * 100) / $saleNoVat, 2) : 0;
+        $profitRate = $saleNoVat > 0 ? round(($profit * 100) / $saleNoVat, 2) : 0;
 
         return [
             'cuocban_no_vat' => $saleNoVat,
@@ -508,10 +527,11 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             'cuocvon' => $cost,
             'cuocgoc_no_vat' => $baseNoVat,
             'cuocgoc' => $base,
-            'loinhuantamtinh' => $saleNoVat - $costNoVat,
-            'tysuattamtinh' => $saleNoVat > 0 ? round((($saleNoVat - $costNoVat) / $saleNoVat) * 100, 2) : 0,
+            'loinhuantamtinh' => $estimatedProfit,
+            'tysuattamtinh' => $estimatedProfitRate,
             'loinhuan' => $profit,
-            'tysuatloinhuan' => $sale > 0 ? round(($profit / $sale) * 100, 2) : 0,
+            'tysuat' => $profitRate,
+            'tysuatloinhuan' => $profitRate,
         ];
     }
 
@@ -550,7 +570,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         return $this->number($this->profitSnapshot()[$key] ?? 0);
     }
 
-    protected function number(mixed $value): float
+    public function number(mixed $value): float
     {
         if (is_int($value) || is_float($value)) {
             return (float) $value;
@@ -558,11 +578,34 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
         $normalized = preg_replace('/[^\d.,-]/', '', (string) $value);
 
-        if (preg_match('/^-?\d{1,3}(,\d{3})+$/', $normalized)) {
-            $normalized = str_replace(',', '', $normalized);
+        if ($normalized === '' || $normalized === '-') {
+            return 0;
         }
 
-        return $normalized === '' || $normalized === '-' ? 0 : (float) $normalized;
+        $hasComma = str_contains($normalized, ',');
+        $hasDot = str_contains($normalized, '.');
+
+        if ($hasComma && $hasDot) {
+            $lastComma = strrpos($normalized, ',');
+            $lastDot = strrpos($normalized, '.');
+
+            if ($lastComma > $lastDot) {
+                $normalized = str_replace('.', '', $normalized);
+                $normalized = str_replace(',', '.', $normalized);
+            } else {
+                $normalized = str_replace(',', '', $normalized);
+            }
+        } elseif ($hasComma) {
+            if (preg_match('/^-?\d{1,3}(,\d{3})+$/', $normalized)) {
+                $normalized = str_replace(',', '', $normalized);
+            } else {
+                $normalized = str_replace(',', '.', $normalized);
+            }
+        } elseif ($hasDot && preg_match('/^-?\d{1,3}(\.\d{3})+$/', $normalized)) {
+            $normalized = str_replace('.', '', $normalized);
+        }
+
+        return (float) $normalized;
     }
 
     public function showSaleCharge(): bool
@@ -648,43 +691,12 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                 @endif
             </div>
 
-            <aside class="space-y-5">
-                <section class="sticky top-4 rounded-xl border border-neutral-200 bg-white shadow-xs">
-                    <div class="border-b border-neutral-100 px-5 py-4">
-                        <h2 class="text-sm font-semibold uppercase text-neutral-800">Tổng hợp</h2>
-                        <p class="text-xs text-neutral-500">Tự tính theo dữ liệu đang nhập</p>
-                    </div>
-                    <div class="space-y-3 p-5">
-                        <div class="flex items-center justify-between rounded-lg bg-primary-50 px-4 py-3">
-                            <span class="text-sm text-primary-700">Cước bán</span>
-                            <span class="text-sm font-semibold text-primary-800">{{ $this->money(data_get($payment, 'cuocban.total_tongcuoc')) }}</span>
-                        </div>
-                        @if($this->canEditAllCharges())
-                            <div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
-                                <span class="text-sm text-neutral-600">Cước vốn</span>
-                                <span class="text-sm font-semibold text-neutral-900">{{ $this->money(data_get($payment, 'cuocvon.total_tongcuoc')) }}</span>
-                            </div>
-                            <div class="flex items-center justify-between rounded-lg bg-neutral-50 px-4 py-3">
-                                <span class="text-sm text-neutral-600">Cước gốc</span>
-                                <span class="text-sm font-semibold text-neutral-900">{{ $this->money(data_get($payment, 'cuocgoc.total_tongcuoc')) }}</span>
-                            </div>
-                            <div class="rounded-lg bg-emerald-50 px-4 py-3">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-sm text-emerald-700">Lợi nhuận</span>
-                                    <span class="text-sm font-semibold text-emerald-800">{{ $this->money($this->profitValue('loinhuan')) }}</span>
-                                </div>
-                                <div class="mt-1 text-right text-xs text-emerald-700">Tỷ suất {{ number_format($this->profitValue('tysuatloinhuan'), 2) }}%</div>
-                            </div>
-                        @endif
-                    </div>
-                    <div class="flex items-center justify-end gap-3 border-t border-neutral-100 px-5 py-4">
-                        <a href="{{ route('orders.show', ['uuid' => $order->uuid]) }}" wire:navigate class="inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
-                            Thoát
-                        </a>
-                        <flux:button type="submit" variant="primary">Lưu giá</flux:button>
-                    </div>
-                </section>
-            </aside>
+            <div class="flex items-center justify-end gap-3 rounded-xl border border-neutral-200 bg-white px-5 py-4 shadow-xs">
+                <a href="{{ route('orders.show', ['uuid' => $order->uuid]) }}" wire:navigate class="inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+                    Thoát
+                </a>
+                <flux:button type="submit" variant="primary">Lưu giá</flux:button>
+            </div>
         </div>
     </form>
 </div>

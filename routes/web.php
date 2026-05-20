@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Order\OrderDataTableController;
 use App\Livewire\Dashboard;
 use App\Livewire\Order;
 use App\Livewire\Login;
@@ -21,6 +22,10 @@ Route::middleware('auth')->group(function () {
     // --- Đơn hàng ---
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::livewire('/', 'pages::order.index')->name('index');
+        Route::get('/datatable', OrderDataTableController::class)->name('datatable');
+        Route::post('/bulk-status', [OrderDataTableController::class, 'bulkStatus'])->name('bulk-status');
+        Route::post('/delete-cancelled', [OrderDataTableController::class, 'deleteCancelled'])->name('delete-cancelled');
+        Route::get('/export', [OrderDataTableController::class, 'export'])->name('export');
         Route::livewire('/create', 'pages::order.create')->name('create');
         Route::livewire('/{uuid}/payment', 'pages::order.payment')->name('payment');
         Route::livewire('/{uuid}/tracking', 'pages::order.tracking')->name('tracking');

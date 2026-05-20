@@ -31,9 +31,10 @@
                 <flux:label>PPXD (%)</flux:label>
                 <flux:field class="!grid !gap-4 !grid-cols-3">
                     <flux:input
-                        type="text"
+                        type="number"
                         wire:model.live.debounce.300ms="payment.{{ $group }}.ppxd_percent"
                         placeholder=""
+                        step="0.1"
                         :class:input="$inputClass"
                     />
                     <flux:input
@@ -52,9 +53,10 @@
                 <flux:label>VAT (%)</flux:label>
                 <flux:field class="!grid !gap-4 !grid-cols-3">
                     <flux:input
-                        type="text"
+                        type="number"
                         wire:model.live.debounce.300ms="payment.{{ $group }}.vat_percent"
                         placeholder=""
+                        step="0.1"
                         :class:input="$inputClass"
                     />
                     <flux:input
@@ -294,7 +296,8 @@
                                 <flux:field>
                                     <flux:label>VAT (%)</flux:label>
                                     <flux:input
-                                        type="text"
+                                        type="number"
+                                        step="0.1"
                                         wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.vat_percent"
                                         placeholder=""
                                         :class:input="$inputClass"
@@ -353,5 +356,111 @@
                 @endif
             </div>
         @endforeach
+
+        @if($group === 'cuocban')
+            <div class="rounded-xl border border-primary-100 bg-primary-50/60">
+                <div class="border-b border-primary-100 px-4 py-3">
+                    <p class="text-sm font-semibold text-primary-800">Tổng kết cước bán</p>
+                </div>
+                <div class="grid gap-3 p-4 text-sm md:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-lg border border-white/70 bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Cước vận chuyển</p>
+                        <p class="mt-1 font-semibold text-neutral-900">
+                            {{ $this->money($this->number(data_get($payment, 'cuocban.dongiaban', 0)) + $this->number(data_get($payment, 'cuocban.ppxd_amount', 0))) }}
+                        </p>
+                    </div>
+                    <div class="rounded-lg border border-white/70 bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Chi Phí Khác</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($payment, 'cuocban.total_phuphi_no_vat')) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white/70 bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tổng VAT</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($payment, 'cuocban.total_vat')) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white/70 bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tổng Cước vận chuyển</p>
+                        <p class="mt-1 font-semibold text-primary-800">{{ $this->money(data_get($payment, 'cuocban.total_tongcuoc')) }}</p>
+                    </div>
+                    @if(auth()->user()?->hasRole('sale'))
+                        <div class="rounded-lg border border-white/70 bg-white px-3 py-2.5 md:col-span-2 xl:col-span-4">
+                            <p class="text-xs text-neutral-500">Hoa hồng Kinh doanh</p>
+                            <p class="mt-1 font-semibold text-emerald-700">{{ $this->money(data_get($payment, 'cuocvon.bonus_sale_amount')) }}</p>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
+        @if($group === 'cuocvon')
+            <div class="rounded-xl border border-neutral-200 bg-neutral-50">
+                <div class="border-b border-neutral-200 px-4 py-3">
+                    <p class="text-sm font-semibold text-neutral-800">Tổng kết cước vốn</p>
+                </div>
+                <div class="grid gap-3 p-4 text-sm md:grid-cols-2 xl:grid-cols-6">
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Cước vận chuyển</p>
+                        <p class="mt-1 font-semibold text-neutral-900">
+                            {{ $this->money($this->number(data_get($payment, "$group.$priceKey", 0)) + $this->number(data_get($payment, "$group.ppxd_amount", 0))) }}
+                        </p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Chi Phí Khác</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($payment, "$group.total_phuphi_no_vat")) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tổng VAT</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($payment, "$group.total_vat")) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tổng cước</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($payment, "$group.total_tongcuoc")) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Lợi nhuận tạm tính</p>
+                        <p class="mt-1 font-semibold text-emerald-700">{{ $this->money($this->profitValue('loinhuantamtinh')) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tỷ suất lợi nhuận</p>
+                        <p class="mt-1 font-semibold text-emerald-700">{{ number_format($this->profitValue('tysuattamtinh'), 2) }}%</p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if($group === 'cuocgoc')
+            <div class="rounded-xl border border-neutral-200 bg-neutral-50">
+                <div class="border-b border-neutral-200 px-4 py-3">
+                    <p class="text-sm font-semibold text-neutral-800">Tổng kết cước gốc</p>
+                </div>
+                <div class="grid gap-3 p-4 text-sm md:grid-cols-2 xl:grid-cols-6">
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Cước vận chuyển</p>
+                        <p class="mt-1 font-semibold text-neutral-900">
+                            {{ $this->money($this->number(data_get($payment, "$group.$priceKey", 0)) + $this->number(data_get($payment, "$group.ppxd_amount", 0))) }}
+                        </p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Chi Phí Khác</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($payment, "$group.total_phuphi_no_vat")) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tổng VAT</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($payment, "$group.total_vat")) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Hoa hồng Kinh doanh</p>
+                        <p class="mt-1 font-semibold text-emerald-700">{{ $this->money(data_get($payment, 'cuocvon.bonus_sale_amount')) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Lợi nhuận</p>
+                        <p class="mt-1 font-semibold text-emerald-700">{{ $this->money($this->profitValue('loinhuan')) }}</p>
+                    </div>
+                    <div class="rounded-lg border border-white bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tỷ suất</p>
+                        <p class="mt-1 font-semibold text-emerald-700">{{ number_format($this->profitValue('tysuat'), 2) }}%</p>
+                    </div>
+                </div>
+            </div>
+        @endif
     </div>
 </section>

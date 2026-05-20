@@ -1,0 +1,168 @@
+/*! DataTables Tailwind CSS integration
+ */
+
+(function (factory) {
+  if (typeof define === "function" && define.amd) {
+    // AMD
+    define(["jquery", "datatables.net"], function ($) {
+      return factory($, window, document);
+    });
+  } else if (typeof exports === "object") {
+    // CommonJS
+    var jq = require("jquery");
+    var cjsRequires = function (root, $) {
+      if (!$.fn.dataTable) {
+        require("datatables.net")(root, $);
+      }
+    };
+
+    if (typeof window === "undefined") {
+      module.exports = function (root, $) {
+        if (!root) {
+          // CommonJS environments without a window global must pass a
+          // root. This will give an error otherwise
+          root = window;
+        }
+
+        if (!$) {
+          $ = jq(root);
+        }
+
+        cjsRequires(root, $);
+        return factory($, root, root.document);
+      };
+    } else {
+      cjsRequires(window, jq);
+      module.exports = factory(jq, window, window.document);
+    }
+  } else {
+    // Browser
+    factory(jQuery, window, document);
+  }
+})(function ($, window, document) {
+  "use strict";
+  var DataTable = $.fn.dataTable;
+
+  /*
+   * This is a tech preview of Tailwind CSS integration with DataTables.
+   */
+
+  // Set the defaults for DataTables initialisation
+  $.extend(true, DataTable.defaults, {
+    renderer: "tailwindcss",
+  });
+
+  // Default class modification
+  $.extend(true, DataTable.ext.classes, {
+    container: "dt-container dt-tailwindcss",
+    search: {
+      input:
+        "border placeholder-gray-500 ml-2 px-3 py-2 rounded-lg border-gray-200 focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50",
+    },
+    length: {
+      select:
+        "border w-[5.208vw] px-3 py-2 rounded-lg border-gray-200 focus:border-blue-500 !ring-0 !shadow-none",
+    },
+    processing: {
+      container: "dt-processing",
+    },
+    paging: {
+      active: "font-semibold bg-main-1 !text-[#ffffff]",
+      notActive: "bg-[#ffffff] !text-black hover:!text-main-1",
+      button:
+        "relative !no-underline inline-flex justify-center items-center space-x-2 border-vw-[1] border-solid border-black !px-4 !py-1 -mr-px leading-6 hover:z-10 focus:z-10 active:z-10 border-black  active:shadow-none",
+      first: "rounded-l-lg",
+      last: "rounded-r-lg",
+      enabled: "!text-[#f4191b]",
+      notEnabled: "text-gray-300",
+    },
+    table: "dataTable !mb-0 !w-full text-sm align-middle whitespace-nowrap",
+    thead: {
+      row: "!border-0",
+      cell: "!border-b-0 ",
+    },
+    tbody: {
+      row: "",
+      cell: "!text-left !px-[0.6vw]",
+    },
+    tfoot: {
+      row: "even:bg-gray-50",
+      cell: "p-3 text-left",
+    },
+  });
+
+  DataTable.ext.renderer.pagingButton.tailwindcss = function (
+    settings,
+    buttonType,
+    content,
+    active,
+    disabled,
+  ) {
+    var classes = settings.oClasses.paging;
+    var btnClasses = [classes.button];
+
+    btnClasses.push(active ? classes.active : classes.notActive);
+    btnClasses.push(disabled ? classes.notEnabled : classes.enabled);
+
+    var a = $("<a>", {
+      href: disabled ? null : "#",
+      class: btnClasses.join(" "),
+    }).html(content);
+
+    return {
+      display: a,
+      clicker: a,
+    };
+  };
+
+  DataTable.ext.renderer.pagingContainer.tailwindcss = function (
+    settings,
+    buttonEls,
+  ) {
+    var classes = settings.oClasses.paging;
+
+    buttonEls[0].addClass(classes.first);
+    buttonEls[buttonEls.length - 1].addClass(classes.last);
+
+    return $("<ul/>")
+      .addClass("pagination")
+      .addClass("!mb-0")
+      .append(buttonEls);
+  };
+
+  DataTable.ext.renderer.layout.tailwindcss = function (
+    settings,
+    container,
+    items,
+  ) {
+    var row = $("<div/>", {
+      class: items.full
+        ? "grid grid-cols-1 gap-[20px]"
+        : "grid grid-cols-2 data-bottom-table last:mt-[0.521vw] gap-[20px]",
+    }).appendTo(container);
+
+    $.each(items, function (key, val) {
+      var klass;
+
+      // Apply start / end (left / right when ltr) margins
+      if (val.table) {
+        klass = "col-span-2 relative table-responsive my-scrollbar2";
+      } else if (key === "start") {
+        klass = "justify-self-start";
+      } else if (key === "end") {
+        klass = "col-start-2 justify-self-end";
+      } else {
+        klass = "col-span-2 justify-self-center";
+      }
+
+      $("<div/>", {
+        id: val.id || null,
+        class: klass + " " + (val.className || ""),
+      })
+        .append(val.contents)
+        .appendTo(row);
+    });
+  };
+
+  return DataTable;
+});

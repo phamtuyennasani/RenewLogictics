@@ -9,6 +9,7 @@ use Flux\Flux;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -28,6 +29,21 @@ new class extends Component
     public function mount(): void
     {
         $this->order->loadMissing('photos');
+        $this->fillForms();
+    }
+
+    #[On('order-lock-updated')]
+    public function refreshOrderLock(): void
+    {
+        $this->order->refresh();
+        $this->order->load([
+            'photos',
+            'dichvu:id,namevi',
+            'chiTietDichVu:id,namevi',
+            'chiNhanhNhanHang:id,namevi',
+            'cs:id,fullname,username',
+            'ops:id,fullname,username',
+        ]);
         $this->fillForms();
     }
 
