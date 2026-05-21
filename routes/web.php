@@ -23,6 +23,7 @@ Route::middleware('auth')->group(function () {
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::livewire('/', 'pages::order.index')->name('index');
         Route::get('/datatable', OrderDataTableController::class)->name('datatable');
+        Route::get('/customers', [OrderDataTableController::class, 'customers'])->name('customers');
         Route::post('/bulk-status', [OrderDataTableController::class, 'bulkStatus'])->name('bulk-status');
         Route::post('/delete-cancelled', [OrderDataTableController::class, 'deleteCancelled'])->name('delete-cancelled');
         Route::get('/export', [OrderDataTableController::class, 'export'])->name('export');
@@ -146,13 +147,13 @@ Route::middleware('auth')->group(function () {
 
     // --- Cấu hình ---
     Route::prefix('cai-dat')->name('settings.')->group(function () {
-        Route::get('/', fn () => view('settings.index'))->name('index');
-        Route::get('/thong-bao', fn () => view('settings.thongbao'))->name('thongbao');
-        Route::get('/logo', fn () => view('settings.logo'))->name('logo');
-        Route::get('/favicon', fn () => view('settings.favicon'))->name('favicon');
-        Route::get('/banner', fn () => view('settings.banner'))->name('banner');
-        Route::get('/social', fn () => view('settings.social'))->name('social');
-        Route::get('/thong-tin-cong-ty', fn () => view('settings.company'))->name('company');
+        Route::livewire('/', 'pages::settings.index')->name('index');
+        Route::livewire('/thong-bao', 'pages::settings.thongbao')->name('thongbao');
+        Route::livewire('/logo', 'pages::settings.logo')->name('logo');
+        Route::livewire('/favicon', 'pages::settings.favicon')->name('favicon');
+        Route::livewire('/banner', 'pages::settings.banner')->name('banner');
+        Route::livewire('/social', 'pages::settings.social')->name('social');
+        Route::livewire('/thong-tin-cong-ty', 'pages::settings.company')->name('company');
     })->middleware('can:settings.index');
 
     // --- Profile ---

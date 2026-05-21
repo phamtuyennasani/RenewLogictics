@@ -1,4 +1,4 @@
-<div class="space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
+<div class="order-table-card space-y-3 rounded-lg border border-neutral-200 bg-white p-3">
     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <flux:input id="orders-search" type="search" placeholder="Tìm mã AWB, REF, khách hàng, sale..." class="lg:max-w-md" />
         <div class="flex items-center gap-2 text-sm text-neutral-600">
@@ -10,7 +10,7 @@
             </select>
         </div>
     </div>
-    <div class="overflow-hidden">
+    <div class="order-table-frame overflow-hidden">
         <table id="orders-table" class="w-full text-left text-sm">
             <thead class="bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 <tr data-dt-order="disable">

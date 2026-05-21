@@ -6,6 +6,7 @@ use App\Actions\Order\RecordTrackingHistoryAction;
 use App\Enums\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\User;
 use App\Support\OrderAccess;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -143,6 +144,27 @@ class OrderDataTableController extends Controller
         }, $filename);
     }
 
+    public function customers(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $saleId = $request->integer('saleId') ?: null;
+
+        $customers = User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'ctv'))
+            ->when($user->hasAnyRole(['sale', 'SALE']), fn ($q) => $q->where('id_sale', $user->id))
+            ->when($user->hasAnyRole(['ctv', 'CTV']), fn ($q) => $q->whereKey($user->id))
+            ->when(! $user->hasAnyRole(['sale', 'SALE', 'ctv', 'CTV']) && $saleId, fn ($q) => $q->where('id_sale', $saleId))
+            ->orderBy('fullname')
+            ->get(['id', 'fullname', 'username', 'code'])
+            ->map(fn (User $customer) => [
+                'id' => $customer->id,
+                'label' => $this->userOptionLabel($customer),
+            ])
+            ->values();
+
+        return response()->json(['customers' => $customers]);
+    }
+
     protected function query(Request $request, bool $includeStatus = true): Builder
     {
         $user = $request->user();
@@ -183,12 +205,20 @@ class OrderDataTableController extends Controller
 
     protected function statusCounts(Request $request): array
     {
-        $counts = $this->query($request, includeStatus: false)
+        $counts = array_fill_keys(OrderStatusEnum::values(), 0);
+
+        $this->query($request, includeStatus: false)
             ->reorder()
             ->selectRaw('bill_status, count(*) as total')
             ->groupBy('bill_status')
-            ->pluck('total', 'bill_status')
-            ->toArray();
+            ->get()
+            ->each(function (Order $order) use (&$counts) {
+                $status = $order->getRawOriginal('bill_status');
+
+                if ($status !== null && $status !== '') {
+                    $counts[$status] = (int) $order->total;
+                }
+            });
 
         return [
             'all' => array_sum($counts),
@@ -199,6 +229,11 @@ class OrderDataTableController extends Controller
     protected function money(mixed $value): string
     {
         return number_format((float) preg_replace('/[^\d.-]/', '', (string) ($value ?? 0)), 0).' đ';
+    }
+
+    protected function userOptionLabel(User $user): string
+    {
+        return trim(($user->fullname ?: $user->username).' '.($user->code ? "({$user->code})" : ''));
     }
 
     protected function profitHtml(Order $order): string

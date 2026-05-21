@@ -3,6 +3,7 @@
 use App\Enums\OrderStatusEnum;
 use App\Models\News;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
@@ -33,12 +34,15 @@ new class extends Component
     {
         $user = auth()->user();
 
+        $this->setDefaultDateRange();
+
         $this->routes = [
             'datatable' => route('orders.datatable'),
             'create' => route('orders.create'),
             'bulkStatus' => route('orders.bulk-status'),
             'deleteCancelled' => route('orders.delete-cancelled'),
             'export' => route('orders.export'),
+            'customers' => route('orders.customers'),
         ];
 
         $this->statusOptions = collect(OrderStatusEnum::cases())
@@ -104,5 +108,14 @@ new class extends Component
     public function resetFilters(): void
     {
         $this->filters = array_fill_keys(array_keys($this->filters), '');
+        $this->setDefaultDateRange();
+    }
+
+    protected function setDefaultDateRange(): void
+    {
+        $today = Carbon::today();
+
+        $this->filters['fromDate'] = $today->copy()->subDays(30)->toDateString();
+        $this->filters['toDate'] = $today->toDateString();
     }
 };

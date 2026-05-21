@@ -46,17 +46,27 @@
         </div>
     </div>
 
-    <div class="space-y-2 px-4 py-3">
-        <div class="flex items-center flex-wrap gap-2">
+    <div class="order-status-nav">
+        <div class="order-status-nav-header">
+            <div>
+                <h3>Trạng thái đơn hàng</h3>
+                <p>Lọc nhanh theo tiến trình xử lý</p>
+            </div>
+        </div>
+
+        <div class="order-status-tabs">
             <button
                 type="button"
                 data-status-tab=""
                 data-active="true"
-                class="inline-flex min-h-10 min-w-0 flex-auto cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-center text-xs font-medium text-neutral-700 transition hover:border-transparent hover:bg-neutral-100 data-[active=true]:border-transparent data-[active=true]:bg-neutral-100 2xl:text-sm"
+                class="order-status-tab order-status-tab-all"
             >
-                <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"></span>
-                <span class="truncate">Tất cả</span>
-                <span class="rounded-full bg-neutral-100/80 px-1.5 py-0.5 text-[11px] leading-none text-neutral-500" data-status-count="all">0</span>
+                <span class="order-status-dot"></span>
+                <span class="order-status-text">
+                    <span class="order-status-label">Tất cả</span>
+                    <span class="order-status-meta">Toàn bộ order</span>
+                </span>
+                <span class="order-status-count" data-status-count="all">0</span>
             </button>
 
             @foreach ($statusOptions as $status)
@@ -64,11 +74,14 @@
                     type="button"
                     data-status-tab="{{ $status['value'] }}"
                     data-active="false"
-                    class="{{ $status['textClass'] }} {{ 'hover:'.$status['bgClass'] }} {{ 'data-[active=true]:'.$status['bgClass'] }} inline-flex min-h-10 min-w-0 items-center justify-center flex-auto cursor-pointer gap-1.5 rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-center text-xs font-medium transition hover:border-transparent data-[active=true]:border-transparent 2xl:text-sm"
+                    class="{{ $status['textClass'] }} {{ 'hover:'.$status['bgClass'] }} {{ 'data-[active=true]:'.$status['bgClass'] }} order-status-tab"
                 >
-                    <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"></span>
-                    <span class="truncate">{{ $status['label'] }}</span>
-                    <span class="rounded-full bg-neutral-100/80 px-1.5 py-0.5 text-[11px] leading-none text-neutral-500" data-status-count="{{ $status['value'] }}">0</span>
+                    <span class="order-status-dot"></span>
+                    <span class="order-status-text">
+                        <span class="order-status-label">{{ $status['label'] }}</span>
+                        <span class="order-status-meta">Nhấn để lọc</span>
+                    </span>
+                    <span class="order-status-count" data-status-count="{{ $status['value'] }}">0</span>
                 </button>
             @endforeach
         </div>

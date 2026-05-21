@@ -94,4 +94,9 @@ class News extends Model
     {
         return $this->hasMany(Order::class, 'info_receiver->country_id', 'id');
     }
+
+    public function reads()
+    {
+        return $this->hasMany(NotificationRead::class, 'news_id');
+    }
 }
