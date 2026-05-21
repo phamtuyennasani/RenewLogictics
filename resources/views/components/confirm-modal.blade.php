@@ -6,6 +6,7 @@
         confirmText: 'Xác nhận',
         cancelText: 'Hủy',
         variant: 'danger',
+        _callback: null,
         open(options = {}) {
             const opt = Array.isArray(options) ? options[0] : options;
             this.title       = opt.title       || 'Xác nhận';
@@ -13,13 +14,19 @@
             this.confirmText = opt.confirmText || 'Xác nhận';
             this.cancelText  = opt.cancelText  || 'Hủy';
             this.variant     = opt.variant     || 'danger';
+            this._callback   = opt.onConfirm   || null;
             this.show = true;
         },
         close() {
             this.show = false;
+            this._callback = null;
         },
         confirm() {
-            window.Livewire.dispatch('confirm-action');
+            if (this._callback) {
+                this._callback();
+            } else {
+                window.Livewire.dispatch('confirm-action');
+            }
             this.close();
         }
     }"

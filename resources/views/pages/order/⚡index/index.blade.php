@@ -730,7 +730,15 @@
                             return;
                         }
 
-                        postJson(routes.bulkStatus, { ids: [...selected], status: button.dataset.bulkStatus }).then(reload);
+                        const status = button.dataset.bulkStatus;
+                        const label = button.querySelector('span.truncate')?.textContent?.trim() || status;
+                        window.dispatchEvent(new CustomEvent('open-confirm', { detail: {
+                            title: `Xác nhận: ${label}`,
+                            message: `Bạn có chắc chắn muốn chuyển ${selected.size} order sang trạng thái "${label}"?`,
+                            variant: 'warning',
+                            confirmText: label,
+                            onConfirm: () => postJson(routes.bulkStatus, { ids: [...selected], status }).then(reload),
+                        }}));
                     });
                 });
 
@@ -740,7 +748,13 @@
                         return;
                     }
 
-                    postJson(routes.deleteCancelled, { ids: [...selected] }).then(reload);
+                    window.dispatchEvent(new CustomEvent('open-confirm', { detail: {
+                        title: 'Xác nhận xóa',
+                        message: `Bạn có chắc chắn muốn xóa ${selected.size} order đã hủy? Hành động này không thể hoàn tác.`,
+                        variant: 'danger',
+                        confirmText: 'Xóa',
+                        onConfirm: () => postJson(routes.deleteCancelled, { ids: [...selected] }).then(reload),
+                    }}));
                 });
 
                 document.getElementById('orders-export')?.addEventListener('click', () => {
