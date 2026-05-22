@@ -45,7 +45,6 @@
             @endforeach
         </div>
     </div>
-
     <div class="order-status-nav">
         <div class="order-status-nav-header">
             <div>
@@ -53,7 +52,6 @@
                 <p>Lọc nhanh theo tiến trình xử lý</p>
             </div>
         </div>
-
         <div class="order-status-tabs">
             <button
                 type="button"
@@ -68,11 +66,44 @@
                 </span>
                 <span class="order-status-count" data-status-count="all">0</span>
             </button>
-
-            @foreach ($statusOptions as $status)
+            @foreach ($mainStatusOptions as $status)
                 <button
                     type="button"
                     data-status-tab="{{ $status['value'] }}"
+                    data-active="false"
+                    class="{{ $status['textClass'] }} {{ 'hover:'.$status['bgClass'] }} {{ 'data-[active=true]:'.$status['bgClass'] }} order-status-tab"
+                >
+                    <span class="order-status-dot"></span>
+                    <span class="order-status-text">
+                        <span class="order-status-label">{{ $status['label'] }}</span>
+                        <span class="order-status-meta">Nhấn để lọc</span>
+                    </span>
+                    <span class="order-status-count" data-status-count="{{ $status['value'] }}">0</span>
+                </button>
+            @endforeach
+
+            <button
+                type="button"
+                data-special-status-toggle
+                aria-controls="order-special-status-panel"
+                aria-expanded="false"
+                class="order-status-tab order-status-special-toggle"
+            >
+                <span class="order-status-dot"></span>
+                <span class="order-status-text">
+                    <span class="order-status-label">Trạng thái đặc biệt</span>
+                    <span class="order-status-meta">Bấm để mở bộ lọc phụ</span>
+                </span>
+                <span class="order-status-count" data-special-status-count>0</span>
+            </button>
+        </div>
+
+        <div id="order-special-status-panel" class="order-special-status-tabs" data-special-status-panel hidden>
+            @foreach ($specialStatusOptions as $status)
+                <button
+                    type="button"
+                    data-status-tab="{{ $status['value'] }}"
+                    data-special-status-tab
                     data-active="false"
                     class="{{ $status['textClass'] }} {{ 'hover:'.$status['bgClass'] }} {{ 'data-[active=true]:'.$status['bgClass'] }} order-status-tab"
                 >

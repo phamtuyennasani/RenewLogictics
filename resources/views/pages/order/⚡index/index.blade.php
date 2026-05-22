@@ -62,6 +62,19 @@
             gap: 0.625rem;
         }
 
+        #order-index-page .order-special-status-tabs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+            gap: 0.625rem;
+            margin-top: 0.625rem;
+            border-top: 1px dashed #e5e5e5;
+            padding-top: 0.625rem;
+        }
+
+        #order-index-page .order-special-status-tabs[hidden] {
+            display: none;
+        }
+
         #order-index-page .order-status-tab {
             display: grid;
             min-width: 0;
@@ -91,6 +104,15 @@
         }
 
         #order-index-page .order-status-tab-all[data-active="true"] {
+            border-color: #737373;
+            background: #f5f5f5;
+        }
+
+        #order-index-page .order-status-special-toggle {
+            color: #525252;
+        }
+
+        #order-index-page .order-status-special-toggle[aria-expanded="true"] {
             border-color: #737373;
             background: #f5f5f5;
         }
@@ -567,6 +589,7 @@
                 const root = document.getElementById('order-index-page');
                 const tableEl = document.getElementById('orders-table');
                 initOrderDatePickers();
+                bindSpecialStatusToggle();
 
                 if (!root || !tableEl || !window.jQuery || !jQuery.fn.DataTable || tableEl.dataset.ready === 'true') return;
 
@@ -647,6 +670,18 @@
                     document.querySelectorAll('[data-delete-cancelled]').forEach((el) => el.disabled = selected.size === 0 || !capabilities.canDeleteCancelled);
                 };
 
+                const setSpecialStatusPanel = (open) => {
+                    const panel = document.querySelector('[data-special-status-panel]');
+                    const toggle = document.querySelector('[data-special-status-toggle]');
+
+                    if (!panel || !toggle) {
+                        return;
+                    }
+
+                    panel.hidden = !open;
+                    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                };
+
                 const reload = () => {
                     selected.clear();
                     document.getElementById('orders-check-all').checked = false;
@@ -660,13 +695,28 @@
                         const key = el.dataset.statusCount || '';
                         el.textContent = key === 'all' ? (counts.all ?? 0) : (counts[key] ?? 0);
                     });
+
+                    const specialTotal = [...document.querySelectorAll('[data-special-status-tab] [data-status-count]')]
+                        .reduce((total, el) => total + Number(counts[el.dataset.statusCount || ''] ?? 0), 0);
+                    document.querySelectorAll('[data-special-status-count]').forEach((el) => el.textContent = specialTotal);
                 });
 
                 const syncActiveStatus = () => {
                     const currentStatus = field('status')?.value || '';
+                    const specialToggle = document.querySelector('[data-special-status-toggle]');
+                    const specialActive = !!document.querySelector(`[data-special-status-tab][data-status-tab="${currentStatus}"]`);
+
                     document.querySelectorAll('[data-status-tab]').forEach((button) => {
                         button.dataset.active = button.dataset.statusTab === currentStatus ? 'true' : 'false';
                     });
+
+                    if (specialToggle) {
+                        specialToggle.dataset.active = specialActive ? 'true' : 'false';
+                    }
+
+                    if (specialActive) {
+                        setSpecialStatusPanel(true);
+                    }
                 };
 
                 jQuery(tableEl).on('draw.dt', () => {
@@ -692,6 +742,12 @@
                         field('status').value = button.dataset.statusTab || '';
                         document.querySelectorAll('[data-status-tab]').forEach((tab) => tab.dataset.active = 'false');
                         button.dataset.active = 'true';
+                        if (button.dataset.statusTab === '') {
+                            setSpecialStatusPanel(false);
+                        }
+                        if (button.hasAttribute('data-special-status-tab')) {
+                            setSpecialStatusPanel(true);
+                        }
                         syncActiveStatus();
                         reload();
                     });
@@ -798,7 +854,6 @@
                         window.Livewire.dispatch('notify', { message });
                         return;
                     }
-
                     window.alert(message);
                 }
 
@@ -871,7 +926,6 @@
                         option.textContent = customer.label;
                         select.appendChild(option);
                     });
-
                     if (select.tomselect) {
                         select.tomselect.clear(true);
                         select.tomselect.clearOptions();
@@ -883,10 +937,25 @@
                         select.tomselect.setValue('', true);
                     }
                 }
-
                 updateBulkState();
                 syncActiveStatus();
             };
+
+            function bindSpecialStatusToggle() {
+                const panel = document.querySelector('[data-special-status-panel]');
+                const toggle = document.querySelector('[data-special-status-toggle]');
+
+                if (!panel || !toggle || toggle.dataset.ready === 'true') {
+                    return;
+                }
+
+                toggle.dataset.ready = 'true';
+                toggle.addEventListener('click', () => {
+                    const open = panel.hidden;
+                    panel.hidden = !open;
+                    toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                });
+            }
 
             document.addEventListener('DOMContentLoaded', initOrderIndex);
             document.addEventListener('livewire:navigated', initOrderIndex);

@@ -18,9 +18,9 @@ enum OrderStatusEnum: string
     case DUYET_XUAT_HANG  = 'duyet_xuat_hang';
     case DANG_PHAT_HANG   = 'dang_phat_hang';
     case DA_GIAO          = 'da_giao';
+    case HUY              = 'huy';
 
     // ---- Trạng thái đặc biệt ----
-    case HUY              = 'huy';
     case RETURN_ORDER     = 'return_order';
     case CAUTION         = 'caution';
     case CUSTOM_RELEASING = 'custom_releasing';

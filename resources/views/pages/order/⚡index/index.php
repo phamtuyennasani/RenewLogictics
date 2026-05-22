@@ -23,6 +23,8 @@ new class extends Component
 
     public array $pageSizes = [10, 25, 50, 100];
     public array $statusOptions = [];
+    public array $mainStatusOptions = [];
+    public array $specialStatusOptions = [];
     public array $sales = [];
     public array $customers = [];
     public array $services = [];
@@ -55,8 +57,19 @@ new class extends Component
                     'color' => $status->color(),
                     'bgClass' => collect($classes)->first(fn ($class) => str_starts_with($class, 'bg-')) ?? 'bg-neutral-100',
                     'textClass' => collect($classes)->first(fn ($class) => str_starts_with($class, 'text-')) ?? 'text-neutral-700',
+                    'isSpecial' => $status->isSpecial(),
                 ];
             })
+            ->values()
+            ->all();
+
+        $this->mainStatusOptions = collect($this->statusOptions)
+            ->reject(fn (array $status) => $status['isSpecial'])
+            ->values()
+            ->all();
+
+        $this->specialStatusOptions = collect($this->statusOptions)
+            ->filter(fn (array $status) => $status['isSpecial'])
             ->values()
             ->all();
 
