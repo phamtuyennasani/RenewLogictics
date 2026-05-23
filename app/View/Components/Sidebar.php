@@ -106,7 +106,7 @@ class Sidebar extends Component
                     'roles'  => ['admin', 'manager', 'ketoan', 'ctv'],
                 ],
                 [
-                    'route'  => 'congno.dailyindex',
+                    'route'  => 'congno.daily.index',
                     'icon'   => 'congno-daily',
                     'label'  => 'Công nợ đại lý',
                     'roles'  => ['admin', 'manager', 'ketoan'],

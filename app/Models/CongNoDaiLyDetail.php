@@ -5,19 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class CongNoDetail extends Model
+class CongNoDaiLyDetail extends Model
 {
     use HasFactory;
 
-    protected $table = 'congno_detail';
+    protected $table = 'congno_daily_detail';
 
     protected $fillable = [
-        'id_congno',
+        'id_congno_daily',
         'id_order',
         'weight',
-        'cuocban',
         'cuocvon',
         'cuocgoc',
+        'cuocban',
         'vat',
         'ppxd',
         'phuphi',
@@ -27,9 +27,9 @@ class CongNoDetail extends Model
 
     protected $casts = [
         'weight' => 'decimal:3',
-        'cuocban' => 'decimal:2',
         'cuocvon' => 'decimal:2',
         'cuocgoc' => 'decimal:2',
+        'cuocban' => 'decimal:2',
         'vat' => 'decimal:2',
         'ppxd' => 'decimal:2',
         'phuphi' => 'decimal:2',
@@ -39,9 +39,9 @@ class CongNoDetail extends Model
         'updated_at' => 'datetime',
     ];
 
-    public function congNo()
+    public function congNoDaiLy()
     {
-        return $this->belongsTo(CongNo::class, 'id_congno');
+        return $this->belongsTo(CongNoDaiLy::class, 'id_congno_daily');
     }
 
     public function order()

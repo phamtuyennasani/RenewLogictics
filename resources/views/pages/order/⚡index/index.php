@@ -19,6 +19,9 @@ new class extends Component
         'customerId' => '',
         'serviceId' => '',
         'branchId' => '',
+        'agencyId' => '',
+        'airlineId' => '',
+        'transitPartnerId' => '',
     ];
 
     public array $pageSizes = [10, 25, 50, 100];
@@ -29,6 +32,9 @@ new class extends Component
     public array $customers = [];
     public array $services = [];
     public array $branches = [];
+    public array $agencies = [];
+    public array $airlines = [];
+    public array $transitPartners = [];
     public array $capabilities = [];
     public array $routes = [];
 
@@ -93,8 +99,8 @@ new class extends Component
             ])
             ->all();
 
-        $serviceOptions = Cache::remember('order_index_service_options', 3600, fn () => News::query()
-            ->whereIn('type', ['dichvuchinh', 'chinhanh'])
+        $serviceOptions = Cache::remember('order_index_service_options_v2', 3600, fn () => News::query()
+            ->whereIn('type', ['dichvuchinh', 'chinhanh', 'daily', 'hangbay', 'doitacchungchuyen'])
             ->orderBy('numb')
             ->get(['id', 'namevi', 'type'])
             ->toArray());
@@ -111,10 +117,29 @@ new class extends Component
             ->values()
             ->all();
 
+        $this->agencies = collect($serviceOptions)
+            ->where('type', 'daily')
+            ->map(fn ($item) => ['id' => $item['id'], 'label' => $item['namevi']])
+            ->values()
+            ->all();
+
+        $this->airlines = collect($serviceOptions)
+            ->where('type', 'hangbay')
+            ->map(fn ($item) => ['id' => $item['id'], 'label' => $item['namevi']])
+            ->values()
+            ->all();
+
+        $this->transitPartners = collect($serviceOptions)
+            ->where('type', 'doitacchungchuyen')
+            ->map(fn ($item) => ['id' => $item['id'], 'label' => $item['namevi']])
+            ->values()
+            ->all();
+
         $this->capabilities = [
             'canCreate' => $user->can('orders.create') || $user->hasAnyRole(['admin', 'manager', 'sale', 'SALE', 'cs']),
             'canDeleteCancelled' => $user->hasAnyRole(['admin', 'manager']),
             'canSeeFinance' => $user->hasAnyRole(['admin', 'manager', 'ketoan']),
+            'canSeeExtraFilters' => $user->hasAnyRole(['admin', 'cs']),
         ];
     }
 

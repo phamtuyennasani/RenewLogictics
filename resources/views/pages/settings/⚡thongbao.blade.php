@@ -36,8 +36,19 @@ new class extends Component {
         return $item->id_user === auth()->id();
     }
 
+    protected function canCreate(): bool
+    {
+        $role = auth()->user()->roles->first()?->name;
+        return in_array($role, RoleEnum::canCreateNotification(), true);
+    }
+
     public function openCreate()
     {
+        if (!$this->canCreate()) {
+            Flux::toast(duration: 2000, heading: 'Lỗi', text: 'Bạn không có quyền tạo thông báo.', variant: 'danger');
+            return;
+        }
+
         $this->reset(['editingId', 'namevi', 'contentvi', 'roles', 'status']);
         $this->status = 'active';
         $this->showModal = true;
@@ -88,6 +99,10 @@ new class extends Component {
             ]);
             $message = 'Cập nhật thông báo thành công!';
         } else {
+            if (!$this->canCreate()) {
+                Flux::toast(duration: 2000, heading: 'Lỗi', text: 'Bạn không có quyền tạo thông báo.', variant: 'danger');
+                return;
+            }
             News::create([
                 'namevi' => $this->namevi,
                 'contentvi' => $this->contentvi,
@@ -188,6 +203,8 @@ $primaryHex = config('theme.primary.hex', '#3b82f6');
 $accentHex  = config('theme.accent.hex', '#0ea5e9');
 $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex});";
 $allRoles = collect(\App\Enums\RoleEnum::cases())->filter(fn ($r) => $r->value !== 'admin');
+$currentRole = auth()->user()->roles->first()?->name;
+$canCreateNotification = in_array($currentRole, \App\Enums\RoleEnum::canCreateNotification(), true);
 @endphp
 
 @push('styles')
@@ -233,6 +250,7 @@ $allRoles = collect(\App\Enums\RoleEnum::cases())->filter(fn ($r) => $r->value !
             <p class="text-sm text-neutral-500">Cấu hình</p>
             <h1 class="text-2xl font-bold text-neutral-900">Thông báo hệ thống</h1>
         </div>
+        @if ($canCreateNotification)
         <button
             wire:click="openCreate"
             class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
@@ -243,6 +261,7 @@ $allRoles = collect(\App\Enums\RoleEnum::cases())->filter(fn ($r) => $r->value !
             </svg>
             Thêm thông báo
         </button>
+        @endif
     </div>
 
     {{-- TABLE --}}
@@ -367,8 +386,9 @@ $allRoles = collect(\App\Enums\RoleEnum::cases())->filter(fn ($r) => $r->value !
                                     </div>
                                     <div>
                                         <p class="text-sm font-medium text-neutral-600">Chưa có thông báo nào</p>
-                                        <p class="text-xs text-neutral-400 mt-0.5">Hãy tạo thông báo đầu tiên</p>
+                                        <p class="text-xs text-neutral-400 mt-0.5">@if ($canCreateNotification)Hãy tạo thông báo đầu tiên@else Hiện chưa có thông báo nào dành cho bạn@endif</p>
                                     </div>
+                                    @if ($canCreateNotification)
                                     <button wire:click="openCreate"
                                        class="mt-1 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium
                                               text-white rounded-xl transition-all shadow-sm hover:shadow-md"
@@ -378,6 +398,7 @@ $allRoles = collect(\App\Enums\RoleEnum::cases())->filter(fn ($r) => $r->value !
                                         </svg>
                                         Thêm thông báo
                                     </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -431,25 +452,21 @@ $allRoles = collect(\App\Enums\RoleEnum::cases())->filter(fn ($r) => $r->value !
                             <p class="mt-1 text-sm text-neutral-500">Tiêu đề ngắn gọn, nội dung rõ ràng để người dùng dễ nắm thông tin.</p>
                         </div>
                         <div class="space-y-5">
-
-                    <flux:field>
-                        <flux:label badge="Bắt buộc">Tiêu đề thông báo</flux:label>
-                        <flux:input wire:model="namevi" placeholder="VD: Thông báo nghỉ lễ 30/4 - 1/5" />
-                        @error('namevi') <flux:error>{{ $message }}</flux:error> @enderror
-                    </flux:field>
-
-                    <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                    <flux:field>
-                        <flux:label badge="Bắt buộc">Nội dung</flux:label>
-                        <div wire:ignore class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xs [&_.cke]:!border-0 [&_.cke_top]:!border-x-0 [&_.cke_top]:!border-t-0 [&_.cke_bottom]:!border-x-0 [&_.cke_bottom]:!border-b-0">
-                            <textarea id="ckeditor-thongbao" class="w-full">{!! $contentvi !!}</textarea>
-                        </div>
-                        @error('contentvi') <flux:error>{{ $message }}</flux:error> @enderror
-                    </flux:field>
-                        </div>
+                            <flux:field>
+                                <flux:label badge="Bắt buộc">Tiêu đề thông báo</flux:label>
+                                <flux:input wire:model="namevi" placeholder="VD: Thông báo nghỉ lễ 30/4 - 1/5" />
+                                @error('namevi') <flux:error>{{ $message }}</flux:error> @enderror
+                            </flux:field>
+                            <div class="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                                <flux:field>
+                                    <flux:label badge="Bắt buộc">Nội dung</flux:label>
+                                    <div wire:ignore class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-xs [&_.cke]:!border-0 [&_.cke_top]:!border-x-0 [&_.cke_top]:!border-t-0 [&_.cke_bottom]:!border-x-0 [&_.cke_bottom]:!border-b-0">
+                                        <textarea id="ckeditor-thongbao" class="w-full">{!! $contentvi !!}</textarea>
+                                    </div>
+                                </flux:field>
+                            </div>
                         </div>
                     </section>
-
                     <section class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xs">
                         <div class="mb-4 border-b border-neutral-100 pb-4">
                             <h4 class="text-sm font-bold uppercase tracking-wide text-neutral-900">Đối tượng và xuất bản</h4>

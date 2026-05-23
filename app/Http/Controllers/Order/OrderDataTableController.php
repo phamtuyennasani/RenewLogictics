@@ -188,6 +188,9 @@ class OrderDataTableController extends Controller
             ->when($request->filled('customerId'), fn ($q) => $q->where('id_customer', $request->integer('customerId')))
             ->when($request->filled('serviceId'), fn ($q) => $q->where('service->id_dichvu', $request->integer('serviceId')))
             ->when($request->filled('branchId'), fn ($q) => $q->where('service->id_chinhanh_nhanhang', $request->integer('branchId')))
+            ->when($request->filled('agencyId'), fn ($q) => $q->where('service->id_daily', $request->integer('agencyId')))
+            ->when($request->filled('airlineId'), fn ($q) => $q->where('service->id_hangbay', $request->integer('airlineId')))
+            ->when($request->filled('transitPartnerId'), fn ($q) => $q->where('service->id_doitac_chungchuyen', $request->integer('transitPartnerId')))
             ->when(filled($request->input('search.value')), function ($q) use ($request) {
                 $keyword = '%'.trim((string) $request->input('search.value')).'%';
                 $q->where(function ($sub) use ($keyword) {

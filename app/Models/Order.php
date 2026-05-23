@@ -41,6 +41,10 @@ class Order extends Model
         're_weight',
         'ketoan_success',
         'sale_success',
+        'customer_payment_status',
+        'customer_paid_at',
+        'customer_payment_photo',
+        'customer_invoice_ref',
         'ghichu',
         'created_at',
         'updated_at',
@@ -62,6 +66,7 @@ class Order extends Model
         'updated_at' => 'datetime',
         'ketoan_success' => 'boolean',
         'sale_success' => 'boolean',
+        'customer_paid_at' => 'datetime',
         'lock_order' => 'boolean',
         'sender' => 'json',
         'receiver' => 'json',
@@ -86,6 +91,11 @@ class Order extends Model
     public function customer()
     {
         return $this->belongsTo(Member::class, 'id_customer', 'id');
+    }
+
+    public function customerAccount()
+    {
+        return $this->belongsTo(User::class, 'id_customer');
     }
 
     public function creator()
@@ -185,5 +195,32 @@ class Order extends Model
     public function histories()
     {
         return $this->hasMany(OrderHistory::class, 'id_order')->latest();
+    }
+
+    public function congNoDetails()
+    {
+        return $this->hasMany(CongNoDetail::class, 'id_order');
+    }
+
+    public function congNoDaiLyDetails()
+    {
+        return $this->hasMany(CongNoDaiLyDetail::class, 'id_order');
+    }
+
+    public function congNos()
+    {
+        return $this->belongsToMany(CongNo::class, 'congno_detail', 'id_order', 'id_congno')
+            ->withPivot([
+                'weight',
+                'cuocban',
+                'cuocvon',
+                'cuocgoc',
+                'vat',
+                'ppxd',
+                'phuphi',
+                'hoahong',
+                'snapshot',
+            ])
+            ->withTimestamps();
     }
 }

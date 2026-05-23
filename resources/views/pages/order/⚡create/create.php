@@ -42,6 +42,9 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         'deliveryterm' => null,
         'lydoguihang' => null,
         'loaibuugui' => null,
+        'id_daily' => null,
+        'id_doitac_chungchuyen' => null,
+        'id_hangbay' => null,
     ];
 
     public array $sender = [
@@ -125,8 +128,8 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             $this->loadCustomersBySale($this->idSale);
         }
         $this->syncReceivers();
-        $this->itemServices = Cache::remember('order_service_options', 3600, function() {
-            return News::whereIn('type', ['dichvuchinh','dichvuchitiet', 'chinhanh', 'dichvudikem', 'loaibuugui', 'lydoguihang', 'hinhthucgui', 'deliveryterm', 'tinhtrangdon'])
+        $this->itemServices = Cache::remember('order_service_options_v2', 3600, function() {
+            return News::whereIn('type', ['dichvuchinh','dichvuchitiet', 'chinhanh', 'dichvudikem', 'loaibuugui', 'lydoguihang', 'hinhthucgui', 'deliveryterm', 'tinhtrangdon', 'daily', 'hangbay', 'doitacchungchuyen'])
                 ->orderBy('numb', 'asc')
                 ->get(['id', 'namevi', 'type'])->toArray();
         });

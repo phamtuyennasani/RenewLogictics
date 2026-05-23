@@ -8,19 +8,18 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
-class CongNo extends Model
+class CongNoDaiLy extends Model
 {
     use HasFactory;
 
-    protected $table = 'congno';
+    protected $table = 'congno_daily';
 
     protected $fillable = [
         'uuid',
         'sohoadon',
         'sohoadon_thamchieu',
+        'id_daily',
         'id_sale',
-        'id_customer',
-        'id_ctv',
         'id_user',
         'id_ketoan',
         'id_success',
@@ -32,14 +31,13 @@ class CongNo extends Model
         'ngaythanhtoan',
         'songaythanhtoan',
         'status',
-        'type',
         'photo',
         'ghichu',
         'total_orders',
         'total_weight',
-        'total_cuocban',
         'total_cuocvon',
         'total_cuocgoc',
+        'total_cuocban',
         'total_vat',
         'total_ppxd',
         'total_phuphi',
@@ -56,9 +54,9 @@ class CongNo extends Model
         'ngaythanhtoan' => 'datetime',
         'status' => DebtStatusEnum::class,
         'total_weight' => 'decimal:3',
-        'total_cuocban' => 'decimal:2',
         'total_cuocvon' => 'decimal:2',
         'total_cuocgoc' => 'decimal:2',
+        'total_cuocban' => 'decimal:2',
         'total_vat' => 'decimal:2',
         'total_ppxd' => 'decimal:2',
         'total_phuphi' => 'decimal:2',
@@ -74,22 +72,16 @@ class CongNo extends Model
 
     protected static function booted(): void
     {
-        static::creating(function (CongNo $debt): void {
+        static::creating(function (CongNoDaiLy $debt): void {
             $debt->uuid ??= (string) Str::uuid();
             $debt->status ??= DebtStatusEnum::MOI_TAO->value;
-            $debt->type ??= 'customer';
             $debt->ngaytaohoadon ??= now();
         });
     }
 
-    public function customer()
+    public function daily()
     {
-        return $this->belongsTo(User::class, 'id_customer');
-    }
-
-    public function ctv()
-    {
-        return $this->belongsTo(User::class, 'id_ctv');
+        return $this->belongsTo(News::class, 'id_daily');
     }
 
     public function sale()
@@ -124,17 +116,17 @@ class CongNo extends Model
 
     public function details()
     {
-        return $this->hasMany(CongNoDetail::class, 'id_congno');
+        return $this->hasMany(CongNoDaiLyDetail::class, 'id_congno_daily');
     }
 
     public function orders()
     {
-        return $this->belongsToMany(Order::class, 'congno_detail', 'id_congno', 'id_order')
+        return $this->belongsToMany(Order::class, 'congno_daily_detail', 'id_congno_daily', 'id_order')
             ->withPivot([
                 'weight',
-                'cuocban',
                 'cuocvon',
                 'cuocgoc',
+                'cuocban',
                 'vat',
                 'ppxd',
                 'phuphi',
@@ -146,12 +138,12 @@ class CongNo extends Model
 
     public function payments()
     {
-        return $this->hasMany(CongNoPayment::class, 'id_congno');
+        return $this->hasMany(CongNoDaiLyPayment::class, 'id_congno_daily');
     }
 
     protected function remainingAmount(): Attribute
     {
-        return Attribute::get(fn () => max(0, (float) $this->total_cuocban - (float) $this->paid_amount));
+        return Attribute::get(fn () => max(0, (float) $this->total_cuocvon - (float) $this->paid_amount));
     }
 
     public function syncTotalsFromDetails(): void
@@ -161,9 +153,9 @@ class CongNo extends Model
         $this->forceFill([
             'total_orders' => $details->count(),
             'total_weight' => $details->sum('weight'),
-            'total_cuocban' => $details->sum('cuocban'),
             'total_cuocvon' => $details->sum('cuocvon'),
             'total_cuocgoc' => $details->sum('cuocgoc'),
+            'total_cuocban' => $details->sum('cuocban'),
             'total_vat' => $details->sum('vat'),
             'total_ppxd' => $details->sum('ppxd'),
             'total_phuphi' => $details->sum('phuphi'),
@@ -174,7 +166,7 @@ class CongNo extends Model
     public function syncPaidAmountFromPayments(): void
     {
         $paidAmount = (float) $this->payments()->sum('amount');
-        $total = (float) $this->total_cuocban;
+        $total = (float) $this->total_cuocvon;
 
         $status = match (true) {
             $total > 0 && $paidAmount >= $total => DebtStatusEnum::DA_THANH_TOAN,

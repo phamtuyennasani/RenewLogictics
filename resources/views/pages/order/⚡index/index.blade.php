@@ -623,6 +623,9 @@
                     customerId: field('customerId')?.value || '',
                     serviceId: field('serviceId')?.value || '',
                     branchId: field('branchId')?.value || '',
+                    agencyId: field('agencyId')?.value || '',
+                    airlineId: field('airlineId')?.value || '',
+                    transitPartnerId: field('transitPartnerId')?.value || '',
                 });
 
                 const table = jQuery(tableEl).DataTable({
@@ -764,6 +767,9 @@
                     setTomSelectValue('customerId', '');
                     setTomSelectValue('serviceId', '');
                     setTomSelectValue('branchId', '');
+                    setTomSelectValue('agencyId', '');
+                    setTomSelectValue('airlineId', '');
+                    setTomSelectValue('transitPartnerId', '');
                     loadCustomersBySale('');
                     setFilterDate('fromDate', defaultDates.fromDate);
                     setFilterDate('toDate', defaultDates.toDate);

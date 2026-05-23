@@ -159,6 +159,19 @@ enum RoleEnum: string
     }
 
     /**
+     * Role nào được phép tạo thông báo
+     */
+    public static function canCreateNotification(): array
+    {
+        return [
+            self::ADMIN->value,
+            self::MANAGER->value,
+            self::KETOAN->value,
+            self::CS->value,
+        ];
+    }
+
+    /**
      * Tất cả các role values (dùng cho config)
      */
     public static function values(): array

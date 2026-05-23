@@ -8,6 +8,7 @@ new class extends Component
     #[Modelable]
     public array $service;
     public array $itemServices;
+    public bool $canSeeExtraServices = false;
 
     public array $dichvuOptions = [];
     public array $dichvuChitietOptions = [];
@@ -18,6 +19,9 @@ new class extends Component
     public array $hinhthucguihangOptions = [];
     public array $deliverytermOptions = [];
     public array $tinhtrangdonOptions = [];
+    public array $dailyOptions = [];
+    public array $hangbayOptions = [];
+    public array $doitacChungChuyenOptions = [];
 
     public function mount(): void
     {
@@ -35,6 +39,9 @@ new class extends Component
         $this->hinhthucguihangOptions = $itemServices->where('type', 'hinhthucgui')->values()->all();
         $this->deliverytermOptions = $itemServices->where('type', 'deliveryterm')->values()->all();
         $this->tinhtrangdonOptions = $itemServices->where('type', 'tinhtrangdon')->values()->all();
+        $this->dailyOptions = $itemServices->where('type', 'daily')->values()->all();
+        $this->hangbayOptions = $itemServices->where('type', 'hangbay')->values()->all();
+        $this->doitacChungChuyenOptions = $itemServices->where('type', 'doitacchungchuyen')->values()->all();
     }
 };
 ?>
@@ -87,6 +94,43 @@ $selectErrorClass = 'rounded-lg ring-2 ring-red-500 ring-offset-1';
                 </div>
             </flux:field>
         </div>
+        @if($canSeeExtraServices)
+        <div class="space-y-5 lg:grid lg:grid-cols-3 lg:gap-5 lg:space-y-0">
+            <flux:field>
+                <flux:label>Đại lý</flux:label>
+                <div wire:ignore>
+                    <select class="tomselectEml" data-placeholder="Chọn đại lý" wire:model.defer="service.id_daily" autocomplete="off">
+                        <option value="">-- Chọn đại lý --</option>
+                        @foreach($dailyOptions as $option)
+                            <option value="{{ $option['id'] }}">{{ $option['namevi'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </flux:field>
+            <flux:field>
+                <flux:label>Hãng bay</flux:label>
+                <div wire:ignore>
+                    <select class="tomselectEml" data-placeholder="Chọn hãng bay" wire:model.defer="service.id_hangbay" autocomplete="off">
+                        <option value="">-- Chọn hãng bay --</option>
+                        @foreach($hangbayOptions as $option)
+                            <option value="{{ $option['id'] }}">{{ $option['namevi'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </flux:field>
+            <flux:field>
+                <flux:label>Đối tác chung chuyển</flux:label>
+                <div wire:ignore>
+                    <select class="tomselectEml" data-placeholder="Chọn đối tác chung chuyển" wire:model.defer="service.id_doitac_chungchuyen" autocomplete="off">
+                        <option value="">-- Chọn đối tác --</option>
+                        @foreach($doitacChungChuyenOptions as $option)
+                            <option value="{{ $option['id'] }}">{{ $option['namevi'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </flux:field>
+        </div>
+        @endif
         @if(!empty($dichvudikemOptions))
         <flux:checkbox.group label="Dịch vụ đi kèm:" variant="buttons" class="flex flex-wrap gap-4" wire:model.defer="service.dichvudikem">
             @foreach($dichvudikemOptions as $option)

@@ -197,11 +197,9 @@ return [
         'group'  => 'Đại lý',
         'title'  => 'Danh sách đại lý',
         'route_group' => 'doitac',
-        'columns'    => ['namevi' => 'Tên đại lý', 'descvi' => 'Địa chỉ'],
+        'columns'    => ['namevi' => 'Tên đại lý'],
         'formFields' => [
             'namevi' => ['label' => 'Tên đại lý', 'type' => 'text', 'required' => true],
-            'descvi' => ['label' => 'Địa chỉ', 'type' => 'textarea'],
-            'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
         ],
         'canCreate' => true,
         'canEdit'   => true,
@@ -215,7 +213,6 @@ return [
         'columns'    => ['namevi' => 'Tên hãng bay'],
         'formFields' => [
             'namevi' => ['label' => 'Tên hãng bay', 'type' => 'text', 'required' => true],
-            'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
         ],
         'canCreate' => true,
         'canEdit'   => true,
@@ -226,11 +223,9 @@ return [
         'group'  => 'Đại lý',
         'route_group' => 'doitac',
         'title'  => 'Đối tác chung chuyển',
-        'columns'    => ['namevi' => 'Tên đối tác', 'descvi' => 'Mô tả'],
+        'columns'    => ['namevi' => 'Tên đối tác', ],
         'formFields' => [
             'namevi' => ['label' => 'Tên đối tác', 'type' => 'text', 'required' => true],
-            'descvi' => ['label' => 'Mô tả', 'type' => 'textarea'],
-            'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
         ],
         'canCreate' => true,
         'canEdit'   => true,

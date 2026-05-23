@@ -49,14 +49,15 @@ Route::middleware('auth')->group(function () {
 
     // --- Công nợ CTV ---
     Route::prefix('cong-no')->name('congno.')->group(function () {
-        Route::get('/', fn () => view('congno.index'))->name('index');
-        Route::get('/{id}', fn ($id) => view('congno.show', ['id' => $id]))->name('show');
+        Route::livewire('/', 'pages::congno.index')->name('index');
+        Route::livewire('/{id}', 'pages::congno.show')->name('show');
     })->middleware('can:congno.index');
 
     // --- Công nợ Đại lý ---
-    Route::prefix('cong-no-dai-ly')->name('congno.daily')->group(function () {
-        Route::get('/', fn () => view('congno.daily'))->name('index');
-    })->middleware('can:congno.daily');
+    Route::prefix('cong-no-dai-ly')->name('congno.daily.')->group(function () {
+        Route::livewire('/', 'pages::congnodaily.index')->name('index');
+        Route::livewire('/{id}', 'pages::congnodaily.show')->name('show');
+    })->middleware('can:congno_daily.view');
 
     // --- Thống kê ---
     Route::get('/thong-ke', fn () => view('thongke.index'))->name('thongke')

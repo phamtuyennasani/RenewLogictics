@@ -1,4 +1,4 @@
-<section class="rounded-lg border border-neutral-200 bg-white shadow-sm">
+<section class="rounded-lg border border-neutral-200 bg-white shadow-sm overflow-hidden">
     <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
         <div class="flex items-center gap-3">
             <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-700">

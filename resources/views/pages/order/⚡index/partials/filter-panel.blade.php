@@ -107,6 +107,46 @@
                     </div>
                 </div>
             </section>
+
+            @if (!empty($capabilities['canSeeExtraFilters']))
+            <section class="order-filter-section order-filter-section-wide">
+                <div class="order-filter-section-heading">
+                    <div>
+                        <h3>Đại lý / Vận chuyển</h3>
+                        <p>Đại lý, hãng bay và đối tác chung chuyển</p>
+                    </div>
+                </div>
+                <div class="order-filter-section-grid order-filter-section-grid-3">
+                    <div class="order-filter-field">
+                        <label class="order-filter-label">Đại lý</label>
+                        <select data-order-filter="agencyId" data-placeholder="Tất cả đại lý" class="tomselectEml order-filter-tomselect">
+                            <option value="">Tất cả đại lý</option>
+                            @foreach ($agencies as $agency)
+                                <option value="{{ $agency['id'] }}">{{ $agency['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="order-filter-field">
+                        <label class="order-filter-label">Hãng bay</label>
+                        <select data-order-filter="airlineId" data-placeholder="Tất cả hãng bay" class="tomselectEml order-filter-tomselect">
+                            <option value="">Tất cả hãng bay</option>
+                            @foreach ($airlines as $airline)
+                                <option value="{{ $airline['id'] }}">{{ $airline['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="order-filter-field">
+                        <label class="order-filter-label">Đối tác chung chuyển</label>
+                        <select data-order-filter="transitPartnerId" data-placeholder="Tất cả đối tác" class="tomselectEml order-filter-tomselect">
+                            <option value="">Tất cả đối tác</option>
+                            @foreach ($transitPartners as $partner)
+                                <option value="{{ $partner['id'] }}">{{ $partner['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+            </section>
+            @endif
         </div>
 
         <div class="order-filter-actions">
