@@ -27,6 +27,20 @@
             font-size: 0.875rem;
         }
 
+        #order-index-page #orders-table {
+            min-width: 3238px;
+        }
+
+        #order-index-page #orders-table th,
+        #order-index-page #orders-table td {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        #order-index-page #orders-table .truncate {
+            min-width: 0;
+        }
+
         #order-index-page .order-status-nav {
             border-top: 1px solid #f5f5f5;
             background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
@@ -637,6 +651,7 @@
                     pageLength: Number(document.getElementById('orders-page-size')?.value || 25),
                     pagingType: 'simple_numbers',
                     scrollX: true,
+                    autoWidth: false,
                     ajax: {
                         url: routes.datatable,
                         data: (data) => Object.assign(data, filters(), {
@@ -658,13 +673,37 @@
                         { data: 'assignee', orderable: false, searchable: false },
                         { data: 'sender_info', orderable: false, searchable: false },
                         { data: 'receiver_info', orderable: false, searchable: false },
+                        { data: 'receiver_address', orderable: false, searchable: false },
                         { data: 'service_info', orderable: false, searchable: false },
+                        { data: 'receiver_country', orderable: false, searchable: false },
+                        { data: 'agency_info', orderable: false, searchable: false },
                         { data: 'package_info', orderable: false, searchable: false },
                         { data: 'sale_total', orderable: false, searchable: false },
                         { data: 'cost_total', orderable: false, searchable: false },
                         { data: 'profit_total', orderable: false, searchable: false },
-                        { data: 'payment_state', orderable: false, searchable: false },
+                        { data: 'payment_client', orderable: false, searchable: false },
+                        { data: 'payment_partner', orderable: false, searchable: false },
                         { data: 'actions', orderable: false, searchable: false },
+                    ],
+                    columnDefs: [
+                        { targets: 0, width: '52px' },
+                        { targets: 1, width: '180px' },
+                        { targets: 2, width: '150px' },
+                        { targets: 3, width: '170px' },
+                        { targets: 4, width: '130px' },
+                        { targets: 5, width: '300px' },
+                        { targets: 6, width: '300px' },
+                        { targets: 7, width: '320px' },
+                        { targets: 8, width: '240px' },
+                        { targets: 9, width: '140px' },
+                        { targets: 10, width: '220px' },
+                        { targets: 11, width: '110px' },
+                        { targets: 12, width: '180px' },
+                        { targets: 13, width: '190px' },
+                        { targets: 14, width: '130px' },
+                        { targets: 15, width: '200px' },
+                        { targets: 16, width: '190px' },
+                        { targets: 17, width: '96px' },
                     ],
                 });
 
@@ -690,6 +729,16 @@
                     document.getElementById('orders-check-all').checked = false;
                     updateBulkState();
                     table.ajax.reload();
+                };
+
+                const toggleEmptyTableChrome = () => {
+                    const wrapper = tableEl.closest('.dt-container');
+                    if (!wrapper) return;
+
+                    const hasRows = table.page.info().recordsDisplay > 0;
+                    wrapper.querySelectorAll('.dt-info, .dt-paging').forEach((el) => {
+                        el.hidden = !hasRows;
+                    });
                 };
 
                 jQuery(tableEl).on('xhr.dt', (_event, _settings, json) => {
@@ -723,6 +772,8 @@
                 };
 
                 jQuery(tableEl).on('draw.dt', () => {
+                    toggleEmptyTableChrome();
+
                     document.querySelectorAll('.order-check').forEach((checkbox) => {
                         checkbox.checked = selected.has(String(checkbox.value));
                         checkbox.addEventListener('change', () => {

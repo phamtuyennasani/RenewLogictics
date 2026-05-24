@@ -1,6 +1,7 @@
 @php
     $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text-neutral-400 focus:outline-none focus:ring-2 border-neutral-300 focus:ring-primary-500 focus:border-primary-500';
     $moneyMask = "\$money(\$input, '.', ',', 0)";
+    $readonly = $readonly ?? false;
 @endphp
 
 <section class="rounded-xl border border-neutral-200 bg-white shadow-xs">
@@ -22,6 +23,7 @@
                 <flux:input
                     type="text"
                     wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $priceKey }}"
+                    :disabled="$readonly"
                     placeholder=""
                     mask:dynamic="$money($input, '.', ',', 0)"
                     :class:input="$inputClass"
@@ -33,6 +35,7 @@
                     <flux:input
                         type="number"
                         wire:model.live.debounce.300ms="payment.{{ $group }}.ppxd_percent"
+                        :disabled="$readonly"
                         placeholder=""
                         step="0.1"
                         :class:input="$inputClass"
@@ -55,6 +58,7 @@
                     <flux:input
                         type="number"
                         wire:model.live.debounce.300ms="payment.{{ $group }}.vat_percent"
+                        :disabled="$readonly"
                         placeholder=""
                         step="0.1"
                         :class:input="$inputClass"
@@ -125,7 +129,9 @@
                             {{ $bucketKey === 'hh_khachhang' ? 'Chọn loại chi, nhập diễn giải và số tiền chi hoa hồng.' : ($bucketKey === 'phichiho' ? 'Chọn loại chi hộ, nhập ghi chú nếu có và giá chi hộ.' : 'Tổng tiền phụ phí = đơn giá x số lượng; VAT phụ phí được cộng vào giá sau VAT.') }}
                         </p>
                     </div>
-                    <flux:button type="button" size="sm" wire:click="addFee('{{ $group }}', '{{ $bucketKey }}')">+ Thêm</flux:button>
+                    @unless($readonly)
+                        <flux:button type="button" size="sm" wire:click="addFee('{{ $group }}', '{{ $bucketKey }}')">+ Thêm</flux:button>
+                    @endunless
                 </div>
 
                 <div class="p-4">
@@ -141,6 +147,7 @@
                                                 data-placeholder="Chọn loại chi"
                                                 data-livewire-model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.id_loaichi"
                                                 data-livewire-live="false"
+                                                @disabled($readonly)
                                                 required
                                                 autocomplete="off"
                                             >
@@ -160,6 +167,7 @@
                                         <flux:input
                                             type="text"
                                             wire:model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.diengiai_chi"
+                                            :disabled="$readonly"
                                             :class:input="$inputClass"
                                         />
                                     </flux:field>
@@ -170,6 +178,7 @@
                                             type="text"
                                             required
                                             wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.so_tien"
+                                            :disabled="$readonly"
                                             placeholder=""
                                             :class:input="$inputClass"
                                             mask:dynamic="$money($input, '.', ',', 0)"
@@ -177,7 +186,7 @@
                                     </flux:field>
 
                                     <div class="flex justify-end pb-[1px]">
-                                        <button type="button" wire:click="removeFee('{{ $group }}', '{{ $bucketKey }}', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Xóa khoản chi">
+                                        <button type="button" @disabled($readonly) wire:click="removeFee('{{ $group }}', '{{ $bucketKey }}', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-40" aria-label="Xóa khoản chi">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
                                             </svg>
@@ -194,6 +203,7 @@
                                                 data-placeholder="Chọn loại chi hộ"
                                                 data-livewire-model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.id_loaiphuphi"
                                                 data-livewire-live="false"
+                                                @disabled($readonly)
                                                 required
                                                 autocomplete="off"
                                             >
@@ -213,6 +223,7 @@
                                         <flux:input
                                             type="text"
                                             wire:model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.note"
+                                            :disabled="$readonly"
                                             :class:input="$inputClass"
                                         />
                                     </flux:field>
@@ -223,6 +234,7 @@
                                             type="text"
                                             required
                                             wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.price"
+                                            :disabled="$readonly"
                                             placeholder=""
                                             :class:input="$inputClass"
                                             mask:dynamic="$money($input, '.', ',', 0)"
@@ -230,7 +242,7 @@
                                     </flux:field>
 
                                     <div class="flex justify-end pb-[1px]">
-                                        <button type="button" wire:click="removeFee('{{ $group }}', '{{ $bucketKey }}', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Xóa khoản chi hộ">
+                                        <button type="button" @disabled($readonly) wire:click="removeFee('{{ $group }}', '{{ $bucketKey }}', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-40" aria-label="Xóa khoản chi hộ">
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
                                             </svg>
@@ -246,6 +258,8 @@
                                             class="tomselectEml"
                                             data-placeholder="Chọn loại phụ phí"
                                             data-livewire-model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.id_loaiphuphi"
+                                            data-livewire-live="false"
+                                            @disabled($readonly)
                                             required
                                             autocomplete="off"
                                         >
@@ -265,6 +279,7 @@
                                     <flux:input
                                         type="text"
                                         wire:model="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.note"
+                                        :disabled="$readonly"
                                         :class:input="$inputClass"
                                     />
                                 </flux:field>
@@ -275,6 +290,7 @@
                                         type="text"
                                         required
                                         wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.soluong"
+                                        :disabled="$readonly"
                                         placeholder=""
                                         :class:input="$inputClass"
                                         mask:dynamic="Math.max(1, parseInt($input.replace(/\D/g, '')) || 1).toString()"
@@ -287,6 +303,7 @@
                                         type="text"
                                         required
                                         wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.price"
+                                        :disabled="$readonly"
                                         placeholder=""
                                         :class:input="$inputClass"
                                         mask:dynamic="$money($input, '.', ',', 0)"
@@ -299,6 +316,7 @@
                                         type="number"
                                         step="0.1"
                                         wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.vat_percent"
+                                        :disabled="$readonly"
                                         placeholder=""
                                         :class:input="$inputClass"
                                     />
@@ -326,7 +344,7 @@
                                 </div>
 
                                 <div class="flex justify-end pb-[1px]">
-                                    <button type="button" wire:click="removeFee('{{ $group }}', '{{ $bucketKey }}', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Xóa khoản phí">
+                                    <button type="button" @disabled($readonly) wire:click="removeFee('{{ $group }}', '{{ $bucketKey }}', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:pointer-events-none disabled:opacity-40" aria-label="Xóa khoản phí">
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 18 6M6 6l12 12" />
                                         </svg>

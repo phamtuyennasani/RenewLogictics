@@ -23,7 +23,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     public function mount(string $uuid): void
     {
         $this->order = Order::query()
-            ->with(['customer:id,fullname,code', 'sale:id,fullname,username,code'])
+            ->with(['customer:id,fullname,code', 'sale:id,fullname,username,code', 'salePriceLocker:id,fullname,username,code'])
             ->where('uuid', $uuid)
             ->firstOrFail();
 
@@ -193,6 +193,10 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
     public function addFee(string $group, string $bucket): void
     {
+        if ($group === 'cuocban' && ! $this->canEditSaleCharge()) {
+            return;
+        }
+
         if (! in_array($group, ['cuocban', 'cuocvon', 'cuocgoc'], true)) {
             return;
         }
@@ -310,6 +314,10 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
     public function removeFee(string $group, string $bucket, int $index): void
     {
+        if ($group === 'cuocban' && ! $this->canEditSaleCharge()) {
+            return;
+        }
+
         unset($this->payment[$group][$bucket][$index]);
         $this->payment[$group][$bucket] = array_values($this->payment[$group][$bucket] ?? []);
         $this->recalculateAll();
@@ -321,6 +329,10 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
         $this->enforceEditableChargeScope();
         $this->syncSelectedOptionNames();
+
+        if (! $this->canEditSaleCharge()) {
+            $this->payment['cuocban'] = $this->normalizePayment($this->order->payment_cuocban, 'dongiaban');
+        }
 
         $this->validate([
             'payment.cuocban.dongiaban' => 'nullable|regex:/^[0-9,]+$/',
@@ -346,6 +358,9 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
         $this->recalculateAll();
 
+        $cuocban = $this->canEditSaleCharge()
+            ? $this->payment['cuocban']
+            : $this->normalizePayment($this->order->payment_cuocban, 'dongiaban');
         $cuocvon = $this->canEditAllCharges()
             ? $this->payment['cuocvon']
             : $this->normalizePayment($this->order->payment_cuocvon, 'dongiavon');
@@ -358,6 +373,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             $cuocvon['bonus_sale_amount'] = $this->number($this->payment['cuocvon']['bonus_sale_amount'] ?? 0);
         }
 
+        $this->payment['cuocban'] = $cuocban;
         $this->payment['cuocvon'] = $cuocvon;
         $this->payment['cuocgoc'] = $cuocgoc;
         $profitSnapshot = $this->profitSnapshot();
@@ -365,7 +381,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
 
         $this->order->forceFill([
-            'payment_cuocban' => $this->payment['cuocban'],
+            'payment_cuocban' => $cuocban,
             'payment_cuocvon' => $cuocvon,
             'payment_cuocgoc' => $cuocgoc,
             'payment_loinhuan' => $profitSnapshot,
@@ -386,6 +402,25 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
         Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã cập nhật giá đơn hàng.', variant: 'success');
         //$this->redirectRoute('orders.show', ['uuid' => $this->order->uuid]);
+    }
+
+    public function lockSaleCharge(): void
+    {
+        abort_unless(OrderAccess::canEditPayment(auth()->user(), $this->order), 403);
+        abort_unless($this->canLockSaleCharge(), 403);
+
+        $this->save();
+
+        $this->order->forceFill([
+            'sale_price_locked_at' => now(),
+            'sale_price_locked_by' => auth()->id(),
+            'sale_success' => true,
+        ])->save();
+
+        $this->order->refresh()->load('salePriceLocker:id,fullname,username,code');
+        $this->enforceEditableChargeScope();
+
+        Flux::toast(duration: 2500, heading: 'Đã chốt giá bán', text: 'Cước bán đã được khóa. Chỉ Admin có quyền cập nhật lại.', variant: 'success');
     }
 
     protected function syncSelectedOptionNames(): void
@@ -613,6 +648,22 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan', 'sale']);
     }
 
+    public function canEditSaleCharge(): bool
+    {
+        if (auth()->user()->hasRole('admin')) {
+            return true;
+        }
+
+        return blank($this->order->sale_price_locked_at)
+            && auth()->user()->hasAnyRole(['manager', 'ketoan', 'sale']);
+    }
+
+    public function canLockSaleCharge(): bool
+    {
+        return blank($this->order->sale_price_locked_at)
+            && auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan', 'sale']);
+    }
+
     public function showCostCharge(): bool
     {
         return $this->canEditAllCharges();
@@ -649,6 +700,19 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     <form wire:submit="save" class="space-y-6">
         <div class="grid gap-5 col-span-1">
             <div class="space-y-5">
+                @if($order->sale_price_locked_at)
+                    <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800">
+                        <div class="font-semibold">Cước bán đã được chốt</div>
+                        <div class="mt-1 text-emerald-700">
+                            Chốt lúc {{ $order->sale_price_locked_at?->format('d/m/Y H:i') }}
+                            @if($order->salePriceLocker)
+                                bởi {{ $order->salePriceLocker->fullname ?: $order->salePriceLocker->username }}
+                            @endif
+                            . Chỉ Admin có quyền cập nhật cước bán sau khi chốt.
+                        </div>
+                    </div>
+                @endif
+
                 @if($this->showSaleCharge())
                     @include('pages.order.partials.payment-card', [
                         'group' => 'cuocban',
@@ -656,6 +720,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                         'subtitle' => 'Giá bán báo khách và các khoản thu thêm',
                         'priceKey' => 'dongiaban',
                         'priceLabel' => 'Đơn giá bán',
+                        'readonly' => ! $this->canEditSaleCharge(),
                         'buckets' => [
                             ['key' => 'phuphi', 'label' => 'Phụ phí bán'],
                             ['key' => 'hh_khachhang', 'label' => 'Hoa hồng khách hàng'],
@@ -695,6 +760,9 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                 <a href="{{ route('orders.show', ['uuid' => $order->uuid]) }}" wire:navigate class="inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
                     Thoát
                 </a>
+                @if($this->canLockSaleCharge())
+                    <flux:button type="button" wire:click="lockSaleCharge" variant="outline">Chốt giá bán</flux:button>
+                @endif
                 <flux:button type="submit" variant="primary">Lưu giá</flux:button>
             </div>
         </div>

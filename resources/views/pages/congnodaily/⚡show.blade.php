@@ -43,40 +43,6 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
         $this->paymentDate = now()->format('Y-m-d\TH:i');
     }
 
-    public function confirmDebt(): void
-    {
-        abort_unless($this->canManage(), 403);
-
-        if (! in_array($this->debt->status, [DebtStatusEnum::MOI_TAO, DebtStatusEnum::QUA_HAN], true)) {
-            Flux::toast(heading: 'Không hợp lệ', text: 'Chỉ công nợ mới tạo hoặc quá hạn mới có thể chốt lại.', variant: 'warning');
-            return;
-        }
-
-        DB::transaction(function () {
-            $this->debt->forceFill([
-                'status' => DebtStatusEnum::DA_CHOT_CUOC,
-                'id_success' => auth()->id(),
-                'id_ketoan' => auth()->user()->hasRole('ketoan') ? auth()->id() : $this->debt->id_ketoan,
-                'ngaychothoadon' => now(),
-                'hanthanhtoan' => now()->addDays((int) $this->debt->songaythanhtoan)->startOfDay(),
-            ])->save();
-
-            $this->debt->orders()->update(['agency_payment_status' => DebtStatusEnum::DA_CHOT_CUOC->value]);
-        });
-
-        $this->reloadDebt();
-        Flux::toast(heading: 'Đã chốt cước', text: 'Công nợ đại lý đã được chuyển sang trạng thái đã chốt cước.', variant: 'success');
-    }
-
-    public function markOverdue(): void
-    {
-        abort_unless($this->canManage(), 403);
-
-        $this->debt->forceFill(['status' => DebtStatusEnum::QUA_HAN])->save();
-        $this->reloadDebt();
-        Flux::toast(heading: 'Đã cập nhật', text: 'Công nợ đã chuyển sang trạng thái quá hạn.', variant: 'success');
-    }
-
     public function addPayment(): void
     {
         abort_unless($this->canManage(), 403);
@@ -112,14 +78,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
 
             $this->debt->syncPaidAmountFromPayments();
 
-            $orderStatus = $this->debt->remaining_amount <= 0
-                ? DebtStatusEnum::DA_THANH_TOAN->value
-                : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
-
-            $this->debt->orders()->update([
-                'agency_payment_status' => $orderStatus,
-                'agency_paid_at' => $orderStatus === DebtStatusEnum::DA_THANH_TOAN->value ? now() : null,
-            ]);
+            if ($this->debt->remaining_amount <= 0) {
+                $this->debt->orders()->update([
+                    'agency_payment_status' => DebtStatusEnum::DA_THANH_TOAN->value,
+                    'agency_paid_at' => now(),
+                ]);
+            }
         });
 
         $this->paymentAmount = '';
@@ -228,11 +192,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
         </div>
         @if ($this->canManage())
             <div class="flex flex-wrap items-center gap-2">
-                @if (in_array($debt->status, [DebtStatusEnum::MOI_TAO, DebtStatusEnum::QUA_HAN], true))
-                    <button type="button" wire:click="confirmDebt" class="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700">Chốt cước</button>
-                @endif
                 @if ($debt->status !== DebtStatusEnum::DA_THANH_TOAN)
-                    <button type="button" wire:click="markOverdue" class="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100">Quá hạn</button>
                     <button type="button" wire:click="cancelDebt" wire:confirm="Hủy công nợ này? Các order sẽ được giải phóng để tạo công nợ mới." class="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100">Hủy công nợ</button>
                 @endif
             </div>

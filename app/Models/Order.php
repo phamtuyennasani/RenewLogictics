@@ -41,6 +41,8 @@ class Order extends Model
         're_weight',
         'ketoan_success',
         'sale_success',
+        'sale_price_locked_at',
+        'sale_price_locked_by',
         'customer_payment_status',
         'customer_paid_at',
         'customer_payment_photo',
@@ -66,6 +68,7 @@ class Order extends Model
         'updated_at' => 'datetime',
         'ketoan_success' => 'boolean',
         'sale_success' => 'boolean',
+        'sale_price_locked_at' => 'datetime',
         'customer_paid_at' => 'datetime',
         'lock_order' => 'boolean',
         'sender' => 'json',
@@ -106,6 +109,11 @@ class Order extends Model
     public function sale()
     {
         return $this->belongsTo(User::class, 'id_sale');
+    }
+
+    public function salePriceLocker()
+    {
+        return $this->belongsTo(User::class, 'sale_price_locked_by');
     }
 
     public function manager()
@@ -153,6 +161,16 @@ class Order extends Model
         return $this->belongsTo(News::class, 'service->id_chinhanh_nhanhang');
     }
 
+    public function receiverCountry()
+    {
+        return $this->belongsTo(Country::class, 'receiver->country_id');
+    }
+
+    public function receiverCountryLegacy()
+    {
+        return $this->belongsTo(Country::class, 'receiver->id_country');
+    }
+
     public function loaiBuuGui()
     {
         return $this->belongsTo(News::class, 'service->loaibuugui');
@@ -186,6 +204,11 @@ class Order extends Model
     public function doiTacChungChuyen()
     {
         return $this->belongsTo(News::class, 'service->id_doitacchungchuyen');
+    }
+
+    public function doiTacChungChuyenMoi()
+    {
+        return $this->belongsTo(News::class, 'service->id_doitac_chungchuyen');
     }
     public function photos()
     {

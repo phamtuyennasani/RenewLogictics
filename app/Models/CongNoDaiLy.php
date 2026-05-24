@@ -168,16 +168,14 @@ class CongNoDaiLy extends Model
         $paidAmount = (float) $this->payments()->sum('amount');
         $total = (float) $this->total_cuocvon;
 
-        $status = match (true) {
-            $total > 0 && $paidAmount >= $total => DebtStatusEnum::DA_THANH_TOAN,
-            $paidAmount > 0 => DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN,
-            default => $this->status,
-        };
+        $status = ($total > 0 && $paidAmount >= $total)
+            ? DebtStatusEnum::DA_THANH_TOAN
+            : DebtStatusEnum::MOI_TAO;
 
         $this->forceFill([
             'paid_amount' => $paidAmount,
             'status' => $status->value,
-            'ngaythanhtoan' => $status === DebtStatusEnum::DA_THANH_TOAN ? now() : $this->ngaythanhtoan,
+            'ngaythanhtoan' => $status === DebtStatusEnum::DA_THANH_TOAN ? now() : null,
         ])->save();
     }
 

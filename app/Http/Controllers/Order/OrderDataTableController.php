@@ -21,17 +21,21 @@ class OrderDataTableController extends Controller
         $response = DataTables::eloquent($this->query($request))
             ->addColumn('check', fn (Order $order) => '<label class="order-checkbox relative mx-auto flex w-fit cursor-pointer select-none items-center justify-center"><input type="checkbox" class="order-check peer sr-only" value="'.$order->id.'"><span class="flex h-[18px] w-[18px] items-center justify-center rounded-md border border-neutral-300 bg-white transition peer-checked:border-primary-600 peer-checked:bg-primary-600 peer-hover:border-primary-400"></span><svg class="pointer-events-none absolute hidden h-3 w-3 text-white peer-checked:block" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.5l5 5 10-11" /></svg></label>')
             ->addColumn('order_code', fn (Order $order) => view('pages.order.⚡index.partials.index.order-code', compact('order'))->render())
-            ->addColumn('status_badge', fn (Order $order) => '<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '.($order->bill_status?->color() ?? 'bg-neutral-100 text-neutral-700').'">'.e($order->bill_status?->label() ?? 'Chưa rõ').'</span>')
+            ->addColumn('status_badge', fn (Order $order) => '<span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold '.($order->bill_status?->color() ?? 'bg-neutral-100 text-neutral-700').'">'.e($order->bill_status?->label() ?? 'Chưa rõ').'</span>')
             ->addColumn('dates', fn (Order $order) => view('pages.order.⚡index.partials.index.dates', compact('order'))->render())
             ->addColumn('assignee', fn (Order $order) => view('pages.order.⚡index.partials.index.assignee', compact('order'))->render())
             ->addColumn('sender_info', fn (Order $order) => view('pages.order.⚡index.partials.index.contact', ['data' => $order->sender])->render())
-            ->addColumn('receiver_info', fn (Order $order) => view('pages.order.⚡index.partials.index.contact', ['data' => $order->receiver, 'receiver' => true])->render())
+            ->addColumn('receiver_info', fn (Order $order) => view('pages.order.⚡index.partials.index.receiver-info', compact('order'))->render())
+            ->addColumn('receiver_address', fn (Order $order) => view('pages.order.⚡index.partials.index.receiver-address', compact('order'))->render())
             ->addColumn('service_info', fn (Order $order) => view('pages.order.⚡index.partials.index.service', compact('order'))->render())
+            ->addColumn('receiver_country', fn (Order $order) => view('pages.order.⚡index.partials.index.receiver-country', compact('order'))->render())
+            ->addColumn('agency_info', fn (Order $order) => view('pages.order.⚡index.partials.index.agency-info', compact('order'))->render())
             ->addColumn('package_info', fn (Order $order) => view('pages.order.⚡index.partials.index.packages', compact('order'))->render())
-            ->addColumn('sale_total', fn (Order $order) => '<span class="font-semibold text-primary-700">'.$this->money(data_get($order->payment_cuocban, 'total_tongcuoc', data_get($order->payment_cuocban, 'tongcuoc', 0))).'</span>')
-            ->addColumn('cost_total', fn (Order $order) => auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan']) ? $this->money(data_get($order->payment_cuocvon, 'total_tongcuoc', data_get($order->payment_cuocvon, 'tongcuoc', 0))) : '—')
-            ->addColumn('profit_total', fn (Order $order) => $this->profitHtml($order))
-            ->addColumn('payment_state', fn (Order $order) => view('pages.order.⚡index.partials.index.payment-state', compact('order'))->render())
+            ->addColumn('sale_total', fn (Order $order) => view('pages.order.⚡index.partials.index.sale-total', compact('order'))->render())
+            ->addColumn('cost_total', fn (Order $order) => view('pages.order.⚡index.partials.index.cost-total', compact('order'))->render())
+            ->addColumn('profit_total', fn (Order $order) => view('pages.order.⚡index.partials.index.profit-total', compact('order'))->render())
+            ->addColumn('payment_client', fn (Order $order) => view('pages.order.⚡index.partials.index.payment-client', compact('order'))->render())
+            ->addColumn('payment_partner', fn (Order $order) => view('pages.order.⚡index.partials.index.payment-partner', compact('order'))->render())
             ->addColumn('customer_payment_state', fn () => '&nbsp;')
             ->addColumn('provider_payment_state', fn () => '&nbsp;')
             ->addColumn('actions', fn (Order $order) => view('pages.order.⚡index.partials.index.actions', compact('order'))->render())
@@ -44,12 +48,16 @@ class OrderDataTableController extends Controller
                 'assignee',
                 'sender_info',
                 'receiver_info',
+                'receiver_address',
                 'service_info',
+                'receiver_country',
+                'agency_info',
                 'package_info',
                 'sale_total',
                 'cost_total',
                 'profit_total',
-                'payment_state',
+                'payment_client',
+                'payment_partner',
                 'customer_payment_state',
                 'provider_payment_state',
                 'actions',
@@ -131,7 +139,7 @@ class OrderDataTableController extends Controller
                     $order->created_at?->format('d/m/Y H:i'),
                     $order->bill_status?->label(),
                     $order->sale?->fullname ?: $order->sale?->username,
-                    $order->customer?->fullname ?: $order->customer?->company_name,
+                    $order->customerAccount?->fullname ?: data_get($order->customerAccount?->options, 'company.company_name'),
                     data_get($order->sender, 'company') ?: data_get($order->sender, 'fullname'),
                     data_get($order->receiver, 'company') ?: data_get($order->receiver, 'fullname'),
                     data_get($order->payment_cuocban, 'total_tongcuoc'),
@@ -172,11 +180,21 @@ class OrderDataTableController extends Controller
         return Order::query()
             ->with([
                 'sale:id,fullname,username,code',
-                'customer:id,fullname,company_name,phone,code',
+                'customerAccount:id,fullname,username,phone,code,options',
                 'creator:id,fullname,username,code',
                 'dichvu:id,namevi',
                 'chiNhanhNhanHang:id,namevi',
+                'receiverCountry:id,name,iso2,iso3',
+                'receiverCountryLegacy:id,name,iso2,iso3',
+                'daiLy:id,namevi,nameen',
+                'hangBay:id,namevi,nameen',
+                'doiTacChungChuyen:id,namevi,nameen',
+                'doiTacChungChuyenMoi:id,namevi,nameen',
                 'packages:id_order,g_weight,v_weight,c_weight,row_g_weight,row_v_weight,row_c_weight',
+                'congNoDetails:id,id_order,id_congno,created_at',
+                'congNoDetails.congNo:id,uuid,sohoadon,status',
+                'congNoDaiLyDetails:id,id_order,id_congno_daily,created_at',
+                'congNoDaiLyDetails.congNoDaiLy:id,uuid,sohoadon,status',
             ])
             ->when($user->hasRole('sale'), fn ($q) => $q->where('id_sale', $user->id))
             ->when($user->hasRole('ctv'), fn ($q) => $q->where('id_customer', $user->id))
@@ -200,7 +218,7 @@ class OrderDataTableController extends Controller
                         ->orWhere('sender', 'like', $keyword)
                         ->orWhere('receiver', 'like', $keyword)
                         ->orWhereHas('sale', fn ($sale) => $sale->where('fullname', 'like', $keyword)->orWhere('code', 'like', $keyword))
-                        ->orWhereHas('customer', fn ($customer) => $customer->where('fullname', 'like', $keyword)->orWhere('company_name', 'like', $keyword)->orWhere('code', 'like', $keyword));
+                        ->orWhereHas('customerAccount', fn ($customer) => $customer->where('fullname', 'like', $keyword)->orWhere('username', 'like', $keyword)->orWhere('code', 'like', $keyword));
                 });
             })
             ->latest('orders.id');
@@ -239,15 +257,4 @@ class OrderDataTableController extends Controller
         return trim(($user->fullname ?: $user->username).' '.($user->code ? "({$user->code})" : ''));
     }
 
-    protected function profitHtml(Order $order): string
-    {
-        if (! auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan'])) {
-            return '—';
-        }
-
-        $profit = (float) data_get($order->payment_loinhuan, 'loinhuan', 0);
-        $class = $profit >= 0 ? 'text-emerald-700' : 'text-red-700';
-
-        return '<span class="font-semibold '.$class.'">'.$this->money($profit).'</span>';
-    }
 }

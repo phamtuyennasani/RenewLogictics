@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\CongNo\CongNoDataTableController;
+use App\Http\Controllers\CongNo\CongNoDaiLyDataTableController;
 use App\Http\Controllers\Order\OrderDataTableController;
 use App\Livewire\Dashboard;
 use App\Livewire\Order;
@@ -50,12 +52,19 @@ Route::middleware('auth')->group(function () {
     // --- Công nợ CTV ---
     Route::prefix('cong-no')->name('congno.')->group(function () {
         Route::livewire('/', 'pages::congno.index')->name('index');
+        Route::get('/datatable', CongNoDataTableController::class)->name('datatable');
+        Route::get('/customers', [CongNoDataTableController::class, 'customers'])->name('customers');
+        Route::post('/delete-selected', [CongNoDataTableController::class, 'deleteSelected'])->name('delete-selected');
+        Route::get('/export', [CongNoDataTableController::class, 'export'])->name('export');
         Route::livewire('/{id}', 'pages::congno.show')->name('show');
     })->middleware('can:congno.index');
 
     // --- Công nợ Đại lý ---
     Route::prefix('cong-no-dai-ly')->name('congno.daily.')->group(function () {
         Route::livewire('/', 'pages::congnodaily.index')->name('index');
+        Route::get('/datatable', CongNoDaiLyDataTableController::class)->name('datatable');
+        Route::post('/delete-selected', [CongNoDaiLyDataTableController::class, 'deleteSelected'])->name('delete-selected');
+        Route::get('/export', [CongNoDaiLyDataTableController::class, 'export'])->name('export');
         Route::livewire('/{id}', 'pages::congnodaily.show')->name('show');
     })->middleware('can:congno_daily.view');
 
