@@ -68,6 +68,20 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/{id}', 'pages::congnodaily.show')->name('show');
     })->middleware('can:congno_daily.view');
 
+    // --- Hóa đơn thu ---
+    Route::prefix('hoa-don-thu')->name('invoice.')->group(function () {
+        Route::livewire('/', 'pages::invoice.index')->name('index');
+        Route::get('/datatable', App\Http\Controllers\Invoice\InvoiceDataTableController::class)->name('datatable');
+        Route::post('/{id}/approve', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'approve'])->name('approve')->middleware('can:invoice.index');
+        Route::post('/{id}/cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'submitCashPayment'])->name('cash')->middleware('can:invoice.index');
+        Route::post('/{id}/qr', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'submitOnlinePayment'])->name('qr')->middleware('can:invoice.index');
+        Route::post('/{id}/regenerate-qr', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'regenerateQr'])->name('regenerate-qr')->middleware('can:invoice.index');
+        Route::post('/{id}/confirm-cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'confirmCashPayment'])->name('confirm-cash')->middleware('can:invoice.index');
+        Route::post('/{id}/cancel', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'cancel'])->name('cancel')->middleware('can:invoice.index');
+        Route::get('/sales', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'sales'])->name('sales');
+        Route::get('/customers', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'customers'])->name('customers');
+    })->middleware('can:invoice.index');
+
     // --- Thống kê ---
     Route::get('/thong-ke', fn () => view('thongke.index'))->name('thongke')
         ->middleware('can:thongke');

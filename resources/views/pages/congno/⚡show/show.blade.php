@@ -1,146 +1,693 @@
+@php
+    use App\Enums\InvoicePaymentStatusEnum;
+
+    $customerName = $debt->customer?->fullname ?: $debt->customer?->username ?: 'Chưa rõ khách hàng';
+    $customerCode = $debt->customer?->code ?: $debt->customer?->email ?: $debt->customer?->phone;
+    $totalAmount = (float) $debt->total_cuocban;
+    $paidAmount = (float) $debt->paid_amount;
+    $remainingAmount = (float) $debt->remaining_amount;
+    $paidPercent = $totalAmount > 0 ? min(100, round(($paidAmount / $totalAmount) * 100)) : 0;
+    $remainingPercent = $totalAmount > 0 ? min(100, round(($remainingAmount / $totalAmount) * 100)) : 0;
+    $dueDate = $debt->hanthanhtoan;
+    $isOverdue = $dueDate && $remainingAmount > 0 && $dueDate->copy()->endOfDay()->isPast();
+    $canCreateInvoice = $debt->canCreatePaymentInvoice();
+    $availableForInvoice = $this->availableForNewInvoice;
+    $sortedInvoices = $debt->payments->sortByDesc(fn ($p) => $p->created_at?->timestamp ?? 0);
+    $payingInvoice = $this->payingInvoice;
+@endphp
+
 <div class="space-y-5">
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-            <a href="{{ route('congno.index') }}" wire:navigate class="text-sm font-semibold text-primary-700 hover:text-primary-800">← Danh sách công nợ</a>
-            <div class="mt-2 flex flex-wrap items-center gap-3">
-                <h1 class="text-2xl font-bold text-neutral-950">{{ $debt->sohoadon }}</h1>
-                <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $debt->status->color() }}">{{ $debt->status->label() }}</span>
-            </div>
-            <p class="mt-1 text-sm text-neutral-500">{{ $debt->customer?->fullname ?: $debt->customer?->username ?: 'Chưa rõ khách hàng' }}</p>
+    <section class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div class="border-b border-neutral-100 px-4 py-3 sm:px-5">
+            <a href="{{ route('congno.index') }}" wire:navigate class="inline-flex items-center gap-2 text-sm font-semibold text-neutral-600 transition hover:text-primary-700">
+                <flux:icon.arrow-left class="size-4" />
+                Danh sách công nợ
+            </a>
         </div>
-        @if ($this->canManage())
-            <div class="flex flex-wrap items-center gap-2">
-                @if (in_array($debt->status, [\App\Enums\DebtStatusEnum::MOI_TAO, \App\Enums\DebtStatusEnum::QUA_HAN], true))
-                    <button type="button" wire:click="confirmDebt" class="rounded-xl bg-primary-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary-700">Chốt cước</button>
-                @endif
-                @if ($debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN)
-                    <button type="button" wire:click="markOverdue" class="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100">Quá hạn</button>
-                @endif
-            </div>
-        @endif
-    </div>
 
-    <div class="grid gap-3 md:grid-cols-4">
-        <div class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-xs">
-            <p class="text-xs font-medium uppercase text-neutral-500">Tổng cước</p>
-            <p class="mt-2 text-xl font-bold text-neutral-950">{{ $this->money($debt->total_cuocban) }}</p>
-        </div>
-        <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-xs">
-            <p class="text-xs font-medium uppercase text-emerald-700">Đã thanh toán</p>
-            <p class="mt-2 text-xl font-bold text-emerald-800">{{ $this->money($debt->paid_amount) }}</p>
-        </div>
-        <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4 shadow-xs">
-            <p class="text-xs font-medium uppercase text-amber-700">Còn lại</p>
-            <p class="mt-2 text-xl font-bold text-amber-800">{{ $this->money($debt->remaining_amount) }}</p>
-        </div>
-        <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-xs">
-            <p class="text-xs font-medium uppercase text-blue-700">Số order</p>
-            <p class="mt-2 text-xl font-bold text-blue-800">{{ $debt->total_orders }}</p>
-        </div>
-    </div>
-
-    <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-        <div class="rounded-2xl border border-neutral-200 bg-white shadow-xs">
-            <div class="border-b border-neutral-100 px-5 py-4">
-                <h2 class="font-bold text-neutral-950">Danh sách order</h2>
-                <p class="mt-1 text-sm text-neutral-500">{{ $debt->tungay?->format('d/m/Y') }} - {{ $debt->denngay?->format('d/m/Y') }}</p>
+        <div class="grid gap-5 px-4 py-5 sm:px-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $debt->status->color() }}">{{ $debt->status->label() }}</span>
+                    @if ($isOverdue)
+                        <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+                            <flux:icon.exclamation-triangle class="size-3.5" />
+                            Quá hạn
+                        </span>
+                    @endif
+                </div>
+                <div class="mt-3 flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
+                    <div class="min-w-0">
+                        <p class="text-sm font-medium text-neutral-500">Công nợ khách hàng</p>
+                        <h1 class="mt-1 break-words text-2xl font-bold text-neutral-950 sm:text-3xl">{{ $debt->sohoadon }}</h1>
+                        <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
+                            <span class="inline-flex min-w-0 items-center gap-1.5">
+                                <flux:icon.user class="size-4 shrink-0 text-neutral-400" />
+                                <span class="truncate font-semibold text-neutral-800">{{ $customerName }}</span>
+                            </span>
+                            @if ($customerCode)
+                                <span class="inline-flex min-w-0 items-center gap-1.5">
+                                    <flux:icon.identification class="size-4 shrink-0 text-neutral-400" />
+                                    <span class="truncate">{{ $customerCode }}</span>
+                                </span>
+                            @endif
+                            <span class="inline-flex items-center gap-1.5">
+                                <flux:icon.calendar-days class="size-4 shrink-0 text-neutral-400" />
+                                {{ $debt->tungay?->format('d/m/Y') ?: '-' }} - {{ $debt->denngay?->format('d/m/Y') ?: '-' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            @if ($this->canManage())
+                <div class="flex flex-wrap items-center gap-2 lg:justify-end">
+                    @if (in_array($debt->status, [\App\Enums\DebtStatusEnum::MOI_TAO, \App\Enums\DebtStatusEnum::QUA_HAN], true))
+                        <flux:button type="button" wire:click="confirmDebt" variant="primary" icon="check-circle">
+                            Chốt cước
+                        </flux:button>
+                    @endif
+                    @if ($debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN)
+                        <flux:button type="button" wire:click="markOverdue" variant="danger" icon="exclamation-triangle">
+                            Quá hạn
+                        </flux:button>
+                    @endif
+                </div>
+            @endif
+        </div>
+
+        <div class="border-t border-neutral-100 bg-neutral-50/70 px-4 py-4 sm:px-5">
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-lg border border-neutral-200 bg-white p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs font-bold uppercase tracking-wide text-neutral-500">Tổng cước</p>
+                        <flux:icon.document-currency-dollar class="size-5 text-blue-600" />
+                    </div>
+                    <p class="mt-3 truncate text-2xl font-bold text-neutral-950">{{ $this->money($debt->total_cuocban) }}</p>
+                    <p class="mt-1 text-xs font-medium text-neutral-500">{{ $debt->total_orders }} order trong phiếu</p>
+                </div>
+
+                <div class="rounded-lg border border-emerald-200 bg-white p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">Đã thanh toán</p>
+                        <flux:icon.check-circle class="size-5 text-emerald-600" />
+                    </div>
+                    <p class="mt-3 truncate text-2xl font-bold text-emerald-700">{{ $this->money($debt->paid_amount) }}</p>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-emerald-100">
+                        <div class="h-full rounded-full bg-emerald-500" style="width: {{ $paidPercent }}%"></div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border border-amber-200 bg-white p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs font-bold uppercase tracking-wide text-amber-700">Còn lại</p>
+                        <flux:icon.clock class="size-5 text-amber-600" />
+                    </div>
+                    <p class="mt-3 truncate text-2xl font-bold text-amber-700">{{ $this->money($debt->remaining_amount) }}</p>
+                    <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-amber-100">
+                        <div class="h-full rounded-full bg-amber-500" style="width: {{ $remainingPercent }}%"></div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg border {{ $isOverdue ? 'border-red-200' : 'border-neutral-200' }} bg-white p-4">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-xs font-bold uppercase tracking-wide {{ $isOverdue ? 'text-red-700' : 'text-neutral-500' }}">Hạn thanh toán</p>
+                        <flux:icon.calendar-days class="size-5 {{ $isOverdue ? 'text-red-600' : 'text-neutral-500' }}" />
+                    </div>
+                    <p class="mt-3 text-2xl font-bold {{ $isOverdue ? 'text-red-700' : 'text-neutral-950' }}">{{ $dueDate?->format('d/m/Y') ?: '-' }}</p>
+                    <p class="mt-1 text-xs font-medium {{ $isOverdue ? 'text-red-600' : 'text-neutral-500' }}">{{ $debt->ngaychothoadon ? 'Chốt '.$debt->ngaychothoadon->format('d/m/Y H:i') : 'Chưa chốt công nợ' }}</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_25rem]">
+        <section class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-neutral-950">Danh sách order</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Các đơn hàng được gom vào công nợ này</p>
+                </div>
+                <div class="inline-flex w-fit items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-semibold text-neutral-700">
+                    <flux:icon.archive-box class="size-4 text-neutral-500" />
+                    {{ $debt->total_orders }} order
+                </div>
+            </div>
+
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-neutral-100 text-sm">
-                    <thead class="bg-neutral-50 text-xs uppercase text-neutral-500">
+                <table class="min-w-[1320px] w-full divide-y divide-neutral-100 text-sm">
+                    <thead class="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
                         <tr>
                             <th class="px-4 py-3 text-left font-semibold">Mã order</th>
+                            <th class="px-4 py-3 text-left font-semibold">Người gửi</th>
+                            <th class="px-4 py-3 text-left font-semibold">Người nhận</th>
+                            <th class="px-4 py-3 text-left font-semibold">Quốc gia</th>
                             <th class="px-4 py-3 text-left font-semibold">Dịch vụ</th>
-                            <th class="px-4 py-3 text-right font-semibold">Cân nặng</th>
-                            <th class="px-4 py-3 text-right font-semibold">Tổng cước</th>
+                            <th class="px-4 py-3 text-left font-semibold">Trạng thái bill</th>
+                            <th class="px-4 py-3 text-right font-semibold">Cước bán</th>
                             <th class="px-4 py-3 text-right font-semibold"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-neutral-100">
+                    <tbody class="divide-y divide-neutral-100 bg-white">
                         @forelse ($debt->details as $detail)
-                            <tr class="hover:bg-neutral-50/70">
-                                <td class="px-4 py-4">
-                                    <a href="{{ route('orders.show', $detail->order?->uuid) }}" wire:navigate class="font-bold text-primary-700">{{ $detail->order?->id_bill ?: data_get($detail->snapshot, 'order_code') }}</a>
-                                    <div class="text-xs text-neutral-500">{{ $detail->order?->created_at?->format('d/m/Y H:i') }}</div>
-                                </td>
-                                <td class="px-4 py-4 text-neutral-700">
-                                    {{ $detail->order?->dichvu?->namevi ?: '-' }}
-                                    <div class="text-xs text-neutral-500">{{ $detail->order?->chiNhanhNhanHang?->namevi }}</div>
-                                </td>
-                                <td class="px-4 py-4 text-right font-semibold">{{ number_format((float) $detail->weight, 2, ',', '.') }} kg</td>
-                                <td class="px-4 py-4 text-right font-semibold text-neutral-950">{{ $this->money($detail->cuocban) }}</td>
-                                <td class="px-4 py-4 text-right">
-                                    @if ($this->canManage() && $debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN)
-                                        <button type="button" wire:click="removeOrder({{ $detail->id }})" wire:confirm="Gỡ order này khỏi công nợ?" class="rounded-lg px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">Gỡ</button>
+                            @php
+                                $order = $detail->order;
+                                $sender = $order?->sender ?? [];
+                                $receiver = $order?->receiver ?? [];
+                                $senderCompany = data_get($sender, 'company') ?: data_get($sender, 'fullname') ?: '-';
+                                $senderAddress = data_get($sender, 'address') ?: collect([
+                                    data_get($sender, 'city'),
+                                    data_get($sender, 'state'),
+                                    data_get($sender, 'postcode'),
+                                ])->filter()->implode(', ');
+                                $receiverCompany = data_get($receiver, 'company') ?: data_get($receiver, 'fullname') ?: data_get($receiver, 'tenlienhe') ?: '-';
+                                $receiverAddress = collect([
+                                    data_get($receiver, 'address'),
+                                    data_get($receiver, 'city'),
+                                    data_get($receiver, 'state'),
+                                    data_get($receiver, 'postcode'),
+                                ])->filter()->implode(', ');
+                                $country = $order?->receiverCountry ?: $order?->receiverCountryLegacy;
+                                $countryName = $country?->name ?: data_get($receiver, 'country', '-');
+                                $countryCode = $country?->iso2 ?: $country?->iso3;
+                            @endphp
+                            <tr class="transition hover:bg-neutral-50/80">
+                                <td class="px-4 py-4 align-top">
+                                    @if ($order?->uuid)
+                                        <a href="{{ route('orders.show', $order->uuid) }}" wire:navigate class="font-bold text-primary-700 transition hover:text-primary-800">
+                                            {{ $order->id_bill ?: data_get($detail->snapshot, 'order_code') }}
+                                        </a>
+                                    @else
+                                        <span class="font-bold text-neutral-800">{{ data_get($detail->snapshot, 'order_code', '-') }}</span>
                                     @endif
+                                    <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
+                                        <span>{{ $order?->created_at?->format('d/m/Y H:i') ?: '-' }}</span>
+                                        @if ($order?->id)
+                                            <span class="font-medium text-neutral-400">#{{ $order->id }}</span>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <div class="max-w-[240px] truncate font-semibold text-neutral-900">{{ $senderCompany }}</div>
+                                    <div class="mt-1 max-w-[260px] truncate text-xs text-neutral-500">{{ $senderAddress ?: '-' }}</div>
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <div class="max-w-[240px] truncate font-semibold text-neutral-900">{{ $receiverCompany }}</div>
+                                    <div class="mt-1 max-w-[300px] truncate text-xs text-neutral-500">{{ $receiverAddress ?: '-' }}</div>
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <div class="max-w-[140px] truncate font-semibold text-neutral-900">{{ $countryName ?: '-' }}</div>
+                                    @if ($countryCode)
+                                        <div class="mt-1 text-xs text-neutral-500">{{ $countryCode }}</div>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <div class="max-w-[170px] truncate font-semibold text-neutral-900">{{ $order?->dichvu?->namevi ?: '-' }}</div>
+                                    <div class="mt-1 max-w-[170px] truncate text-xs text-neutral-500">{{ $order?->chiNhanhNhanHang?->namevi ?: '-' }}</div>
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold {{ $order?->bill_status?->color() ?? 'bg-neutral-100 text-neutral-700' }}">
+                                        {{ $order?->bill_status?->label() ?? '-' }}
+                                    </span>
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-4 text-right align-top font-bold text-neutral-950">{{ $this->money($detail->cuocban) }}</td>
+                                <td class="px-4 py-4 text-right align-top">
+                                    <div class="flex justify-end gap-2">
+                                        @if ($this->canManage() && ! $debt->canCreatePaymentInvoice() && $order?->uuid)
+                                            <button type="button" wire:click="openSaleChargeModal({{ $detail->id }})" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700" title="Edit cước bán">
+                                                <flux:icon.pencil-square class="size-4" />
+                                                Cước bán
+                                            </button>
+                                        @endif
+                                        @if ($this->canManage() && ! $debt->canCreatePaymentInvoice())
+                                            <button type="button" wire:click="removeOrder({{ $detail->id }})" wire:confirm="Gỡ order này khỏi công nợ?" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600" title="Delete order" aria-label="Delete order">
+                                                <flux:icon.trash class="size-4" />
+                                            </button>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-12 text-center text-neutral-500">Công nợ chưa có order.</td>
+                                <td colspan="8" class="px-4 py-12 text-center">
+                                    <div class="mx-auto flex max-w-sm flex-col items-center">
+                                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-neutral-100 text-neutral-500">
+                                            <flux:icon.archive-box-x-mark class="size-5" />
+                                        </div>
+                                        <p class="mt-3 font-semibold text-neutral-900">Công nợ chưa có order</p>
+                                        <p class="mt-1 text-sm text-neutral-500">Các order được thêm vào công nợ sẽ xuất hiện tại đây.</p>
+                                    </div>
+                                </td>
                             </tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
-        </div>
+        </section>
 
-        <div class="space-y-5">
-            <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xs">
-                <h2 class="font-bold text-neutral-950">Thông tin công nợ</h2>
-                <dl class="mt-4 space-y-3 text-sm">
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Sale</dt><dd class="font-semibold text-neutral-900">{{ $debt->sale?->fullname ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Kế toán</dt><dd class="font-semibold text-neutral-900">{{ $debt->ketoan?->fullname ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Ngày tạo</dt><dd class="font-semibold text-neutral-900">{{ $debt->ngaytaohoadon?->format('d/m/Y H:i') ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Ngày chốt</dt><dd class="font-semibold text-neutral-900">{{ $debt->ngaychothoadon?->format('d/m/Y H:i') ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Hạn thanh toán</dt><dd class="font-semibold text-neutral-900">{{ $debt->hanthanhtoan?->format('d/m/Y') ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Tham chiếu</dt><dd class="font-semibold text-neutral-900">{{ $debt->sohoadon_thamchieu ?: '-' }}</dd></div>
+        <aside class="space-y-5">
+            <section class="rounded-xl border border-neutral-200 bg-white p-5 shadow-sm">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-base font-bold text-neutral-950">Thông tin công nợ</h2>
+                    <flux:icon.clipboard-document-list class="size-5 text-neutral-400" />
+                </div>
+                <dl class="mt-4 divide-y divide-neutral-100 text-sm">
+                    <div class="flex justify-between gap-4 py-3 first:pt-0">
+                        <dt class="text-neutral-500">Sale</dt>
+                        <dd class="text-right font-semibold text-neutral-900">{{ $debt->sale?->fullname ?: $debt->sale?->username ?: '-' }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4 py-3">
+                        <dt class="text-neutral-500">Kế toán</dt>
+                        <dd class="text-right font-semibold text-neutral-900">{{ $debt->ketoan?->fullname ?: $debt->ketoan?->username ?: '-' }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4 py-3">
+                        <dt class="text-neutral-500">Người tạo</dt>
+                        <dd class="text-right font-semibold text-neutral-900">{{ $debt->creator?->fullname ?: $debt->creator?->username ?: '-' }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4 py-3">
+                        <dt class="text-neutral-500">Ngày tạo</dt>
+                        <dd class="text-right font-semibold text-neutral-900">{{ $debt->ngaytaohoadon?->format('d/m/Y H:i') ?: '-' }}</dd>
+                    </div>
+                    <div class="flex justify-between gap-4 py-3">
+                        <dt class="text-neutral-500">Tham chiếu</dt>
+                        <dd class="text-right font-semibold text-neutral-900">{{ $debt->sohoadon_thamchieu ?: '-' }}</dd>
+                    </div>
                 </dl>
-            </div>
+            </section>
 
-            @if ($this->canManage() && $debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN)
-                <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xs">
-                    <h2 class="font-bold text-neutral-950">Ghi nhận thanh toán</h2>
+            @if ($canCreateInvoice && $this->canManage() && $availableForInvoice > 0)
+                <section class="rounded-xl border border-primary-100 bg-white p-5 shadow-sm">
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-base font-bold text-neutral-950">Tạo hóa đơn thu</h2>
+                        <flux:icon.banknotes class="size-5 text-primary-600" />
+                    </div>
+                    <p class="mt-1 text-xs text-neutral-500">Hóa đơn thu sẽ chờ kế toán duyệt trước khi gửi cho khách hàng thanh toán.</p>
                     <div class="mt-4 space-y-3">
                         <label class="block">
                             <span class="text-sm font-semibold text-neutral-700">Số tiền</span>
-                            <input type="text" wire:model="paymentAmount" class="mt-1 h-10 w-full rounded-xl border border-neutral-200 px-3 text-sm outline-none focus:border-primary-500">
-                            @error('paymentAmount') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                            <input type="text" wire:model="invoiceAmount" placeholder="0" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm font-semibold outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                            <span class="mt-1 block text-xs text-neutral-500">Tối đa có thể tạo: <span class="font-semibold text-primary-700">{{ $this->money($availableForInvoice) }}</span></span>
+                            @error('invoiceAmount') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                         </label>
                         <label class="block">
-                            <span class="text-sm font-semibold text-neutral-700">Ngày thanh toán</span>
-                            <input type="datetime-local" wire:model="paymentDate" class="mt-1 h-10 w-full rounded-xl border border-neutral-200 px-3 text-sm outline-none focus:border-primary-500">
+                            <span class="text-sm font-semibold text-neutral-700">Ghi chú</span>
+                            <textarea wire:model="invoiceNote" rows="3" placeholder="Hóa đơn thu công nợ {{ $debt->sohoadon }}..." class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"></textarea>
+                            @error('invoiceNote') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                         </label>
-                        <label class="block">
-                            <span class="text-sm font-semibold text-neutral-700">Phương thức</span>
-                            <input type="text" wire:model="paymentMethod" placeholder="Chuyển khoản, tiền mặt..." class="mt-1 h-10 w-full rounded-xl border border-neutral-200 px-3 text-sm outline-none focus:border-primary-500">
-                        </label>
-                        <label class="block">
-                            <span class="text-sm font-semibold text-neutral-700">Mã tham chiếu</span>
-                            <input type="text" wire:model="paymentReference" class="mt-1 h-10 w-full rounded-xl border border-neutral-200 px-3 text-sm outline-none focus:border-primary-500">
-                        </label>
-                        <textarea wire:model="paymentNote" rows="3" placeholder="Ghi chú thanh toán" class="w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-primary-500"></textarea>
-                        <button type="button" wire:click="addPayment" class="w-full rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-700">Lưu thanh toán</button>
+                        <flux:button type="button" wire:click="createPaymentInvoice" variant="primary" icon="plus" class="w-full justify-center">
+                            Tạo hóa đơn
+                        </flux:button>
                     </div>
-                </div>
-            @endif
-
-            <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xs">
-                <h2 class="font-bold text-neutral-950">Lịch sử thanh toán</h2>
-                <div class="mt-4 space-y-3">
-                    @forelse ($debt->payments->sortByDesc('paid_at') as $payment)
-                        <div class="rounded-xl border border-neutral-100 bg-neutral-50 px-3 py-2">
-                            <div class="flex items-center justify-between gap-3">
-                                <p class="font-semibold text-neutral-950">{{ $this->money($payment->amount) }}</p>
-                                <p class="text-xs text-neutral-500">{{ $payment->paid_at?->format('d/m/Y H:i') }}</p>
-                            </div>
-                            <p class="mt-1 text-xs text-neutral-500">{{ $payment->method ?: 'Thanh toán' }}{{ $payment->reference ? ' - '.$payment->reference : '' }}</p>
+                </section>
+            @elseif (! $canCreateInvoice)
+                <section class="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <flux:icon.exclamation-triangle class="size-5 shrink-0 text-amber-600" />
+                        <div>
+                            <h2 class="text-base font-bold text-amber-900">Chưa thể tạo hóa đơn</h2>
+                            <p class="mt-1 text-sm text-amber-700">Cần chốt cước công nợ trước khi có thể tạo hóa đơn thu cho khách hàng.</p>
                         </div>
-                    @empty
-                        <p class="text-sm text-neutral-500">Chưa có thanh toán.</p>
-                    @endforelse
+                    </div>
+                </section>
+            @endif
+        </aside>
+    </div>
+
+    @if ($canCreateInvoice)
+        <section class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-neutral-950">Lịch sử tạo hóa đơn</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Theo dõi các hóa đơn thu đã tạo, trạng thái xử lý và lịch sử thanh toán.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                    <span class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-neutral-700">
+                        <flux:icon.document-text class="size-4 text-neutral-500" />
+                        {{ $sortedInvoices->count() }} hóa đơn
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-neutral-700">
+                        Còn có thể tạo: <span class="text-primary-700">{{ $this->money($availableForInvoice) }}</span>
+                    </span>
                 </div>
             </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-[1040px] w-full divide-y divide-neutral-100 text-sm">
+                    <thead class="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold">Hóa đơn</th>
+                            <th class="px-4 py-3 text-left font-semibold">Người tạo</th>
+                            <th class="px-4 py-3 text-right font-semibold">Số tiền</th>
+                            <th class="px-4 py-3 text-left font-semibold">Trạng thái</th>
+                            <th class="px-4 py-3 text-left font-semibold">Thanh toán</th>
+                            <th class="px-4 py-3 text-left font-semibold">Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-neutral-100 bg-white">
+                        @forelse ($sortedInvoices as $invoice)
+                            @php
+                                $statusEnum = $invoice->status instanceof InvoicePaymentStatusEnum
+                                    ? $invoice->status
+                                    : InvoicePaymentStatusEnum::tryFrom((string) $invoice->status);
+                                $badgeClass = $statusEnum?->color() ?? 'bg-neutral-100 text-neutral-700';
+                            @endphp
+                            <tr wire:key="invoice-{{ $invoice->id }}" class="transition hover:bg-neutral-50/80">
+                                <td class="px-4 py-4 align-top">
+                                    <p class="font-bold text-primary-700">{{ $invoice->ma_hoa_don ?: '#'.$invoice->id }}</p>
+                                    <p class="mt-1 text-xs text-neutral-500">Tạo: {{ $invoice->created_at?->format('H:i d/m/Y') ?: '-' }}</p>
+                                    @if ($invoice->ngay_duyet)
+                                        <p class="mt-0.5 text-xs text-neutral-500">Duyệt: {{ $invoice->ngay_duyet->format('H:i d/m/Y') }}</p>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <p class="font-semibold text-neutral-900">{{ $invoice->user?->fullname ?: $invoice->user?->username ?: '-' }}</p>
+                                    @if ($invoice->user?->code)
+                                        <p class="mt-1 text-xs text-neutral-500">{{ $invoice->user->code }}</p>
+                                    @endif
+                                    @if ($invoice->ketoan)
+                                        <p class="mt-1 text-xs text-neutral-500">KT: {{ $invoice->ketoan->fullname ?: $invoice->ketoan->username }}</p>
+                                    @endif
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-4 text-right align-top font-bold text-neutral-950">
+                                    {{ $this->money($invoice->amount) }}
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold {{ $badgeClass }}">
+                                        {{ $statusEnum?->label() ?: '-' }}
+                                    </span>
+                                    @if ($invoice->cancelled_at)
+                                        <p class="mt-1 text-xs text-red-600">Hủy: {{ $invoice->cancelled_at->format('H:i d/m/Y') }}</p>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <p class="font-semibold text-neutral-800">{{ $invoice->method ? ucfirst(str_replace('_', ' ', $invoice->method)) : '-' }}</p>
+                                    @if ($invoice->paid_at)
+                                        <p class="mt-1 text-xs text-emerald-700">Đã thu: {{ $invoice->paid_at->format('H:i d/m/Y') }}</p>
+                                    @elseif ($invoice->qr_generated_at)
+                                        <p class="mt-1 text-xs text-indigo-700">QR: {{ $invoice->qr_generated_at->format('H:i d/m/Y') }}</p>
+                                    @else
+                                        <p class="mt-1 text-xs text-neutral-500">Chưa phát sinh thanh toán</p>
+                                    @endif
+                                    @if ($invoice->sepay_transaction_id)
+                                        <p class="mt-1 max-w-[180px] truncate text-xs text-neutral-500" title="{{ $invoice->sepay_transaction_id }}">SePay: {{ $invoice->sepay_transaction_id }}</p>
+                                    @endif
+                                    @if ($invoice->qr_url)
+                                        <a href="{{ $invoice->qr_url }}" target="_blank" rel="noopener" class="mt-1 inline-flex text-xs font-semibold text-primary-700 hover:text-primary-800">Xem QR</a>
+                                    @endif
+                                    @if ($invoice->photo)
+                                        <a href="{{ asset('storage/'.$invoice->photo) }}" target="_blank" rel="noopener" class="mt-1 inline-flex text-xs font-semibold text-primary-700 hover:text-primary-800">Xem ảnh hóa đơn</a>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-4 align-top">
+                                    <p class="max-w-[260px] truncate text-neutral-700" title="{{ $invoice->note }}">{{ $invoice->note ?: '-' }}</p>
+                                    @if ($invoice->cancelledBy)
+                                        <p class="mt-1 text-xs text-red-600">Người hủy: {{ $invoice->cancelledBy->fullname ?: $invoice->cancelledBy->username }}</p>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="px-4 py-10 text-center">
+                                    <div class="mx-auto flex max-w-sm flex-col items-center">
+                                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-neutral-100 text-neutral-500">
+                                            <flux:icon.receipt-percent class="size-5" />
+                                        </div>
+                                        <p class="mt-3 font-semibold text-neutral-900">Chưa có lịch sử tạo hóa đơn</p>
+                                        <p class="mt-1 text-sm text-neutral-500">Tạo hóa đơn thu để bắt đầu thu tiền từ khách hàng.</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    @endif
+
+    <flux:modal name="edit-sale-charge" class="w-full max-w-8xl" scroll="body">
+        <form wire:submit="saveSaleCharge" class="space-y-5">
+            <div>
+                <h2 class="text-lg font-bold text-neutral-950">Edit cước bán</h2>
+                <p class="mt-1 text-sm text-neutral-500">
+                    {{ $editingSaleChargeOrderCode ? 'Order '.$editingSaleChargeOrderCode : 'Chọn order cần cập nhật cước bán' }}
+                </p>
+            </div>
+
+            <section class="rounded-xl border border-neutral-200 bg-white">
+                <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 class="text-sm font-bold uppercase tracking-wide text-neutral-800">Cước bán</h3>
+                        <p class="mt-1 text-sm text-neutral-500">Đơn giá bán, PPXD, VAT và tổng cước bán của order.</p>
+                    </div>
+                    <div class="rounded-lg bg-primary-50 px-3 py-2 text-right">
+                        <p class="text-xs text-primary-700">Tổng cước</p>
+                        <p class="text-sm font-semibold text-primary-800">{{ $this->money(data_get($editingSaleCharge, 'total_tongcuoc')) }}</p>
+                    </div>
+                </div>
+
+                <div class="grid gap-4 p-4 md:grid-cols-12">
+                    <label class="block md:col-span-3">
+                        <span class="text-sm font-semibold text-neutral-700">Đơn giá bán</span>
+                        <input type="text" wire:model.live.debounce.300ms="editingSaleCharge.dongiaban" inputmode="decimal" autocomplete="off" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm font-semibold outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                        @error('editingSaleCharge.dongiaban') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                    </label>
+
+                    <div class="md:col-span-3">
+                        <span class="text-sm font-semibold text-neutral-700">PPXD (%)</span>
+                        <div class="mt-1 grid grid-cols-[90px_minmax(0,1fr)] gap-2">
+                            <input type="number" step="0.1" min="0" wire:model.live.debounce.300ms="editingSaleCharge.ppxd_percent" class="h-10 rounded-lg border border-neutral-200 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                            <div class="flex h-10 items-center justify-end rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-800">{{ $this->money(data_get($editingSaleCharge, 'ppxd_amount')) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-3">
+                        <span class="text-sm font-semibold text-neutral-700">VAT (%)</span>
+                        <div class="mt-1 grid grid-cols-[90px_minmax(0,1fr)] gap-2">
+                            <input type="number" step="0.1" min="0" wire:model.live.debounce.300ms="editingSaleCharge.vat_percent" class="h-10 rounded-lg border border-neutral-200 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                            <div class="flex h-10 items-center justify-end rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-800">{{ $this->money(data_get($editingSaleCharge, 'vat_amount')) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-3">
+                        <span class="text-sm font-semibold text-neutral-700">Tổng trước VAT</span>
+                        <div class="mt-1 flex h-10 items-center justify-end rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-900">{{ $this->money(data_get($editingSaleCharge, 'total_tongcuoc_no_vat')) }}</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="rounded-xl border border-neutral-200 bg-white">
+                <div class="flex items-center justify-between gap-3 border-b border-neutral-100 px-4 py-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-neutral-900">Phụ phí bán</h3>
+                        <p class="mt-1 text-xs text-neutral-500">Tổng phụ phí = đơn giá x số lượng, VAT phụ phí được cộng vào tổng cước.</p>
+                    </div>
+                    <flux:button type="button" size="sm" variant="outline" icon="plus" wire:click="addEditingSaleChargeFee('phuphi')">Thêm</flux:button>
+                </div>
+
+                <div class="overflow-x-auto p-4">
+                    <div class="min-w-[980px] space-y-3">
+                        @forelse(data_get($editingSaleCharge, 'phuphi', []) as $index => $row)
+                            <div wire:key="edit-sale-phuphi-{{ data_get($row, '_key', $index) }}" class="grid grid-cols-[minmax(220px,1.4fr)_minmax(180px,1fr)_90px_130px_90px_130px_130px_44px] items-end gap-3">
+                                <label class="block">
+                                    <span class="text-xs font-semibold text-neutral-600">Loại phụ phí</span>
+                                    <select wire:model.live="editingSaleCharge.phuphi.{{ $index }}.id_loaiphuphi" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                                        <option value="">-- Chọn phụ phí --</option>
+                                        @foreach($feeOptions as $feeOption)
+                                            <option value="{{ $feeOption['id'] }}">{{ $feeOption['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-semibold text-neutral-600">Ghi chú</span>
+                                    <input type="text" wire:model.live.debounce.300ms="editingSaleCharge.phuphi.{{ $index }}.note" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-semibold text-neutral-600">SL</span>
+                                    <input type="number" min="0" step="1" wire:model.live.debounce.300ms="editingSaleCharge.phuphi.{{ $index }}.soluong" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-semibold text-neutral-600">Đơn giá</span>
+                                    <input type="text" wire:model.live.debounce.300ms="editingSaleCharge.phuphi.{{ $index }}.price" inputmode="decimal" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm text-right outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-semibold text-neutral-600">VAT (%)</span>
+                                    <input type="number" min="0" step="0.1" wire:model.live.debounce.300ms="editingSaleCharge.phuphi.{{ $index }}.vat_percent" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                                </label>
+                                <div>
+                                    <span class="text-xs font-semibold text-neutral-600">Tổng tiền</span>
+                                    <div class="mt-1 flex h-10 items-center justify-end rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-800">{{ $this->money(data_get($row, 'total')) }}</div>
+                                </div>
+                                <div>
+                                    <span class="text-xs font-semibold text-neutral-600">Sau VAT</span>
+                                    <div class="mt-1 flex h-10 items-center justify-end rounded-lg border border-primary-100 bg-primary-50 px-3 text-sm font-semibold text-primary-700">{{ $this->money(data_get($row, 'total_after_vat')) }}</div>
+                                </div>
+                                <button type="button" wire:click="removeEditingSaleChargeFee('phuphi', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Xóa phụ phí">
+                                    <flux:icon.x-mark class="size-4" />
+                                </button>
+                            </div>
+                        @empty
+                            <div class="rounded-lg bg-neutral-50 px-4 py-5 text-sm text-neutral-500">Chưa có phụ phí bán.</div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap justify-end gap-3 border-t border-neutral-100 bg-neutral-50 px-4 py-3 text-sm">
+                    <div class="text-neutral-600">Tổng trước VAT: <span class="font-semibold text-neutral-900">{{ $this->money(data_get($editingSaleCharge, 'total_phuphi_no_vat')) }}</span></div>
+                    <div class="text-neutral-600">VAT phụ phí: <span class="font-semibold text-neutral-900">{{ $this->money(data_get($editingSaleCharge, 'total_vat_phuphi')) }}</span></div>
+                    <div class="text-primary-700">Sau VAT: <span class="font-semibold">{{ $this->money(data_get($editingSaleCharge, 'total_phuphi')) }}</span></div>
+                </div>
+            </section>
+
+            <section class="rounded-xl border border-neutral-200 bg-white">
+                <div class="flex items-center justify-between gap-3 border-b border-neutral-100 px-4 py-3">
+                    <div>
+                        <h3 class="text-sm font-bold text-neutral-900">Hoa hồng khách hàng</h3>
+                        <p class="mt-1 text-xs text-neutral-500">Các khoản chi hoa hồng được trừ khi tính lợi nhuận.</p>
+                    </div>
+                    <flux:button type="button" size="sm" variant="outline" icon="plus" wire:click="addEditingSaleChargeFee('hh_khachhang')">Thêm</flux:button>
+                </div>
+
+                <div class="overflow-x-auto p-4">
+                    <div class="min-w-[760px] space-y-3">
+                        @forelse(data_get($editingSaleCharge, 'hh_khachhang', []) as $index => $row)
+                            <div wire:key="edit-sale-hhkh-{{ data_get($row, '_key', $index) }}" class="grid grid-cols-[minmax(220px,1fr)_minmax(260px,1.3fr)_160px_44px] items-end gap-3">
+                                <label class="block">
+                                    <span class="text-xs font-semibold text-neutral-600">Loại chi</span>
+                                    <select wire:model.live="editingSaleCharge.hh_khachhang.{{ $index }}.id_loaichi" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                                        <option value="">-- Chọn loại chi --</option>
+                                        @foreach($expenseOptions as $expenseOption)
+                                            <option value="{{ $expenseOption['id'] }}">{{ $expenseOption['name'] }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-semibold text-neutral-600">Diễn giải chi</span>
+                                    <input type="text" wire:model.live.debounce.300ms="editingSaleCharge.hh_khachhang.{{ $index }}.diengiai_chi" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-semibold text-neutral-600">Số tiền</span>
+                                    <input type="text" wire:model.live.debounce.300ms="editingSaleCharge.hh_khachhang.{{ $index }}.so_tien" inputmode="decimal" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm text-right outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                                </label>
+                                <button type="button" wire:click="removeEditingSaleChargeFee('hh_khachhang', {{ $index }})" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600" aria-label="Xóa hoa hồng khách hàng">
+                                    <flux:icon.x-mark class="size-4" />
+                                </button>
+                            </div>
+                        @empty
+                            <div class="rounded-lg bg-neutral-50 px-4 py-5 text-sm text-neutral-500">Chưa có hoa hồng khách hàng.</div>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="flex justify-end border-t border-neutral-100 bg-neutral-50 px-4 py-3 text-sm text-primary-700">
+                    Tổng hoa hồng khách hàng: <span class="ml-1 font-semibold">{{ $this->money(data_get($editingSaleCharge, 'total_hh_khachhang')) }}</span>
+                </div>
+            </section>
+
+            <section class="rounded-xl border border-primary-100 bg-primary-50/70 p-4">
+                <div class="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-4">
+                    <div class="rounded-lg bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Cước vận chuyển</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money($this->number(data_get($editingSaleCharge, 'dongiaban')) + $this->number(data_get($editingSaleCharge, 'ppxd_amount'))) }}</p>
+                    </div>
+                    <div class="rounded-lg bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Chi phí khác</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($editingSaleCharge, 'total_phuphi_no_vat')) }}</p>
+                    </div>
+                    <div class="rounded-lg bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tổng VAT</p>
+                        <p class="mt-1 font-semibold text-neutral-900">{{ $this->money(data_get($editingSaleCharge, 'total_vat')) }}</p>
+                    </div>
+                    <div class="rounded-lg bg-white px-3 py-2.5">
+                        <p class="text-xs text-neutral-500">Tổng cước bán</p>
+                        <p class="mt-1 font-semibold text-primary-800">{{ $this->money(data_get($editingSaleCharge, 'total_tongcuoc')) }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+                <flux:modal.close>
+                    <flux:button type="button" variant="outline">Hủy</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary" icon="check">Lưu cước bán</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    <flux:modal name="pay-invoice" class="w-full max-w-2xl" @close="$wire.closePayModal()">
+        <div class="space-y-5">
+            <div>
+                <h2 class="text-lg font-bold text-neutral-950">Thanh toán hóa đơn</h2>
+                <p class="mt-1 text-sm text-neutral-500">
+                    @if ($payingInvoice)
+                        Mã hóa đơn <span class="font-semibold text-neutral-800">{{ $payingInvoice->ma_hoa_don }}</span>
+                        - Số tiền cần thanh toán
+                        <span class="font-semibold text-rose-700">{{ $this->money($payingInvoice->amount) }}</span>
+                    @else
+                        Chưa chọn hóa đơn.
+                    @endif
+                </p>
+            </div>
+
+            @if ($payingInvoice)
+                <div class="grid gap-3 sm:grid-cols-2">
+                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedMethod === 'cash' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
+                        <input type="radio" wire:model.live="selectedMethod" value="cash" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-neutral-900">Tiền mặt</p>
+                            <p class="mt-0.5 text-xs text-neutral-500">Khách thanh toán trực tiếp. Cần upload ảnh hóa đơn đã thu tiền.</p>
+                        </div>
+                    </label>
+                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedMethod === 'bank_transfer' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
+                        <input type="radio" wire:model.live="selectedMethod" value="bank_transfer" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-neutral-900">Chuyển khoản (SePay QR)</p>
+                            <p class="mt-0.5 text-xs text-neutral-500">Tạo mã QR và gửi cho khách. Hệ thống tự xác nhận khi nhận tiền.</p>
+                        </div>
+                    </label>
+                </div>
+
+                @if ($selectedMethod === 'cash')
+                    <form wire:submit="submitCashPayment" class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-neutral-800">Ảnh hóa đơn đã thanh toán <span class="text-rose-600">*</span></label>
+                            <p class="text-xs text-neutral-500">Định dạng ảnh, tối đa 8MB.</p>
+                            <input type="file" wire:model="cashInvoicePhoto" accept="image/*" class="mt-2 block w-full rounded-lg border border-neutral-200 bg-white text-sm file:mr-3 file:cursor-pointer file:rounded-l-lg file:border-0 file:bg-rose-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-rose-700">
+                            @error('cashInvoicePhoto')
+                                <p class="mt-1 text-xs font-medium text-rose-600">{{ $message }}</p>
+                            @enderror
+                            <div wire:loading wire:target="cashInvoicePhoto" class="mt-2 text-xs text-neutral-500">Đang tải ảnh lên...</div>
+                            @if ($cashInvoicePhoto && method_exists($cashInvoicePhoto, 'temporaryUrl'))
+                                <div class="mt-3 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+                                    <img src="{{ $cashInvoicePhoto->temporaryUrl() }}" alt="Preview" class="max-h-64 w-full object-contain">
+                                </div>
+                            @endif
+                        </div>
+                        <div class="flex items-center justify-end gap-2 border-t border-neutral-200 pt-3">
+                            <flux:button type="button" variant="outline" wire:click="closePayModal">Hủy</flux:button>
+                            <flux:button type="submit" variant="primary" icon="paper-airplane" wire:loading.attr="disabled" wire:target="submitCashPayment,cashInvoicePhoto">
+                                Gửi hóa đơn thanh toán
+                            </flux:button>
+                        </div>
+                    </form>
+                @elseif ($selectedMethod === 'bank_transfer')
+                    <div class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
+                        <div class="flex items-start gap-2 text-sm text-neutral-600">
+                            <flux:icon.information-circle class="mt-0.5 size-4 text-rose-500" />
+                            <p>Khi bấm "Tạo mã QR", hệ thống sẽ sinh QR thanh toán SePay. Khách quét QR và chuyển khoản; webhook sẽ tự cập nhật trạng thái sang "Đã thanh toán".</p>
+                        </div>
+                        <div class="flex items-center justify-end gap-2 border-t border-neutral-200 pt-3">
+                            <flux:button type="button" variant="outline" wire:click="closePayModal">Hủy</flux:button>
+                            <flux:button type="button" variant="primary" icon="qr-code" wire:click="submitOnlinePayment" wire:loading.attr="disabled" wire:target="submitOnlinePayment">
+                                Tạo mã QR thanh toán
+                            </flux:button>
+                        </div>
+                    </div>
+                @else
+                    <div class="rounded-lg bg-neutral-50 px-4 py-6 text-center text-sm text-neutral-500">
+                        Vui lòng chọn phương thức thanh toán phía trên.
+                    </div>
+                @endif
+            @endif
         </div>
-    </div>
+    </flux:modal>
 </div>

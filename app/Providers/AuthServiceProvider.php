@@ -56,6 +56,10 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'ketoan', 'manager']);
         });
 
+        Gate::define('invoice.index', function ($user) {
+            return $user->hasAnyRole(['admin', 'ketoan', 'manager']);
+        });
+
         Gate::define('congno.daily', function ($user) {
             return $user->hasAnyRole(['admin', 'ketoan']);
         });

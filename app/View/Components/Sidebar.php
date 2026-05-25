@@ -112,6 +112,12 @@ class Sidebar extends Component
                     'roles'  => ['admin', 'manager', 'ketoan'],
                 ],
                 [
+                    'route'  => 'invoice.index',
+                    'icon'   => 'receipt',
+                    'label'  => 'Hóa đơn thu',
+                    'roles'  => ['admin', 'manager', 'ketoan'],
+                ],
+                [
                     'route'  => 'thongke',
                     'icon'   => 'stats',
                     'label'  => 'Thống kê',

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\DebtStatusEnum;
+use App\Enums\InvoicePaymentStatusEnum;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -165,18 +166,47 @@ class CongNoDaiLy extends Model
 
     public function syncPaidAmountFromPayments(): void
     {
-        $paidAmount = (float) $this->payments()->sum('amount');
+        $paidAmount = (float) $this->payments()
+            ->where('status', InvoicePaymentStatusEnum::DA_THANH_TOAN->value)
+            ->sum('amount');
         $total = (float) $this->total_cuocvon;
 
-        $status = ($total > 0 && $paidAmount >= $total)
-            ? DebtStatusEnum::DA_THANH_TOAN
-            : DebtStatusEnum::MOI_TAO;
+        $status = match (true) {
+            $total > 0 && $paidAmount >= $total => DebtStatusEnum::DA_THANH_TOAN,
+            $paidAmount > 0 => DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN,
+            default => $this->status,
+        };
 
         $this->forceFill([
             'paid_amount' => $paidAmount,
             'status' => $status->value,
-            'ngaythanhtoan' => $status === DebtStatusEnum::DA_THANH_TOAN ? now() : null,
+            'ngaythanhtoan' => $status === DebtStatusEnum::DA_THANH_TOAN ? now() : $this->ngaythanhtoan,
         ])->save();
+    }
+
+    public function canCreatePaymentInvoice(): bool
+    {
+        return in_array($this->status, [
+            DebtStatusEnum::DA_CHOT_CUOC,
+            DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN,
+            DebtStatusEnum::QUA_HAN,
+        ], true);
+    }
+
+    public function pendingInvoicesTotal(): float
+    {
+        return (float) $this->payments()
+            ->where('status', InvoicePaymentStatusEnum::MOI_TAO->value)
+            ->sum('amount');
+    }
+
+    public function availableForNewInvoice(): float
+    {
+        $total = (float) $this->total_cuocvon;
+        $paid = (float) $this->paid_amount;
+        $pending = $this->pendingInvoicesTotal();
+
+        return max(0.0, $total - $paid - $pending);
     }
 
     public static function generateSoHoaDon(string $tungay, string $denngay): string

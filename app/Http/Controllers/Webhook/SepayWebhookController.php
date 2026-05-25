@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
 use App\Models\SepayWebhookLog;
+use App\Services\Payments\PaymentInvoiceMatcher;
 use App\Services\Providers\Sepay\SepayPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,14 @@ class SepayWebhookController extends Controller
             'amount' => $payload['transferAmount'] ?? null,
             'transfer_type' => $payload['transferType'] ?? null,
         ]);
+
+        try {
+            app(PaymentInvoiceMatcher::class)->matchCustomerDebtPayment($payload);
+        } catch (Throwable $exception) {
+            Log::error('Payment invoice matcher failed.', [
+                'message' => $exception->getMessage(),
+            ]);
+        }
 
         return response()->json($sepay->successResponse());
     }
