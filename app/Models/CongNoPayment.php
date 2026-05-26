@@ -178,6 +178,10 @@ class CongNoPayment extends Model
             return false;
         }
 
+        if ($status === InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT && ! $this->canRegenerateQr()) {
+            return false;
+        }
+
         return $this->isCreator($user) || $this->hasStaffPower($user);
     }
 
@@ -218,6 +222,16 @@ class CongNoPayment extends Model
     {
         return $this->status === InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT
             && ($this->isCreator($user) || $this->hasStaffPower($user));
+    }
+
+    public function canResetPaymentChannel(?User $user): bool
+    {
+        return $user instanceof User
+            && $user->hasRole('admin')
+            && in_array($this->status, [
+                InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT,
+                InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT,
+            ], true);
     }
 
     public function hasRejectionMetadata(): bool

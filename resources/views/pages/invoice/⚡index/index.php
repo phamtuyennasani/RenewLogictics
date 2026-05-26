@@ -33,6 +33,7 @@ new #[Layout('layouts.app')] #[Title('Hóa đơn thu')] class extends \Livewire\
             'regenerateQr' => url('/hoa-don-thu'),
             'confirmCash' => url('/hoa-don-thu'),
             'rejectCash' => url('/hoa-don-thu'),
+            'resetPaymentChannel' => url('/hoa-don-thu'),
             'sales' => route('invoice.sales'),
             'customers' => route('invoice.customers'),
         ];

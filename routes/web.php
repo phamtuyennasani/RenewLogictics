@@ -140,6 +140,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/regenerate-qr', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'regenerateQr'])->name('regenerate-qr')->middleware('can:invoice.index');
         Route::post('/{id}/confirm-cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'confirmCashPayment'])->name('confirm-cash')->middleware('can:invoice.index');
         Route::post('/{id}/reject-cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'rejectCashPayment'])->name('reject-cash')->middleware('can:invoice.index');
+        Route::post('/{id}/reset-payment-channel', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'resetPaymentChannel'])->name('reset-payment-channel')->middleware('can:invoice.index');
         Route::post('/{id}/cancel', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'cancel'])->name('cancel')->middleware('can:invoice.index');
         Route::get('/sales', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'sales'])->name('sales');
         Route::get('/customers', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'customers'])->name('customers');

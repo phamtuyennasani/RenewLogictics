@@ -284,25 +284,206 @@
             </div>
         </flux:modal>
 
-        <div id="invoice-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
-            <div class="w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
-                <div class="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-neutral-950">Chi tiết hóa đơn</h2>
-                        <p class="mt-1 font-mono text-sm text-neutral-500" data-detail-modal-code>-</p>
+        <div id="invoice-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-neutral-950/55 p-3 backdrop-blur-[2px] sm:p-4">
+            <div class="flex max-h-[94vh] w-full max-w-[92rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-black/10">
+                <div class="border-b border-neutral-200 bg-white px-5 py-4 sm:px-7">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="inline-flex h-7 items-center rounded-md bg-neutral-100 px-2.5 text-xs font-bold uppercase text-neutral-600">Hóa đơn thu</p>
+                                <span data-detail-status class="inline-flex rounded-md px-2.5 py-1 text-xs font-bold"></span>
+                            </div>
+                            <div class="mt-3 flex flex-wrap items-end gap-x-3 gap-y-1">
+                                <h2 class="text-2xl font-black tracking-normal text-neutral-950 sm:text-3xl">Chi tiết hóa đơn</h2>
+                                <span class="pb-1 font-mono text-sm font-semibold text-neutral-500" data-detail-modal-code>-</span>
+                            </div>
+                        </div>
+                        <button type="button" id="invoice-detail-close" class="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-950">
+                            <span class="sr-only">Đóng</span>
+                            <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
                     </div>
-                    <button type="button" id="invoice-detail-close" class="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800">
-                        <span class="sr-only">Đóng</span>
-                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
                 </div>
 
-                <div class="grid gap-3 py-5">
-                    <div class="h-3 w-2/3 rounded bg-neutral-100"></div>
-                    <div class="h-3 w-1/2 rounded bg-neutral-100"></div>
-                    <div class="h-3 w-3/4 rounded bg-neutral-100"></div>
+                <div class="overflow-y-auto bg-[#f6f7f9] px-5 py-5 sm:px-7">
+                    <section class="grid gap-4 xl:grid-cols-[1fr_1fr]">
+                        <div class="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-xs font-bold uppercase text-neutral-500">Tổng quan thanh toán</p>
+                                    <p class="mt-2 whitespace-nowrap text-5xl font-black leading-none tracking-normal text-neutral-950 sm:text-6xl" data-detail-amount>-</p>
+                                </div>
+                                <div class="hidden rounded-lg bg-primary-50 px-3 py-2 text-right sm:block">
+                                    <p class="text-[11px] font-bold uppercase text-primary-600">Hóa đơn</p>
+                                    <p class="mt-1 font-mono text-sm font-black text-primary-900" data-detail-overview-code>-</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                                <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3">
+                                    <p class="text-[11px] font-bold uppercase text-neutral-500">Mã hóa đơn</p>
+                                    <p class="mt-1 break-all font-mono text-sm font-black text-neutral-950" data-detail-summary-code>-</p>
+                                </div>
+                                <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3">
+                                    <p class="text-[11px] font-bold uppercase text-neutral-500">Mã công nợ</p>
+                                    <p class="mt-1 break-all font-mono text-sm font-black text-neutral-950" data-detail-debt-code>-</p>
+                                </div>
+                                <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-3">
+                                    <p class="text-[11px] font-bold uppercase text-neutral-500">Kênh xử lý</p>
+                                    <p class="mt-1 truncate text-sm font-black text-neutral-950">Hóa đơn thu</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 rounded-lg border border-primary-100 bg-primary-50 px-3 py-3">
+                                <p class="text-[11px] font-bold uppercase text-primary-600">Việc cần làm</p>
+                                <p class="mt-1 text-sm font-bold text-primary-950" data-detail-next-step>-</p>
+                            </div>
+                        </div>
+
+                        <div class="rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+                            <div class="flex items-start gap-3">
+                                <div class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-neutral-950 text-sm font-black text-white">KH</div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-bold uppercase text-neutral-500">Khách hàng</p>
+                                    <p class="mt-1 text-xl font-black leading-7 text-neutral-950" data-detail-customer-company>-</p>
+                                </div>
+                            </div>
+                            <dl class="mt-5 grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+                                <div class="min-w-0">
+                                    <dt class="text-xs font-bold uppercase text-neutral-500">Người phụ trách</dt>
+                                    <dd class="mt-1 break-words font-semibold text-neutral-950" data-detail-customer-contact>-</dd>
+                                </div>
+                                <div class="min-w-0">
+                                    <dt class="text-xs font-bold uppercase text-neutral-500">Số điện thoại</dt>
+                                    <dd class="mt-1 break-words font-semibold text-neutral-950" data-detail-customer-phone>-</dd>
+                                </div>
+                                <div class="min-w-0">
+                                    <dt class="text-xs font-bold uppercase text-neutral-500">Email</dt>
+                                    <dd class="mt-1 break-all font-semibold text-neutral-950" data-detail-customer-email>-</dd>
+                                </div>
+                                <div class="min-w-0">
+                                    <dt class="text-xs font-bold uppercase text-neutral-500">Địa chỉ</dt>
+                                    <dd class="mt-1 font-semibold leading-5 text-neutral-950" data-detail-customer-address>-</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </section>
+
+                    <section class="mt-4 rounded-lg border border-neutral-200 bg-white p-5 shadow-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-bold uppercase text-neutral-500">Mốc xử lý</p>
+                                <h3 class="mt-1 text-base font-black text-neutral-950">Ngày tạo / Duyệt / Thanh toán</h3>
+                            </div>
+                        </div>
+                        <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                            <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+                                <p class="text-xs font-bold uppercase text-neutral-500">Ngày tạo</p>
+                                <p class="mt-1 font-semibold text-neutral-950" data-detail-created-at>-</p>
+                            </div>
+                            <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+                                <p class="text-xs font-bold uppercase text-neutral-500">Ngày duyệt</p>
+                                <p class="mt-1 font-semibold text-neutral-950" data-detail-approved-at>-</p>
+                            </div>
+                            <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+                                <p class="text-xs font-bold uppercase text-neutral-500">Ngày thanh toán</p>
+                                <p class="mt-1 font-semibold text-neutral-950" data-detail-paid-at>-</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="mt-4 hidden rounded-lg border border-neutral-200 bg-white p-4" data-detail-payment-result>
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold uppercase text-neutral-500">Kết quả thanh toán</p>
+                                <div class="mt-1 text-base font-black text-neutral-950" data-detail-payment-result-title></div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <a data-detail-download-qr href="#" download class="hidden inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition hover:bg-neutral-50">Tải QR</a>
+                                <button type="button" data-detail-copy-link class="hidden inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition hover:bg-neutral-50">Copy link</button>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                            <img data-detail-payment-qr class="hidden size-36 rounded-lg border border-neutral-200 bg-white object-contain p-2" alt="QR thanh toán">
+                            <input data-detail-payment-link type="text" readonly class="hidden h-11 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-xs font-medium text-neutral-700">
+                        </div>
+                    </section>
+
+                    <section class="mt-4 hidden rounded-lg border border-amber-200 bg-amber-50 p-5" data-detail-cash-proof>
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div class="min-w-0">
+                                <p class="text-xs font-bold uppercase text-amber-700">Bằng chứng thanh toán tiền mặt</p>
+                                <h3 class="mt-1 text-lg font-black text-neutral-950">Ảnh khách hàng đã gửi</h3>
+                                <p class="mt-1 text-sm font-medium text-amber-800">Kiểm tra ảnh chứng từ trước khi xác nhận thanh toán.</p>
+                            </div>
+                            <a data-detail-cash-proof-link href="#" target="_blank" rel="noopener" class="inline-flex h-9 items-center justify-center rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold text-amber-800 transition hover:bg-amber-100">
+                                Mở ảnh gốc
+                            </a>
+                        </div>
+                        <div class="mt-4 overflow-hidden rounded-lg border border-amber-200 bg-white">
+                            <img data-detail-cash-proof-img src="" alt="Bằng chứng thanh toán tiền mặt" class="max-h-[28rem] w-full object-contain">
+                        </div>
+                    </section>
+                    <p class="mt-4 hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" data-detail-error></p>
+
+                    <section data-detail-section="approved" class="mt-4 hidden rounded-lg border border-neutral-200 bg-white p-5">
+                        <div class="mb-4">
+                            <p class="text-xs font-bold uppercase text-neutral-500">Thanh toán</p>
+                            <h3 class="mt-1 text-lg font-black text-neutral-950">Chọn phương thức thanh toán</h3>
+                        </div>
+                        <flux:checkbox.group variant="cards" class="grid gap-3 sm:grid-cols-2" label="Phương thức thanh toán">
+                            <flux:checkbox value="cash" icon="banknotes" label="Thanh toán tiền mặt" description="Upload bằng chứng thanh toán để kế toán duyệt." data-detail-payment-method="cash" />
+                            <flux:checkbox value="online" icon="qr-code" label="Thanh toán Online" description="Tạo QR hoặc link thanh toán qua cổng thanh toán." data-detail-payment-method="online" />
+                        </flux:checkbox.group>
+
+                        <form data-detail-cash-form class="mt-4 hidden rounded-lg border border-amber-200 bg-amber-50 p-4">
+                            <label class="block">
+                                <span class="text-sm font-bold text-neutral-800">Bằng chứng thanh toán</span>
+                                <input type="file" name="photo" accept="image/*" class="mt-2 block w-full rounded-lg border border-neutral-200 bg-white text-sm file:mr-3 file:cursor-pointer file:rounded-l-lg file:border-0 file:bg-primary-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-primary-700">
+                            </label>
+                        </form>
+
+                        <div data-detail-online-panel class="mt-4 hidden space-y-4 rounded-lg border border-primary-200 bg-primary-50/50 p-4">
+                            <div class="grid gap-3 sm:grid-cols-3">
+                                <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-provider-card="sepay">
+                                    <input type="radio" name="detail_provider" value="sepay" class="sr-only">
+                                    <span class="block text-sm font-black text-neutral-950">SePay</span>
+                                    <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Tạo mã QR thanh toán</span>
+                                </label>
+                                <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-provider-card="vnpay">
+                                    <input type="radio" name="detail_provider" value="vnpay" class="sr-only">
+                                    <span class="block text-sm font-black text-neutral-950">VNPAY</span>
+                                    <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Tạo link thanh toán</span>
+                                </label>
+                                <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-provider-card="momo">
+                                    <input type="radio" name="detail_provider" value="momo" class="sr-only">
+                                    <span class="block text-sm font-black text-neutral-950">MoMo</span>
+                                    <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Tạo link MoMo</span>
+                                </label>
+                            </div>
+                            <div data-detail-momo-request class="hidden">
+                                <label class="text-sm font-bold text-neutral-800">requestType</label>
+                                <select data-detail-momo-request-type class="mt-2 h-11 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm font-medium text-neutral-700">
+                                    <option value="captureWallet">captureWallet</option>
+                                    <option value="payWithATM">payWithATM</option>
+                                    <option value="payWithCC">payWithCC</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <div class="flex flex-wrap justify-end gap-2 border-t border-neutral-200 bg-white px-5 py-4 sm:px-7">
+                    <button type="button" hidden data-detail-action="approve" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">Duyệt hóa đơn</button>
+                    <button type="button" hidden data-detail-action="cash-submit" class="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">Gửi xác nhận thanh toán</button>
+                    <button type="button" hidden data-detail-action="confirm-cash" class="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">Xác nhận thanh toán</button>
+                    <button type="button" hidden data-detail-action="online-submit" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">Tạo Mã thanh toán</button>
+                    <button type="button" hidden data-detail-action="regenerate" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">Tạo lại mã thanh toán</button>
+                    <button type="button" hidden data-detail-action="reset-payment-channel" class="inline-flex h-10 items-center justify-center rounded-lg border border-primary-200 bg-white px-4 text-sm font-bold text-primary-700 transition hover:bg-primary-50">Reset về đã duyệt</button>
+                    <button type="button" hidden data-detail-action="reject" class="inline-flex h-10 items-center justify-center rounded-lg border border-orange-200 bg-white px-4 text-sm font-bold text-orange-700 transition hover:bg-orange-50">Không chấp nhận</button>
+                    <button type="button" hidden data-detail-action="cancel" class="inline-flex h-10 items-center justify-center rounded-lg border border-red-200 bg-white px-4 text-sm font-bold text-red-700 transition hover:bg-red-50">Hủy hóa đơn</button>
+                    <button type="button" data-detail-action="close" class="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50">Đóng</button>
                 </div>
             </div>
         </div>
@@ -655,6 +836,7 @@
                 const rejectModal = document.getElementById('invoice-reject-modal');
                 const rejectForm = document.getElementById('invoice-reject-form');
                 const rejectState = { invoiceId: null };
+                const detailState = { invoice: null, method: null, provider: null, regenerateTimer: null };
 
                 const filters = () => ({
                     status: field('status')?.value || '',
@@ -736,7 +918,31 @@
                     const btn = event.target.closest('[data-invoice-detail]');
                     if (!btn) return;
 
-                    openDetailModal(btn);
+                    const rowData = table.row(btn.closest('tr')).data();
+                    openDetailModal(rowData?.detail_payload || null);
+                });
+
+                detailModal?.addEventListener('click', (event) => {
+                    if (event.target.closest('[data-detail-copy-link]')) {
+                        copyDetailPaymentLink();
+                        return;
+                    }
+
+                    const methodCard = event.target.closest('[data-detail-payment-method]');
+                    if (methodCard) {
+                        event.preventDefault();
+                        setDetailMethod(methodCard.dataset.detailPaymentMethod || null);
+                        return;
+                    }
+
+                    const providerCard = event.target.closest('[data-detail-provider-card]');
+                    if (providerCard) {
+                        setDetailProvider(providerCard.dataset.detailProviderCard || null);
+                        return;
+                    }
+
+                    const action = event.target.closest('[data-detail-action]')?.dataset.detailAction;
+                    if (action) handleDetailAction(action, event.target.closest('[data-detail-action]'));
                 });
 
                 root.addEventListener('click', (event) => {
@@ -891,6 +1097,7 @@
                         .then((payload) => {
                             notify(payload.message || 'Đã hủy hóa đơn.');
                             closeCancelModal();
+                            closeDetailModal();
                             reload();
                         })
                         .catch((err) => {
@@ -914,6 +1121,7 @@
                         .then((payload) => {
                             notify(payload.message || 'Đã từ chối chứng từ thanh toán.');
                             closeRejectModal();
+                            closeDetailModal();
                             reload();
                         })
                         .catch((err) => {
@@ -1057,10 +1265,17 @@
                     select.tomselect.setValue('', true);
                 }
 
-                function openDetailModal(button) {
-                    if (!detailModal) return;
+                function openDetailModal(invoice) {
+                    if (!detailModal || !invoice) return;
 
-                    detailModal.querySelector('[data-detail-modal-code]')?.replaceChildren(document.createTextNode(button.dataset.invoiceCode || '-'));
+                    stopDetailRegenerateCountdown();
+                    detailState.invoice = invoice;
+                    detailState.method = null;
+                    detailState.provider = null;
+                    setDetailError('');
+                    setDetailPaymentResult(invoice.payment || {});
+                    renderDetailInfo(invoice);
+                    renderDetailWorkflow(invoice);
                     detailModal.classList.remove('hidden');
                     detailModal.classList.add('flex');
                 }
@@ -1068,8 +1283,381 @@
                 function closeDetailModal() {
                     if (!detailModal) return;
 
+                    stopDetailRegenerateCountdown();
+                    detailState.invoice = null;
+                    detailState.method = null;
+                    detailState.provider = null;
+                    detailModal.querySelector('[data-detail-cash-form]')?.reset();
+                    setDetailError('');
                     detailModal.classList.add('hidden');
                     detailModal.classList.remove('flex');
+                }
+
+                function renderDetailInfo(invoice) {
+                    setDetailText('[data-detail-modal-code]', invoice.invoice_code || '-');
+                    setDetailText('[data-detail-overview-code]', invoice.invoice_code || '-');
+                    setDetailText('[data-detail-summary-code]', invoice.invoice_code || '-');
+                    setDetailText('[data-detail-debt-code]', invoice.debt_code || '-');
+                    setDetailText('[data-detail-amount]', invoice.amount_text || money(invoice.amount || 0));
+                    setDetailText('[data-detail-customer-company]', invoice.customer?.company || '-');
+                    setDetailText('[data-detail-customer-contact]', invoice.customer?.contact || '-');
+                    setDetailText('[data-detail-customer-phone]', invoice.customer?.phone || '-');
+                    setDetailText('[data-detail-customer-email]', invoice.customer?.email || '-');
+                    setDetailText('[data-detail-customer-address]', invoice.customer?.address || '-');
+                    setDetailText('[data-detail-created-at]', invoice.dates?.created || '-');
+                    setDetailText('[data-detail-approved-at]', invoice.dates?.approved || '-');
+                    setDetailText('[data-detail-paid-at]', invoice.dates?.paid || '-');
+                    renderDetailCashProof(invoice);
+
+                    const statusEl = detailModal.querySelector('[data-detail-status]');
+                    if (statusEl) {
+                        statusEl.className = `inline-flex rounded-md px-2.5 py-1 text-xs font-bold ${invoice.status_class || 'bg-neutral-100 text-neutral-700'}`;
+                        statusEl.replaceChildren(document.createTextNode(invoice.status_label || '-'));
+                    }
+                }
+
+                function renderDetailWorkflow(invoice) {
+                    stopDetailRegenerateCountdown();
+                    detailModal.querySelectorAll('[data-detail-section]').forEach((el) => el.classList.add('hidden'));
+                    detailModal.querySelectorAll('[data-detail-action]').forEach((el) => {
+                        el.hidden = true;
+                        el.disabled = false;
+                    });
+
+                    const status = invoice.status;
+                    setDetailText('[data-detail-next-step]', detailNextStep(status, invoice));
+                    toggleDetailAction('close', true);
+
+                    if (status === 'cho_duyet') {
+                        toggleDetailAction('approve', true);
+                        toggleDetailAction('cancel', true);
+                        return;
+                    }
+
+                    if (status === 'da_duyet' || status === 'khong_chap_nhan') {
+                        detailModal.querySelector('[data-detail-section="approved"]')?.classList.remove('hidden');
+                        toggleDetailAction('cancel', true);
+                        setDetailMethod(null);
+                        return;
+                    }
+
+                    if (status === 'da_gui_hoa_don_tt') {
+                        if (invoice.permissions?.confirm_cash) toggleDetailAction('confirm-cash', true);
+                        toggleDetailAction('reject', true);
+                        if (invoice.permissions?.reset_payment_channel) toggleDetailAction('reset-payment-channel', true);
+                        return;
+                    }
+
+                    if (status === 'da_gui_yeu_cau_tt') {
+                        toggleDetailAction('regenerate', true);
+                        toggleDetailAction('cancel', !!invoice.payment?.can_regenerate);
+                        toggleDetailAction('reset-payment-channel', !!invoice.permissions?.reset_payment_channel && !!invoice.payment?.can_regenerate);
+                        const button = detailModal.querySelector('[data-detail-action="regenerate"]');
+                        if (button && invoice.payment && !invoice.payment.can_regenerate) {
+                            startDetailRegenerateCountdown(button, invoice);
+                        } else if (button) {
+                            button.disabled = false;
+                            button.textContent = 'Tạo lại mã thanh toán';
+                        }
+                    }
+                }
+
+                function startDetailRegenerateCountdown(button, invoice) {
+                    const target = invoice.payment?.next_regenerate_at_iso
+                        ? new Date(invoice.payment.next_regenerate_at_iso).getTime()
+                        : null;
+
+                    if (!target || Number.isNaN(target)) {
+                        button.disabled = true;
+                        button.textContent = invoice.payment?.next_regenerate_at
+                            ? `Tạo lại sau ${invoice.payment.next_regenerate_at}`
+                            : 'Chưa thể tạo lại';
+                        return;
+                    }
+
+                    const tick = () => {
+                        const remaining = target - Date.now();
+                        if (remaining <= 0) {
+                            stopDetailRegenerateCountdown();
+                            invoice.payment.can_regenerate = true;
+                            button.disabled = false;
+                            button.textContent = 'Tạo lại mã thanh toán';
+                            toggleDetailAction('cancel', true);
+                            toggleDetailAction('reset-payment-channel', !!invoice.permissions?.reset_payment_channel);
+                            setDetailText('[data-detail-next-step]', detailNextStep(invoice.status, invoice));
+                            return;
+                        }
+
+                        button.disabled = true;
+                        button.textContent = `Tạo lại sau ${formatCountdown(remaining)}`;
+                    };
+
+                    tick();
+                    detailState.regenerateTimer = window.setInterval(tick, 1000);
+                }
+
+                function stopDetailRegenerateCountdown() {
+                    if (!detailState.regenerateTimer) return;
+
+                    window.clearInterval(detailState.regenerateTimer);
+                    detailState.regenerateTimer = null;
+                }
+
+                function formatCountdown(milliseconds) {
+                    const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+                    const minutes = Math.floor(totalSeconds / 60);
+                    const seconds = totalSeconds % 60;
+
+                    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }
+
+                function detailNextStep(status, invoice) {
+                    if (status === 'cho_duyet') return 'Kiểm tra thông tin và duyệt hoặc hủy hóa đơn.';
+                    if (status === 'da_duyet' || status === 'khong_chap_nhan') return 'Chọn hình thức thanh toán và gửi xác nhận hoặc tạo mã thanh toán.';
+                    if (status === 'da_gui_hoa_don_tt') return 'Đang chờ duyệt bằng chứng thanh toán tiền mặt.';
+                    if (status === 'da_gui_yeu_cau_tt') {
+                        return invoice.payment?.can_regenerate
+                            ? 'Có thể tạo lại mã thanh toán hoặc hủy hóa đơn.'
+                            : `Đã gửi yêu cầu thanh toán. Có thể tạo lại sau ${invoice.payment?.next_regenerate_at || '15 phút'}.`;
+                    }
+                    if (status === 'da_thanh_toan') return 'Hóa đơn đã thanh toán, chỉ cần theo dõi lưu trữ.';
+                    if (status === 'huy') return 'Hóa đơn đã hủy, không còn thao tác xử lý.';
+                    return 'Theo dõi trạng thái và xử lý theo quyền hiện tại.';
+                }
+
+                function setDetailMethod(method) {
+                    detailState.method = method;
+                    syncDetailMethodCards(method);
+                    requestAnimationFrame(() => syncDetailMethodCards(method));
+
+                    detailModal.querySelector('[data-detail-cash-form]')?.classList.toggle('hidden', method !== 'cash');
+                    detailModal.querySelector('[data-detail-online-panel]')?.classList.toggle('hidden', method !== 'online');
+                    toggleDetailAction('cash-submit', method === 'cash');
+                    toggleDetailAction('online-submit', method === 'online');
+                    if (method === 'online' && !detailState.provider) setDetailProvider('sepay');
+                }
+
+                function syncDetailMethodCards(method) {
+                    detailModal.querySelectorAll('[data-detail-payment-method]').forEach((el) => {
+                        const checked = el.dataset.detailPaymentMethod === method;
+                        el.dataset.checked = checked ? 'true' : 'false';
+                        el.setAttribute('aria-checked', checked ? 'true' : 'false');
+                        el.querySelectorAll('[role="checkbox"]').forEach((checkbox) => {
+                            checkbox.setAttribute('aria-checked', checked ? 'true' : 'false');
+                            checkbox.dataset.checked = checked ? 'true' : 'false';
+                        });
+                        el.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+                            input.checked = checked;
+                            input.toggleAttribute('checked', checked);
+                        });
+                    });
+                }
+
+                function setDetailProvider(provider) {
+                    detailState.provider = provider;
+                    detailModal.querySelectorAll('[data-detail-provider-card]').forEach((el) => {
+                        const active = el.dataset.detailProviderCard === provider;
+                        el.classList.toggle('border-primary-500', active);
+                        el.classList.toggle('ring-2', active);
+                        el.classList.toggle('ring-primary-100', active);
+                        el.querySelector('input[type="radio"]')?.toggleAttribute('checked', active);
+                    });
+                    detailModal.querySelector('[data-detail-momo-request]')?.classList.toggle('hidden', provider !== 'momo');
+                }
+
+                function handleDetailAction(action, button) {
+                    const invoice = detailState.invoice;
+                    if (!invoice) return;
+
+                    if (action === 'close') {
+                        closeDetailModal();
+                        return;
+                    }
+
+                    if (action === 'cancel') {
+                        openCancelModal(detailDataset('invoiceCancel'));
+                        return;
+                    }
+
+                    if (action === 'reject') {
+                        openRejectModal(detailDataset('invoiceRejectPayment'));
+                        return;
+                    }
+
+                    if (action === 'approve') {
+                        runDetailJson(button, `${routes.approve}/${invoice.id}/approve`, {}, 'Đã duyệt hóa đơn.');
+                        return;
+                    }
+
+                    if (action === 'cash-submit') {
+                        const form = detailModal.querySelector('[data-detail-cash-form]');
+                        if (!form) return;
+                        runDetailForm(button, `${routes.cash}/${invoice.id}/cash`, new FormData(form), 'Đã gửi xác nhận thanh toán.');
+                        return;
+                    }
+
+                    if (action === 'confirm-cash') {
+                        if (!window.confirm('Xác nhận đã thu tiền mặt cho hóa đơn này?')) return;
+                        runDetailJson(button, `${routes.confirmCash}/${invoice.id}/confirm-cash`, {}, 'Đã xác nhận thanh toán.');
+                        return;
+                    }
+
+                    if (action === 'online-submit') {
+                        const provider = detailState.provider || 'sepay';
+                        const payload = { provider };
+                        if (provider === 'momo') {
+                            payload.request_type = detailModal.querySelector('[data-detail-momo-request-type]')?.value || 'captureWallet';
+                        }
+                        runDetailJson(button, `${routes.qr}/${invoice.id}/qr`, payload, 'Đã tạo yêu cầu thanh toán online.', true);
+                        return;
+                    }
+
+                    if (action === 'regenerate') {
+                        runDetailJson(button, `${routes.regenerateQr}/${invoice.id}/regenerate-qr`, {}, 'Đã tạo lại yêu cầu thanh toán online.', true);
+                        return;
+                    }
+
+                    if (action === 'reset-payment-channel') {
+                        if (!window.confirm('Reset hóa đơn về trạng thái Đã duyệt để chọn lại kênh thanh toán?')) return;
+                        runDetailJson(button, `${routes.resetPaymentChannel}/${invoice.id}/reset-payment-channel`, {}, 'Đã reset hóa đơn về trạng thái Đã duyệt.');
+                    }
+                }
+
+                function renderDetailCashProof(invoice) {
+                    const box = detailModal.querySelector('[data-detail-cash-proof]');
+                    const image = detailModal.querySelector('[data-detail-cash-proof-img]');
+                    const link = detailModal.querySelector('[data-detail-cash-proof-link]');
+                    const photoUrl = invoice.payment?.photo_url || '';
+                    const show = invoice.status === 'da_gui_hoa_don_tt' && !!photoUrl;
+
+                    box?.classList.toggle('hidden', !show);
+                    if (image) image.src = show ? photoUrl : '';
+                    if (link) link.href = show ? photoUrl : '#';
+                }
+
+                function runDetailJson(button, url, payload, fallbackMessage, keepOpen = false) {
+                    setDetailBusy(button, true);
+                    setDetailError('');
+                    postJson(url, payload)
+                        .then((response) => {
+                            notify(response.message || fallbackMessage);
+                            if (keepOpen) {
+                                updateDetailAfterPaymentRequest(response);
+                            } else {
+                                closeDetailModal();
+                            }
+                            reload();
+                        })
+                        .catch((err) => setDetailError(err?.message || 'Không thể xử lý yêu cầu. Vui lòng thử lại.'))
+                        .finally(() => setDetailBusy(button, false));
+                }
+
+                function runDetailForm(button, url, formData, fallbackMessage) {
+                    setDetailBusy(button, true);
+                    setDetailError('');
+                    postForm(url, formData)
+                        .then((response) => {
+                            notify(response.message || fallbackMessage);
+                            closeDetailModal();
+                            reload();
+                        })
+                        .catch((err) => setDetailError(err?.message || 'Không thể xử lý yêu cầu. Vui lòng thử lại.'))
+                        .finally(() => setDetailBusy(button, false));
+                }
+
+                function setDetailPaymentResult(payment) {
+                    const qrUrl = payment.qr_url || null;
+                    const paymentUrl = payment.payment_url || null;
+                    const provider = payment.provider || detailState.provider || detailState.invoice?.payment?.provider || null;
+                    const showQr = !!qrUrl && provider === 'sepay';
+                    const linkValue = showQr ? '' : (paymentUrl || qrUrl || '');
+                    const box = detailModal.querySelector('[data-detail-payment-result]');
+                    const qr = detailModal.querySelector('[data-detail-payment-qr]');
+                    const link = detailModal.querySelector('[data-detail-payment-link]');
+                    const download = detailModal.querySelector('[data-detail-download-qr]');
+                    const copy = detailModal.querySelector('[data-detail-copy-link]');
+
+                    box?.classList.toggle('hidden', !qrUrl && !paymentUrl);
+                    setDetailText('[data-detail-payment-result-title]', showQr ? 'Mã QR thanh toán' : 'Link thanh toán');
+                    if (qr) {
+                        qr.src = qrUrl || '';
+                        qr.hidden = !showQr;
+                        qr.classList.toggle('hidden', !showQr);
+                    }
+                    if (download) {
+                        download.href = qrUrl || '#';
+                        download.hidden = !showQr;
+                        download.classList.toggle('hidden', !showQr);
+                    }
+                    if (link) {
+                        link.value = linkValue;
+                        link.hidden = !linkValue;
+                        link.classList.toggle('hidden', !linkValue);
+                    }
+                    if (copy) {
+                        copy.hidden = !linkValue;
+                        copy.classList.toggle('hidden', !linkValue);
+                    }
+                }
+
+                function updateDetailAfterPaymentRequest(response) {
+                    if (!detailState.invoice) return;
+
+                    detailState.invoice.status = 'da_gui_yeu_cau_tt';
+                    detailState.invoice.status_label = 'Đã gửi yêu cầu thanh toán';
+                    detailState.invoice.status_class = 'bg-indigo-100 text-indigo-700';
+                    detailState.invoice.payment = {
+                        ...(detailState.invoice.payment || {}),
+                        provider: response.provider || detailState.provider,
+                        qr_url: response.qr_url || null,
+                        payment_url: response.payment_url || null,
+                        can_regenerate: false,
+                        next_regenerate_at: null,
+                        next_regenerate_at_iso: response.next_regenerate_at_iso || null,
+                    };
+                    renderDetailInfo(detailState.invoice);
+                    renderDetailWorkflow(detailState.invoice);
+                    setDetailPaymentResult(detailState.invoice.payment);
+                }
+
+                function copyDetailPaymentLink() {
+                    const value = detailModal.querySelector('[data-detail-payment-link]')?.value || '';
+                    if (!value) return;
+
+                    navigator.clipboard?.writeText(value)
+                        .then(() => notify('Đã copy link thanh toán.'))
+                        .catch(() => window.prompt('Copy link thanh toán', value));
+                }
+
+                function setDetailText(selector, value) {
+                    detailModal.querySelector(selector)?.replaceChildren(document.createTextNode(value || '-'));
+                }
+
+                function setDetailError(message) {
+                    const error = detailModal?.querySelector('[data-detail-error]');
+                    if (!error) return;
+                    error.textContent = message || '';
+                    error.classList.toggle('hidden', !message);
+                }
+
+                function setDetailBusy(button, busy) {
+                    if (button) button.disabled = busy;
+                }
+
+                function toggleDetailAction(action, show) {
+                    const el = detailModal.querySelector(`[data-detail-action="${action}"]`);
+                    if (el) el.hidden = !show;
+                }
+
+                function detailDataset(actionKey) {
+                    const invoice = detailState.invoice || {};
+                    return {
+                        dataset: {
+                            [actionKey]: invoice.id || '',
+                            invoiceCode: invoice.invoice_code || '-',
+                            invoiceAmount: invoice.amount_text || money(invoice.amount || 0),
+                        },
+                    };
                 }
 
                 function openCashModal(button) {
