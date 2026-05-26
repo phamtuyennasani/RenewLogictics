@@ -59,7 +59,7 @@ class CongNoDaiLyPayment extends Model
     {
         static::creating(function (CongNoDaiLyPayment $invoice): void {
             $invoice->loai_hoa_don ??= InvoiceTypeEnum::CHI->value;
-            $invoice->status ??= InvoicePaymentStatusEnum::MOI_TAO->value;
+            $invoice->status ??= InvoicePaymentStatusEnum::CHO_DUYET->value;
 
             if (empty($invoice->ma_hoa_don)) {
                 $generator = app(InvoiceCodeGenerator::class);
@@ -134,7 +134,7 @@ class CongNoDaiLyPayment extends Model
     public function canMarkPaid(?User $user): bool
     {
         return $this->hasStaffPower($user)
-            && $this->status === InvoicePaymentStatusEnum::MOI_TAO;
+            && $this->status === InvoicePaymentStatusEnum::CHO_DUYET;
     }
 
     public function canCancel(?User $user): bool

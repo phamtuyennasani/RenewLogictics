@@ -87,7 +87,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                     'amount' => $amount,
                     'due_at' => $debt->hanthanhtoan,
                     'note' => $data['invoiceNote'] ?: 'Hóa đơn chi cho đại lý ' . ($debt->daily?->namevi ?: $debt->daily?->nameen ?: ''),
-                    'status' => InvoicePaymentStatusEnum::MOI_TAO->value,
+                    'status' => InvoicePaymentStatusEnum::CHO_DUYET->value,
                     'loai_hoa_don' => InvoiceTypeEnum::CHI->value,
                 ]);
             });

@@ -40,7 +40,17 @@
       "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Http/Controllers/CongNo/CongNoDataTableController.php\")",
       "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Http/Controllers/CongNo/CongNoDaiLyDataTableController.php\")",
       "mcp__plugin_context-mode_context-mode__ctx_search",
-      "mcp__plugin_context-mode_context-mode__ctx_fetch_and_index"
+      "mcp__plugin_context-mode_context-mode__ctx_fetch_and_index",
+      "WebFetch(domain:developers.momo.vn)",
+      "WebSearch",
+      "Bash(git -C \"/h/laragon/www/Hethong/hethong-laravel\" diff --staged)",
+      "Bash(git -C \"/h/laragon/www/Hethong/hethong-laravel\" diff)",
+      "WebFetch(domain:sandbox.vnpayment.vn)",
+      "mcp__plugin_ecc_context7__resolve-library-id",
+      "mcp__plugin_ecc_exa__web_search_exa",
+      "Bash(php h:/laragon/www/Hethong/hethong-laravel/test_payment_providers.php)",
+      "Bash(php -l h:/laragon/www/Hethong/hethong-laravel/app/Services/Providers/MoMo/MoMoPaymentService.php)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

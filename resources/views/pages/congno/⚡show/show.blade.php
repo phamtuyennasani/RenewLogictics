@@ -12,6 +12,8 @@
     $availableForInvoice = $this->availableForNewInvoice;
     $sortedInvoices = $debt->payments->sortByDesc(fn ($p) => $p->created_at?->timestamp ?? 0);
     $payingInvoice = $this->payingInvoice;
+    $dueDate = $debt->hanthanhtoan;
+    $isOverdue = $dueDate && $dueDate->isPast() && $remainingAmount > 0;
 @endphp
 
 <div class="space-y-5">
@@ -371,6 +373,9 @@
                                     @if ($invoice->cancelled_at)
                                         <p class="mt-1 text-xs text-red-600">Hủy: {{ $invoice->cancelled_at->format('H:i d/m/Y') }}</p>
                                     @endif
+                                    @if ($invoice->payment_rejected_at)
+                                        <p class="mt-1 text-xs text-orange-600">Từ chối: {{ $invoice->payment_rejected_at->format('H:i d/m/Y') }}</p>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-4 align-top">
                                     <p class="font-semibold text-neutral-800">{{ $invoice->method ? ucfirst(str_replace('_', ' ', $invoice->method)) : '-' }}</p>
@@ -395,12 +400,18 @@
                                     @endif
                                 </td>
                                 <td class="px-4 py-4 align-top">
-                                    <p class="max-w-[260px] truncate text-neutral-700" title="{{ $invoice->note }}">{{ $invoice->note ?: '-' }}</p>
+                                    <p class=" truncate text-neutral-700" title="{{ $invoice->note }}">{{ $invoice->note ?: '-' }}</p>
                                     @if ($invoice->cancel_reason)
-                                        <p class="mt-1 max-w-[260px] text-xs text-red-600" title="{{ $invoice->cancel_reason }}">Lý do hủy: {{ $invoice->cancel_reason }}</p>
+                                        <p class="mt-1  text-xs text-red-600" title="{{ $invoice->cancel_reason }}">Lý do hủy: {{ $invoice->cancel_reason }}</p>
                                     @endif
                                     @if ($invoice->cancelledBy)
                                         <p class="mt-1 text-xs text-red-600">Người hủy: {{ $invoice->cancelledBy->fullname ?: $invoice->cancelledBy->username }}</p>
+                                    @endif
+                                    @if ($invoice->payment_rejection_reason)
+                                        <p class="mt-1  text-xs text-orange-600" title="{{ $invoice->payment_rejection_reason }}">Lý do từ chối: {{ $invoice->payment_rejection_reason }}</p>
+                                    @endif
+                                    @if ($invoice->paymentRejector)
+                                        <p class="mt-1 text-xs text-orange-600">Người từ chối: {{ $invoice->paymentRejector->fullname ?: $invoice->paymentRejector->username }}</p>
                                     @endif
                                 </td>
                             </tr>
@@ -659,11 +670,40 @@
                     <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedMethod === 'bank_transfer' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
                         <input type="radio" wire:model.live="selectedMethod" value="bank_transfer" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
                         <div class="min-w-0">
-                            <p class="text-sm font-semibold text-neutral-900">Chuyển khoản (SePay QR)</p>
-                            <p class="mt-0.5 text-xs text-neutral-500">Tạo mã QR và gửi cho khách. Hệ thống tự xác nhận khi nhận tiền.</p>
+                            <p class="text-sm font-semibold text-neutral-900">Chuyển khoản online</p>
+                            <p class="mt-0.5 text-xs text-neutral-500">Tạo link thanh toán qua cổng. Hệ thống tự xác nhận khi nhận tiền.</p>
                         </div>
                     </label>
                 </div>
+
+                @if ($selectedMethod === 'bank_transfer')
+                    <div class="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
+                        <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">Chọn cổng thanh toán</p>
+                        <div class="grid gap-2 sm:grid-cols-3">
+                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition {{ $selectedProvider === 'sepay' ? 'border-primary-400 bg-primary-50/70 ring-2 ring-primary-100' : 'border-neutral-200 bg-white hover:border-primary-200' }}">
+                                <input type="radio" wire:model.live="selectedProvider" value="sepay" class="h-4 w-4 text-primary-600 focus:ring-primary-500">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-neutral-900">SePay (QR Banking)</p>
+                                    <p class="text-xs text-neutral-500">Thanh toán qua app ngân hàng, ví điện tử.</p>
+                                </div>
+                            </label>
+                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition {{ $selectedProvider === 'momo' ? 'border-pink-400 bg-pink-50/70 ring-2 ring-pink-100' : 'border-neutral-200 bg-white hover:border-pink-200' }}">
+                                <input type="radio" wire:model.live="selectedProvider" value="momo" class="h-4 w-4 text-pink-600 focus:ring-pink-500">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-neutral-900">MoMo</p>
+                                    <p class="text-xs text-neutral-500">Thanh toán nhanh qua ví MoMo.</p>
+                                </div>
+                            </label>
+                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition {{ $selectedProvider === 'vnpay' ? 'border-sky-400 bg-sky-50/70 ring-2 ring-sky-100' : 'border-neutral-200 bg-white hover:border-sky-200' }}">
+                                <input type="radio" wire:model.live="selectedProvider" value="vnpay" class="h-4 w-4 text-sky-600 focus:ring-sky-500">
+                                <div class="min-w-0">
+                                    <p class="text-sm font-semibold text-neutral-900">VNPAY</p>
+                                    <p class="text-xs text-neutral-500">Chuyển hướng sang cổng thanh toán VNPAY.</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                @endif
 
                 @if ($selectedMethod === 'cash')
                     <form wire:submit="submitCashPayment" class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
@@ -692,7 +732,7 @@
                     <div class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
                         <div class="flex items-start gap-2 text-sm text-neutral-600">
                             <flux:icon.information-circle class="mt-0.5 size-4 text-rose-500" />
-                            <p>Khi bấm "Tạo mã QR", hệ thống sẽ sinh QR thanh toán SePay. Khách quét QR và chuyển khoản; webhook sẽ tự cập nhật trạng thái sang "Đã thanh toán".</p>
+                            <p>Khi bấm "Tạo mã QR", hệ thống sẽ sinh yêu cầu thanh toán theo cổng đã chọn. SePay tạo QR ngân hàng, MoMo tạo link/ví MoMo, VNPAY tạo link chuyển hướng; webhook sẽ tự cập nhật trạng thái sang "Đã thanh toán".</p>
                         </div>
                         <div class="flex items-center justify-end gap-2 border-t border-neutral-200 pt-3">
                             <flux:button type="button" variant="outline" wire:click="closePayModal">Hủy</flux:button>

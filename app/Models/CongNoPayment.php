@@ -50,6 +50,9 @@ class CongNoPayment extends Model
         'cancelled_at',
         'id_cancelled_by',
         'cancel_reason',
+        'payment_rejection_reason',
+        'payment_rejected_at',
+        'payment_rejected_by',
     ];
 
     protected $casts = [
@@ -61,6 +64,7 @@ class CongNoPayment extends Model
         'qr_generated_at' => 'datetime',
         'qr_expires_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'payment_rejected_at' => 'datetime',
         'provider_payload' => 'array',
         'status' => InvoicePaymentStatusEnum::class,
         'loai_hoa_don' => InvoiceTypeEnum::class,
@@ -72,7 +76,7 @@ class CongNoPayment extends Model
     {
         static::creating(function (CongNoPayment $invoice): void {
             $invoice->loai_hoa_don ??= InvoiceTypeEnum::THU->value;
-            $invoice->status ??= InvoicePaymentStatusEnum::MOI_TAO->value;
+            $invoice->status ??= InvoicePaymentStatusEnum::CHO_DUYET->value;
 
             if (empty($invoice->ma_hoa_don)) {
                 $generator = app(InvoiceCodeGenerator::class);
@@ -113,6 +117,11 @@ class CongNoPayment extends Model
         return $this->belongsTo(User::class, 'id_cancelled_by');
     }
 
+    public function paymentRejector()
+    {
+        return $this->belongsTo(User::class, 'payment_rejected_by');
+    }
+
     public function logs()
     {
         return $this->hasMany(InvoicePaymentLog::class, 'congno_payment_id');
@@ -146,10 +155,15 @@ class CongNoPayment extends Model
         return $user instanceof User && $user->hasAnyRole(['admin', 'manager', 'ketoan']);
     }
 
+    public function hasPaymentApprovalPower(?User $user): bool
+    {
+        return $user instanceof User && $user->hasAnyRole(['admin', 'ketoan']);
+    }
+
     public function canApprove(?User $user): bool
     {
         return $this->hasStaffPower($user)
-            && $this->status === InvoicePaymentStatusEnum::MOI_TAO;
+            && $this->status === InvoicePaymentStatusEnum::CHO_DUYET;
     }
 
     public function canCancel(?User $user): bool
@@ -173,13 +187,30 @@ class CongNoPayment extends Model
             return false;
         }
 
-        return $this->status === InvoicePaymentStatusEnum::DA_DUYET
-            && ($this->isCreator($user) || $this->hasStaffPower($user));
+        $allowedFrom = [
+            InvoicePaymentStatusEnum::DA_DUYET,
+            InvoicePaymentStatusEnum::KHONG_CHAP_NHAN,
+        ];
+
+        return in_array($this->status, $allowedFrom, true)
+            && ($this->isCreator($user) || $this->hasStaffPower($user) || $user->hasRole('sale'));
+    }
+
+    public function canApprovePayment(?User $user): bool
+    {
+        return $this->hasPaymentApprovalPower($user)
+            && $this->status === InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT;
+    }
+
+    public function canRejectPayment(?User $user): bool
+    {
+        return $this->hasPaymentApprovalPower($user)
+            && $this->status === InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT;
     }
 
     public function canConfirmCashPayment(?User $user): bool
     {
-        return $this->hasStaffPower($user)
+        return $this->hasPaymentApprovalPower($user)
             && $this->status === InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT;
     }
 
@@ -187,6 +218,22 @@ class CongNoPayment extends Model
     {
         return $this->status === InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT
             && ($this->isCreator($user) || $this->hasStaffPower($user));
+    }
+
+    public function hasRejectionMetadata(): bool
+    {
+        return $this->payment_rejection_reason !== null
+            || $this->payment_rejected_at !== null
+            || $this->payment_rejected_by !== null;
+    }
+
+    public function clearRejectionMetadata(): void
+    {
+        $this->forceFill([
+            'payment_rejection_reason' => null,
+            'payment_rejected_at' => null,
+            'payment_rejected_by' => null,
+        ])->save();
     }
 
     public function canRegenerateQr(): bool

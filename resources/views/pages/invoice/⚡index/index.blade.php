@@ -154,19 +154,18 @@
 
             <div class="overflow-hidden">
                 <div class="overflow-x-auto">
-                    <table id="invoices-table" class="w-full min-w-[1700px] text-left text-sm">
+                    <table id="invoices-table" class="w-full min-w-[1500px] text-left text-sm">
                         <thead class="bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                             <tr>
                                 <th class="px-3 py-3">Mã hóa đơn</th>
-                                <th class="px-3 py-3">Công nợ gốc</th>
-                                <th class="px-3 py-3">Khách hàng</th>
-                                <th class="px-3 py-3">Sale</th>
-                                <th class="px-3 py-3 text-right">Số tiền</th>
+                                <th class="px-3 py-3">Mã Công nợ</th>
                                 <th class="px-3 py-3">Trạng thái</th>
-                                <th class="px-3 py-3">Ngày tạo</th>
-                                <th class="px-3 py-3">Ngày thanh toán</th>
+                                <th class="px-3 py-3">Khách hàng</th>
+                                <th class="px-3 py-3">Sale phụ trách</th>
+                                <th class="px-3 py-3 text-right">Số tiền thanh toán</th>
+                                <th class="px-3 py-3">Ngày tạo / Duyệt / Thanh toán</th>
                                 <th class="px-3 py-3">Người tạo</th>
-                                <th class="px-3 py-3">Thao tác</th>
+                                <th class="px-3 py-3">Chi tiết</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-neutral-100 bg-white"></tbody>
@@ -285,6 +284,29 @@
             </div>
         </flux:modal>
 
+        <div id="invoice-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+            <div class="w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
+                <div class="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-neutral-950">Chi tiết hóa đơn</h2>
+                        <p class="mt-1 font-mono text-sm text-neutral-500" data-detail-modal-code>-</p>
+                    </div>
+                    <button type="button" id="invoice-detail-close" class="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800">
+                        <span class="sr-only">Đóng</span>
+                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="grid gap-3 py-5">
+                    <div class="h-3 w-2/3 rounded bg-neutral-100"></div>
+                    <div class="h-3 w-1/2 rounded bg-neutral-100"></div>
+                    <div class="h-3 w-3/4 rounded bg-neutral-100"></div>
+                </div>
+            </div>
+        </div>
+
         <div id="invoice-cash-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
             <form id="invoice-cash-form" class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
                 <div class="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
@@ -360,11 +382,168 @@
                 </div>
             </form>
         </div>
+
+        {{-- Modal từ chối chứng từ thanh toán --}}
+        <div id="invoice-reject-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+            <form id="invoice-reject-form" class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+                <div class="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-neutral-950">Từ chối chứng từ thanh toán</h2>
+                        <p class="mt-1 text-sm text-neutral-500">
+                            <span data-reject-modal-code>-</span>
+                            <span class="mx-1">/</span>
+                            <span data-reject-modal-amount>-</span>
+                        </p>
+                    </div>
+                    <button type="button" id="invoice-reject-close" class="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800">
+                        <span class="sr-only">Đóng</span>
+                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="py-4">
+                    <label class="block">
+                        <span class="text-sm font-semibold text-neutral-700">Lý do từ chối <span class="text-red-500">*</span></span>
+                        <textarea name="payment_rejection_reason" rows="4" class="mt-2 block w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm" placeholder="Nhập lý do từ chối chứng từ thanh toán" required></textarea>
+                    </label>
+                    <p class="mt-2 hidden text-sm text-red-600" data-reject-modal-error></p>
+                </div>
+
+                <div class="flex justify-end gap-2 border-t border-neutral-100 pt-4">
+                    <button type="button" id="invoice-reject-dismiss" class="inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">
+                        Đóng
+                    </button>
+                    <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg bg-orange-600 px-4 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        Từ chối
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 @push('styles')
     <link rel="stylesheet" href="{{ asset('assets/datatables/dataTables.tailwindcss.css') }}">
+    <style>
+        #invoice-index-page .dt-container,
+        #invoice-index-page .dt-layout-table {
+            position: relative;
+        }
+
+        #invoice-index-page .dt-processing {
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            display: none;
+            width: auto;
+            min-height: 16rem;
+            margin: 0;
+            padding: 0;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            background: rgb(255 255 255 / 0.72);
+            backdrop-filter: blur(1.5px);
+            color: #374151;
+            font-size: 0.875rem;
+            font-weight: 600;
+            line-height: 1.25rem;
+            pointer-events: none;
+        }
+
+        #invoice-index-page .dt-processing[style*="display: block"],
+        #invoice-index-page .dt-processing[style*="display:block"] {
+            display: flex !important;
+        }
+
+        #invoice-index-page .dt-processing::before {
+            content: "";
+            width: 1rem;
+            height: 1rem;
+            flex: 0 0 auto;
+            border: 2px solid #bfdbfe;
+            border-top-color: #2563eb;
+            border-radius: 999px;
+            animation: invoice-processing-spin 0.75s linear infinite;
+        }
+
+        #invoice-index-page .dt-processing::after {
+            content: "";
+            position: absolute;
+            z-index: -1;
+            width: 13.5rem;
+            height: 2.875rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 999px;
+            background: #fff;
+            box-shadow: 0 18px 45px rgb(15 23 42 / 0.16);
+        }
+
+        #invoice-index-page .dt-processing > div:first-child {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        #invoice-index-page .dt-processing > div:last-child {
+            display: none;
+        }
+
+        #invoice-index-page td.dt-empty {
+            padding: 0 !important;
+            border-bottom: 0;
+        }
+
+        #invoice-index-page .invoice-empty-state {
+            display: flex;
+            min-height: 15rem;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+            padding: 2.5rem 1rem;
+            color: #525252;
+            text-align: center;
+        }
+
+        #invoice-index-page .invoice-empty-state-icon {
+            display: flex;
+            width: 3rem;
+            height: 3rem;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e5e5e5;
+            border-radius: 1rem;
+            background: #fafafa;
+            color: #737373;
+            box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8);
+        }
+
+        #invoice-index-page .invoice-empty-state-title {
+            margin: 0;
+            color: #171717;
+            font-size: 0.9375rem;
+            font-weight: 750;
+            line-height: 1.25rem;
+        }
+
+        #invoice-index-page .invoice-empty-state-text {
+            margin: 0;
+            max-width: 28rem;
+            color: #737373;
+            font-size: 0.875rem;
+            line-height: 1.375rem;
+        }
+
+        @keyframes invoice-processing-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 @endpush
 
 @push('scripts')
@@ -466,12 +645,16 @@
                 });
 
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+                const detailModal = document.getElementById('invoice-detail-modal');
                 const cashModal = document.getElementById('invoice-cash-modal');
                 const cashForm = document.getElementById('invoice-cash-form');
                 const cashState = { invoiceId: null };
                 const cancelModal = document.getElementById('invoice-cancel-modal');
                 const cancelForm = document.getElementById('invoice-cancel-form');
                 const cancelState = { invoiceId: null };
+                const rejectModal = document.getElementById('invoice-reject-modal');
+                const rejectForm = document.getElementById('invoice-reject-form');
+                const rejectState = { invoiceId: null };
 
                 const filters = () => ({
                     status: field('status')?.value || '',
@@ -506,26 +689,24 @@
                     columns: [
                         { data: 'invoice_code', orderable: false, searchable: false },
                         { data: 'debt_code', orderable: false, searchable: false },
+                        { data: 'status_badge', orderable: false, searchable: false },
                         { data: 'customer_info', orderable: false, searchable: false },
                         { data: 'sale_info', orderable: false, searchable: false },
                         { data: 'amount', orderable: false, searchable: false },
-                        { data: 'status_badge', orderable: false, searchable: false },
-                        { data: 'created_at', orderable: false, searchable: false },
-                        { data: 'paid_at', orderable: false, searchable: false },
+                        { data: 'date_timeline', orderable: false, searchable: false },
                         { data: 'creator', orderable: false, searchable: false },
                         { data: 'actions', orderable: false, searchable: false },
                     ],
                     columnDefs: [
                         { targets: 0, width: '160px' },
                         { targets: 1, width: '140px' },
-                        { targets: 2, width: '200px' },
-                        { targets: 3, width: '150px' },
-                        { targets: 4, width: '140px' },
-                        { targets: 5, width: '180px' },
-                        { targets: 6, width: '140px' },
-                        { targets: 7, width: '140px' },
-                        { targets: 8, width: '140px' },
-                        { targets: 9, width: '360px' },
+                        { targets: 2, width: '150px' },
+                        { targets: 3, width: '240px' },
+                        { targets: 4, width: '150px' },
+                        { targets: 5, width: '100px'},
+                        { targets: 6, width: '200px' },
+                        { targets: 7, width: '160px' },
+                        { targets: 8, width: '100px' },
                     ],
                     initComplete: markReady,
                 });
@@ -549,6 +730,13 @@
 
                 jQuery(tableEl).on('draw.dt', () => {
                     toggleEmptyTableChrome();
+                });
+
+                root.addEventListener('click', (event) => {
+                    const btn = event.target.closest('[data-invoice-detail]');
+                    if (!btn) return;
+
+                    openDetailModal(btn);
                 });
 
                 root.addEventListener('click', (event) => {
@@ -577,15 +765,16 @@
                 });
 
                 root.addEventListener('click', (event) => {
-                    const btn = event.target.closest('[data-invoice-qr]');
+                    const btn = event.target.closest('[data-invoice-qr-sepay], [data-invoice-qr-momo], [data-invoice-qr-vnpay]');
                     if (!btn) return;
 
-                    const invoiceId = btn.dataset.invoiceQr;
+                    const invoiceId = btn.dataset.invoiceQrSepay || btn.dataset.invoiceQrMomo || btn.dataset.invoiceQrVnpay;
+                    const provider = btn.dataset.invoiceQrVnpay ? 'vnpay' : (btn.dataset.invoiceQrMomo ? 'momo' : 'sepay');
                     btn.disabled = true;
 
-                    postJson(`${routes.qr}/${invoiceId}/qr`, {})
+                    postJson(`${routes.qr}/${invoiceId}/qr`, { provider })
                         .then((payload) => {
-                            notify(payload.message || 'Đã tạo QR thanh toán.');
+                            notify(payload.message || 'Đã tạo yêu cầu thanh toán online.');
                             reload();
                         })
                         .catch((err) => {
@@ -639,6 +828,17 @@
                     openCancelModal(btn);
                 });
 
+                root.addEventListener('click', (event) => {
+                    const btn = event.target.closest('[data-invoice-reject-payment]');
+                    if (!btn) return;
+
+                    openRejectModal(btn);
+                });
+
+                document.getElementById('invoice-detail-close')?.addEventListener('click', closeDetailModal);
+                detailModal?.addEventListener('click', (event) => {
+                    if (event.target === detailModal) closeDetailModal();
+                });
                 document.getElementById('invoice-cash-close')?.addEventListener('click', closeCashModal);
                 document.getElementById('invoice-cash-cancel')?.addEventListener('click', closeCashModal);
                 cashModal?.addEventListener('click', (event) => {
@@ -648,6 +848,11 @@
                 document.getElementById('invoice-cancel-dismiss')?.addEventListener('click', closeCancelModal);
                 cancelModal?.addEventListener('click', (event) => {
                     if (event.target === cancelModal) closeCancelModal();
+                });
+                document.getElementById('invoice-reject-close')?.addEventListener('click', closeRejectModal);
+                document.getElementById('invoice-reject-dismiss')?.addEventListener('click', closeRejectModal);
+                rejectModal?.addEventListener('click', (event) => {
+                    if (event.target === rejectModal) closeRejectModal();
                 });
 
                 cashForm?.addEventListener('submit', (event) => {
@@ -690,6 +895,29 @@
                         })
                         .catch((err) => {
                             setCancelError(err?.message || 'Không thể hủy hóa đơn. Vui lòng thử lại.');
+                        })
+                        .finally(() => {
+                            submitButton.disabled = false;
+                        });
+                });
+
+                rejectForm?.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    if (!rejectState.invoiceId) return;
+
+                    const submitButton = rejectForm.querySelector('button[type="submit"]');
+                    const formData = new FormData(rejectForm);
+                    submitButton.disabled = true;
+                    setRejectError('');
+
+                    postForm(`${routes.rejectCash}/${rejectState.invoiceId}/reject-cash`, formData)
+                        .then((payload) => {
+                            notify(payload.message || 'Đã từ chối chứng từ thanh toán.');
+                            closeRejectModal();
+                            reload();
+                        })
+                        .catch((err) => {
+                            setRejectError(err?.message || 'Không thể từ chối chứng từ. Vui lòng thử lại.');
                         })
                         .finally(() => {
                             submitButton.disabled = false;
@@ -829,6 +1057,21 @@
                     select.tomselect.setValue('', true);
                 }
 
+                function openDetailModal(button) {
+                    if (!detailModal) return;
+
+                    detailModal.querySelector('[data-detail-modal-code]')?.replaceChildren(document.createTextNode(button.dataset.invoiceCode || '-'));
+                    detailModal.classList.remove('hidden');
+                    detailModal.classList.add('flex');
+                }
+
+                function closeDetailModal() {
+                    if (!detailModal) return;
+
+                    detailModal.classList.add('hidden');
+                    detailModal.classList.remove('flex');
+                }
+
                 function openCashModal(button) {
                     if (!cashModal || !cashForm) return;
 
@@ -889,6 +1132,36 @@
                     error.classList.toggle('hidden', !message);
                 }
 
+                function openRejectModal(button) {
+                    if (!rejectModal || !rejectForm) return;
+
+                    rejectState.invoiceId = button.dataset.invoiceRejectPayment || null;
+                    rejectForm.reset();
+                    setRejectError('');
+                    rejectModal.querySelector('[data-reject-modal-code]')?.replaceChildren(document.createTextNode(button.dataset.invoiceCode || '-'));
+                    rejectModal.querySelector('[data-reject-modal-amount]')?.replaceChildren(document.createTextNode(button.dataset.invoiceAmount || '-'));
+                    rejectModal.classList.remove('hidden');
+                    rejectModal.classList.add('flex');
+                }
+
+                function closeRejectModal() {
+                    if (!rejectModal || !rejectForm) return;
+
+                    rejectState.invoiceId = null;
+                    rejectForm.reset();
+                    setRejectError('');
+                    rejectModal.classList.add('hidden');
+                    rejectModal.classList.remove('flex');
+                }
+
+                function setRejectError(message) {
+                    const error = rejectModal?.querySelector('[data-reject-modal-error]');
+                    if (!error) return;
+
+                    error.textContent = message || '';
+                    error.classList.toggle('hidden', !message);
+                }
+
                 function postJson(url, payload) {
                     return fetch(url, {
                         method: 'POST',
@@ -935,8 +1208,8 @@
                                 </svg>
                             </div>
                             <div>
-                                <p class="font-bold text-neutral-900">${title}</p>
-                                <p class="mt-1 text-sm text-neutral-500">${text}</p>
+                                <p class="invoice-empty-state-title">${title}</p>
+                                <p class="invoice-empty-state-text">${text}</p>
                             </div>
                         </div>
                     `;

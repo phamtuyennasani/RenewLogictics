@@ -44,9 +44,11 @@ class InvoiceDataTableController extends Controller
                 }
 
                 $customer = $debt->customer;
+                $contact = collect([$customer->email, $customer->phone])->filter()->implode(' / ');
 
-                return '<div class="max-w-[200px] truncate font-semibold text-neutral-900">'
-                    .e($customer->fullname ?: $customer->username)
+                return '<div class="max-w-[240px]">'
+                    .'<div class="truncate font-semibold text-neutral-900">'.e($customer->fullname ?: $customer->username).'</div>'
+                    .'<div class="mt-0.5 truncate text-xs text-neutral-500">'.e($contact ?: '-').'</div>'
                     .'</div>';
             })
             ->addColumn('sale_info', function (CongNoPayment $invoice) {
@@ -57,43 +59,43 @@ class InvoiceDataTableController extends Controller
 
                 $sale = $debt->sale;
 
-                return '<div class="max-w-[150px] truncate text-neutral-800">'
-                    .e($sale->fullname ?: $sale->username)
+                return '<div class="max-w-[180px]">'
+                    .'<div class="truncate font-medium text-neutral-800">'.e($sale->fullname ?: $sale->username).'</div>'
+                    .'<div class="mt-0.5 truncate font-mono text-xs text-neutral-500">'.e($sale->code ?: '-').'</div>'
                     .'</div>';
             })
             ->addColumn('amount', function (CongNoPayment $invoice) {
                 return '<span class="font-semibold text-neutral-950">'.$this->money($invoice->amount).'</span>';
             })
             ->addColumn('status_badge', function (CongNoPayment $invoice) {
-                $status = $invoice->status ?? InvoicePaymentStatusEnum::MOI_TAO;
+                $status = $invoice->status ?? InvoicePaymentStatusEnum::CHO_DUYET;
 
                 return '<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '.$status->color().'">'
                     .e($status->label())
                     .'</span>';
             })
-            ->addColumn('created_at', function (CongNoPayment $invoice) {
-                return $invoice->created_at?->format('d/m/Y H:i') ?: '-';
-            })
-            ->addColumn('paid_at', function (CongNoPayment $invoice) {
-                $status = $invoice->status ?? null;
-                if ($status && $status->isPaid()) {
-                    return '<span class="text-emerald-700 font-medium">'.$invoice->paid_at?->format('d/m/Y H:i').'</span>';
-                }
-
-                return '-';
+            ->addColumn('date_timeline', function (CongNoPayment $invoice) {
+                return '<div class="space-y-1 text-xs leading-5">'
+                    .$this->dateLine('Tạo', $invoice->created_at)
+                    .$this->dateLine('Duyệt', $invoice->ngay_duyet)
+                    .$this->dateLine('Thanh toán', $invoice->paid_at, 'text-emerald-700')
+                    .'</div>';
             })
             ->addColumn('creator', function (CongNoPayment $invoice) {
                 $user = $invoice->user;
 
                 return $user
-                    ? '<span class="text-neutral-700">'.e($user->fullname ?: $user->username).'</span>'
+                    ? '<div class="max-w-[160px]">'
+                        .'<div class="truncate font-medium text-neutral-800">'.e($user->fullname ?: $user->username).'</div>'
+                        .'<div class="mt-0.5 truncate font-mono text-xs text-neutral-500">'.e($user->code ?: '-').'</div>'
+                        .'</div>'
                     : '-';
             })
             ->addColumn('actions', function (CongNoPayment $invoice) use ($request) {
                 return $this->actionsHtml($invoice, $request);
             })
             ->setRowId(fn (CongNoPayment $invoice) => 'invoice-'.$invoice->id)
-            ->rawColumns(['invoice_code', 'debt_code', 'customer_info', 'sale_info', 'amount', 'status_badge', 'paid_at', 'creator', 'actions'])
+            ->rawColumns(['invoice_code', 'debt_code', 'customer_info', 'sale_info', 'amount', 'status_badge', 'date_timeline', 'creator', 'actions'])
             ->toJson();
 
         $payload = $response->getData(true);
@@ -105,45 +107,17 @@ class InvoiceDataTableController extends Controller
 
     protected function actionsHtml(CongNoPayment $invoice, Request $request): string
     {
-        $user = $request->user();
-        $actions = [];
+        return '<button type="button" data-invoice-detail="'.$invoice->id.'" data-invoice-code="'.e($invoice->ma_hoa_don).'" class="inline-flex items-center justify-center rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-50">Chi tiết</button>';
+    }
 
-        if ($invoice->canApprove($user)) {
-            $actions[] = '<button type="button" data-invoice-approve="'.$invoice->id.'" class="inline-flex items-center justify-center rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-primary-700">Duyệt</button>';
-        }
+    protected function dateLine(string $label, mixed $date, string $valueClass = 'text-neutral-700'): string
+    {
+        $value = $date ? $date->format('d/m/Y H:i') : '-';
 
-        if ($invoice->canPay($user)) {
-            $actions[] = '<button type="button" data-invoice-cash="'.$invoice->id.'" data-invoice-code="'.e($invoice->ma_hoa_don).'" data-invoice-amount="'.$this->money($invoice->amount).'" class="inline-flex items-center justify-center rounded-lg border border-amber-200 bg-white px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-50">Tiền mặt</button>';
-            $actions[] = '<button type="button" data-invoice-qr="'.$invoice->id.'" class="inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50">Thanh toán online</button>';
-        }
-
-        if ($invoice->canConfirmCashPayment($user)) {
-            $actions[] = '<button type="button" data-invoice-confirm-cash="'.$invoice->id.'" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700">Xác nhận thu</button>';
-        }
-
-        if ($invoice->canManageQr($user)) {
-            if ($invoice->payment_url || $invoice->qr_url) {
-                $actions[] = '<a href="'.e($invoice->payment_url ?: $invoice->qr_url).'" target="_blank" rel="noopener" class="inline-flex items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50">Mở thanh toán</a>';
-            }
-
-            if ($invoice->canRegenerateQr()) {
-                $actions[] = '<button type="button" data-invoice-regenerate-qr="'.$invoice->id.'" class="inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50">Tạo lại QR</button>';
-            } else {
-                $nextAt = $invoice->nextQrAvailableAt();
-                $title = $nextAt ? 'Có thể tạo lại sau '.$nextAt->format('H:i d/m/Y') : 'Chưa thể tạo lại QR';
-                $actions[] = '<button type="button" disabled title="'.e($title).'" class="inline-flex cursor-not-allowed items-center justify-center rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-xs font-semibold text-neutral-400">Tạo lại QR</button>';
-            }
-        }
-
-        if ($invoice->canCancel($user)) {
-            $actions[] = '<button type="button" data-invoice-cancel="'.$invoice->id.'" data-invoice-code="'.e($invoice->ma_hoa_don).'" data-invoice-amount="'.$this->money($invoice->amount).'" class="inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50">Hủy</button>';
-        }
-
-        if ($actions === []) {
-            return '<span class="text-xs text-neutral-400">-</span>';
-        }
-
-        return '<div class="flex flex-wrap items-center gap-2">'.implode('', $actions).'</div>';
+        return '<div class="flex items-center justify-between gap-3">'
+            .'<span class="text-neutral-500">'.e($label).'</span>'
+            .'<span class="whitespace-nowrap font-medium '.$valueClass.'">'.e($value).'</span>'
+            .'</div>';
     }
 
     protected function query(Request $request, bool $includeStatus = true): Builder
@@ -152,10 +126,10 @@ class InvoiceDataTableController extends Controller
 
         return CongNoPayment::query()
             ->with([
-                'user:id,fullname,username',
+                'user:id,fullname,username,code',
                 'approver:id,fullname,username',
                 'paymentConfirmer:id,fullname,username',
-                'congNo.customer:id,fullname,username,code',
+                'congNo.customer:id,fullname,username,code,email,phone',
                 'congNo.sale:id,fullname,username,code',
             ])
             ->where('loai_hoa_don', 'thu')
@@ -254,8 +228,8 @@ class InvoiceDataTableController extends Controller
             return response()->json(['message' => 'Không có quyền duyệt hóa đơn này.'], 403);
         }
 
-        if ($invoice->status !== InvoicePaymentStatusEnum::MOI_TAO) {
-            return response()->json(['message' => 'Hóa đơn không ở trạng thái Mới tạo, không thể duyệt.'], 422);
+        if ($invoice->status !== InvoicePaymentStatusEnum::CHO_DUYET) {
+            return response()->json(['message' => 'Hóa đơn không ở trạng thái Chờ duyệt, không thể duyệt.'], 422);
         }
 
         $fromStatus = $invoice->status;
@@ -293,13 +267,21 @@ class InvoiceDataTableController extends Controller
 
         $fromStatus = $invoice->status;
 
-        $invoice->forceFill([
+        $updateData = [
             'method' => 'cash',
             'photo' => $path,
             'status' => InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT->value,
             'submitted_at' => now(),
             'paid_at' => null,
-        ])->save();
+        ];
+
+        if ($fromStatus === InvoicePaymentStatusEnum::KHONG_CHAP_NHAN) {
+            $updateData['payment_rejection_reason'] = null;
+            $updateData['payment_rejected_at'] = null;
+            $updateData['payment_rejected_by'] = null;
+        }
+
+        $invoice->forceFill($updateData)->save();
 
         $invoice->writeStatusLog('cash_submitted', $fromStatus, InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, $user->id, null, [
             'photo' => $path,
@@ -316,8 +298,13 @@ class InvoiceDataTableController extends Controller
             return response()->json(['message' => 'Hóa đơn chưa thể tạo QR thanh toán.'], 403);
         }
 
+        $providerKey = $request->input('provider');
+        if ($providerKey !== null && ! in_array($providerKey, ['sepay', 'momo', 'vnpay'], true)) {
+            return response()->json(['message' => 'Cổng thanh toán không hợp lệ.'], 422);
+        }
+
         try {
-            DB::transaction(function () use ($invoice) {
+            DB::transaction(function () use ($invoice, $providerKey) {
                 $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
                 if (! $locked->canPay(request()->user())) {
@@ -325,9 +312,10 @@ class InvoiceDataTableController extends Controller
                 }
 
                 $fromStatus = $locked->status;
-                $this->fillQrPayment($locked, updateStatus: true);
+                $this->fillQrPayment($locked, true, $providerKey);
                 $locked->writeStatusLog('qr_requested', $fromStatus, InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT, request()->user()?->id, null, [
                     'qr_payment_code' => $locked->qr_payment_code,
+                    'provider' => $providerKey ?: $locked->payment_provider,
                 ]);
             });
         } catch (\Throwable $exception) {
@@ -424,6 +412,43 @@ class InvoiceDataTableController extends Controller
         return response()->json(['message' => "Đã xác nhận thanh toán hóa đơn {$invoice->ma_hoa_don}."]);
     }
 
+    public function rejectCashPayment(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $invoice = CongNoPayment::whereKey($id)->firstOrFail();
+
+        if (! $invoice->canRejectPayment($user)) {
+            return response()->json(['message' => 'Không có quyền từ chối chứng từ thanh toán hóa đơn này.'], 403);
+        }
+
+        $validated = $request->validate([
+            'payment_rejection_reason' => ['required', 'string', 'max:500'],
+        ], [
+            'payment_rejection_reason.required' => 'Vui lòng nhập ghi chú từ chối chứng từ.',
+            'payment_rejection_reason.string' => 'Ghi chú từ chối không hợp lệ.',
+            'payment_rejection_reason.max' => 'Ghi chú từ chối không vượt quá 500 ký tự.',
+        ]);
+
+        $invoice->forceFill([
+            'status' => InvoicePaymentStatusEnum::KHONG_CHAP_NHAN->value,
+            'payment_rejection_reason' => $validated['payment_rejection_reason'],
+            'payment_rejected_at' => now(),
+            'payment_rejected_by' => $user->id,
+            'payment_confirmed_by' => null,
+            'paid_at' => null,
+        ])->save();
+
+        $invoice->writeStatusLog(
+            'payment_rejected',
+            InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT,
+            InvoicePaymentStatusEnum::KHONG_CHAP_NHAN,
+            $user->id,
+            $validated['payment_rejection_reason']
+        );
+
+        return response()->json(['message' => "Đã từ chối chứng từ thanh toán của hóa đơn {$invoice->ma_hoa_don}."]);
+    }
+
     public function cancel(Request $request, int $id): JsonResponse
     {
         $user = $request->user();
@@ -458,17 +483,20 @@ class InvoiceDataTableController extends Controller
         return response()->json(['message' => "Đã hủy hóa đơn {$invoice->ma_hoa_don}."]);
     }
 
-    protected function fillQrPayment(CongNoPayment $invoice, bool $updateStatus): void
+    protected function fillQrPayment(CongNoPayment $invoice, bool $updateStatus, ?string $providerKey = null): void
     {
         $code = $invoice->payment_reference
             ?: $invoice->qr_payment_code
             ?: app(InvoiceCodeGenerator::class)->generatePaymentCode($invoice->ma_hoa_don);
-        $provider = app(PaymentProviderManager::class)->driver($invoice->payment_provider);
+        $provider = app(PaymentProviderManager::class)->driver($providerKey ?: $invoice->payment_provider);
         $intent = $provider->createPayment(new PaymentRequestData(
             amount: (int) round((float) $invoice->amount),
             reference: $code,
             description: $code,
             expiresAt: now()->addMinutes(CongNoPayment::QR_THROTTLE_MINUTES),
+            metadata: [
+                'request_id' => $code.'-'.now()->format('YmdHis'),
+            ],
         ));
 
         $attributes = [

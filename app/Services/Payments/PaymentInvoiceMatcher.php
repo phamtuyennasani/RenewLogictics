@@ -6,6 +6,8 @@ use App\Enums\DebtStatusEnum;
 use App\Enums\InvoicePaymentStatusEnum;
 use App\Models\CongNo;
 use App\Models\CongNoPayment;
+use App\Models\MoMoWebhookLog;
+use App\Models\VNPayWebhookLog;
 use App\Models\SepayWebhookLog;
 use App\Services\Payments\Data\PaymentWebhookData;
 use Illuminate\Support\Carbon;
@@ -31,7 +33,7 @@ class PaymentInvoiceMatcher
         return $this->matchWebhookPayment($webhook, $webhookLog);
     }
 
-    public function matchWebhookPayment(PaymentWebhookData $webhook, ?SepayWebhookLog $webhookLog = null): ?CongNoPayment
+    public function matchWebhookPayment(PaymentWebhookData $webhook, SepayWebhookLog|MoMoWebhookLog|VNPayWebhookLog|null $webhookLog = null): ?CongNoPayment
     {
         if (! $webhook->isPaid()) {
             $this->markWebhook($webhookLog, 'ignored', 'Webhook status is not paid.');
@@ -102,7 +104,9 @@ class PaymentInvoiceMatcher
                 $invoice->payment_provider = $webhook->provider;
                 $invoice->provider_transaction_id = $transactionId ?: $invoice->provider_transaction_id;
                 $invoice->provider_payload = $webhook->raw ?: $invoice->provider_payload;
-                $invoice->sepay_transaction_id = $transactionId ?: $invoice->sepay_transaction_id;
+                $invoice->sepay_transaction_id = $webhook->provider === 'sepay'
+                    ? ($transactionId ?: $invoice->sepay_transaction_id)
+                    : $invoice->sepay_transaction_id;
                 $invoice->reference = $webhook->message ?? $invoice->reference;
                 $invoice->save();
                 $invoice->writeStatusLog('webhook_paid', $fromStatus, InvoicePaymentStatusEnum::DA_THANH_TOAN, null, null, [
@@ -159,6 +163,7 @@ class PaymentInvoiceMatcher
             $payload['content'] ?? null,
             $payload['description'] ?? null,
             $payload['transferContent'] ?? null,
+            $payload['orderId'] ?? null,
         ];
 
         foreach ($candidates as $candidate) {
@@ -170,7 +175,7 @@ class PaymentInvoiceMatcher
                 return strtoupper($matches[0]);
             }
 
-            if (preg_match('/[A-Z0-9]{8,32}/i', $candidate, $matches)) {
+            if (preg_match('/[A-Z0-9\-_]{8,64}/i', $candidate, $matches)) {
                 return strtoupper($matches[0]);
             }
         }
@@ -178,7 +183,7 @@ class PaymentInvoiceMatcher
         return null;
     }
 
-    protected function markWebhook(?SepayWebhookLog $webhookLog, string $status, string $message, ?CongNoPayment $invoice = null): void
+    protected function markWebhook(SepayWebhookLog|MoMoWebhookLog|VNPayWebhookLog|null $webhookLog, string $status, string $message, ?CongNoPayment $invoice = null): void
     {
         if (! $webhookLog) {
             return;

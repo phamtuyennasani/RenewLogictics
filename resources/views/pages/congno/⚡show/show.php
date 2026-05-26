@@ -31,6 +31,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
     public ?int $payingInvoiceId = null;
     public ?string $selectedMethod = null;
+    public string $selectedProvider = 'sepay';
     public $cashInvoicePhoto = null;
     public bool $showPayModal = false;
 
@@ -199,7 +200,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                     'amount' => $amount,
                     'due_at' => $debt->hanthanhtoan,
                     'note' => $data['invoiceNote'] ?: 'Hóa đơn thu công nợ khách hàng ' . ($debt->customer?->fullname ?: $debt->customer?->username ?: ''),
-                    'status' => InvoicePaymentStatusEnum::MOI_TAO->value,
+                    'status' => InvoicePaymentStatusEnum::CHO_DUYET->value,
                     'loai_hoa_don' => InvoiceTypeEnum::THU->value,
                 ]);
             });
@@ -313,6 +314,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
         $this->payingInvoiceId = $invoice->id;
         $this->selectedMethod = null;
+        $this->selectedProvider = $invoice->payment_provider ?: 'sepay';
         $this->cashInvoicePhoto = null;
         $this->showPayModal = true;
 
@@ -323,6 +325,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $this->payingInvoiceId = null;
         $this->selectedMethod = null;
+        $this->selectedProvider = 'sepay';
         $this->cashInvoicePhoto = null;
         $this->showPayModal = false;
 
@@ -354,13 +357,21 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
         $fromStatus = $invoice->status;
 
-        $invoice->forceFill([
+        $updateData = [
             'method' => 'cash',
             'photo' => $path,
             'status' => InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT->value,
             'submitted_at' => now(),
             'paid_at' => null,
-        ])->save();
+        ];
+
+        if ($fromStatus === InvoicePaymentStatusEnum::KHONG_CHAP_NHAN) {
+            $updateData['payment_rejection_reason'] = null;
+            $updateData['payment_rejected_at'] = null;
+            $updateData['payment_rejected_by'] = null;
+        }
+
+        $invoice->forceFill($updateData)->save();
 
         $invoice->writeStatusLog('cash_submitted', $fromStatus, InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, auth()->id(), null, [
             'photo' => $path,
@@ -385,8 +396,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
         abort_unless($invoice->canPay(auth()->user()), 403);
 
+        $providerKey = in_array($this->selectedProvider, ['sepay', 'momo', 'vnpay'], true)
+            ? $this->selectedProvider
+            : 'sepay';
+
         try {
-            DB::transaction(function () use ($invoice) {
+            DB::transaction(function () use ($invoice, $providerKey) {
                 $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
                 abort_unless($locked->canPay(auth()->user()), 403);
@@ -395,12 +410,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                     ?: $locked->qr_payment_code
                     ?: app(InvoiceCodeGenerator::class)->generatePaymentCode($locked->ma_hoa_don);
                 $intent = app(PaymentProviderManager::class)
-                    ->driver($locked->payment_provider)
+                    ->driver($providerKey)
                     ->createPayment(new PaymentRequestData(
                         amount: (int) round((float) $locked->amount),
                         reference: $code,
                         description: $code,
                         expiresAt: now()->addMinutes(CongNoPayment::QR_THROTTLE_MINUTES),
+                        metadata: [
+                            'request_id' => $code.'-'.now()->format('YmdHis'),
+                        ],
                     ));
 
                 $fromStatus = $locked->status;
@@ -422,17 +440,18 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
                 $locked->writeStatusLog('qr_requested', $fromStatus, InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT, auth()->id(), null, [
                     'qr_payment_code' => $code,
+                    'provider' => $intent->provider,
                 ]);
             });
         } catch (\Throwable $exception) {
-            Flux::toast(heading: 'Không thể tạo QR', text: $exception->getMessage(), variant: 'danger');
+            Flux::toast(heading: 'Không thể tạo thanh toán', text: $exception->getMessage(), variant: 'danger');
             return;
         }
 
         $this->closePayModal();
         $this->reloadDebt();
 
-        Flux::toast(heading: 'Đã tạo mã QR', text: 'Sử dụng app ngân hàng quét mã để thanh toán. Webhook sẽ tự xác nhận.', variant: 'success');
+        Flux::toast(heading: 'Đã tạo yêu cầu thanh toán', text: 'Đã tạo link thanh toán cho khách hàng.', variant: 'success');
     }
 
     public function regenerateQr(int $invoiceId): void
@@ -469,8 +488,11 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                 $code = $locked->payment_reference
                     ?: $locked->qr_payment_code
                     ?: app(InvoiceCodeGenerator::class)->generatePaymentCode($locked->ma_hoa_don);
+                $providerKey = in_array($this->selectedProvider, ['sepay', 'momo', 'vnpay'], true)
+                    ? $this->selectedProvider
+                    : ($locked->payment_provider ?: 'sepay');
                 $intent = app(PaymentProviderManager::class)
-                    ->driver($locked->payment_provider)
+                    ->driver($providerKey)
                     ->createPayment(new PaymentRequestData(
                         amount: (int) round((float) $locked->amount),
                         reference: $code,
