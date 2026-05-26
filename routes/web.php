@@ -2,13 +2,75 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\Request;
 use App\Http\Controllers\CongNo\CongNoDataTableController;
 use App\Http\Controllers\CongNo\CongNoDaiLyDataTableController;
 use App\Http\Controllers\Order\OrderDataTableController;
+use App\Services\Providers\Sepay\SepayPaymentService;
 use App\Livewire\Dashboard;
 use App\Livewire\Order;
 use App\Livewire\Login;
 use App\Livewire\DuLieu;
+
+if (! app()->environment('production')) {
+    Route::get('/dev/sepay-gateway-test', function (Request $request, SepayPaymentService $sepay) {
+        $amount = max(1000, (int) $request->integer('amount', 10000));
+        $invoiceNumber = (string) $request->query('invoice', 'TESTINV'.now()->format('YmdHis'));
+        $description = (string) $request->query('description', 'Test thanh toan sandbox');
+        $autoSubmit = $request->boolean('auto_submit', true);
+
+        $data = $sepay->makeGatewayPaymentData($amount, $invoiceNumber, $description, [
+            'success_url' => route('dev.sepay-gateway-return', ['status' => 'success']),
+            'error_url' => route('dev.sepay-gateway-return', ['status' => 'error']),
+            'cancel_url' => route('dev.sepay-gateway-return', ['status' => 'cancel']),
+        ]);
+
+        $inputs = collect($data['fields'])
+            ->map(fn ($value, $key) => sprintf(
+                '<input type="hidden" name="%s" value="%s">',
+                e((string) $key),
+                e((string) $value),
+            ))
+            ->implode(PHP_EOL);
+
+        $jsonFields = e(json_encode($data['fields'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $autoSubmitScript = $autoSubmit ? '<script>document.getElementById("sepay-checkout-form").submit();</script>' : '';
+
+        return response(<<<HTML
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SePay Gateway Test</title>
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: #111827; }
+        code, pre { background: #f3f4f6; border-radius: 8px; padding: 12px; }
+        pre { overflow: auto; }
+        button { height: 40px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; padding: 0 16px; font-weight: 700; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>SePay Gateway Test</h1>
+    <p>Đang chuyển sang cổng thanh toán sandbox. Nếu trình duyệt không tự chuyển, bấm nút bên dưới.</p>
+    <p>Checkout endpoint: <code>{$data['checkout_url']}</code></p>
+    <form id="sepay-checkout-form" method="POST" action="{$data['checkout_url']}">
+        {$inputs}
+        <button type="submit">Mở trang thanh toán SePay</button>
+    </form>
+    <h2>Signed fields</h2>
+    <pre>{$jsonFields}</pre>
+    {$autoSubmitScript}
+</body>
+</html>
+HTML);
+    })->name('dev.sepay-gateway-test');
+
+    Route::get('/dev/sepay-gateway-return/{status}', function (string $status) {
+        return response("SePay gateway returned: {$status}");
+    })->name('dev.sepay-gateway-return');
+}
+
 /* ============================================================
    GUEST ROUTES — Chưa đăng nhập
    ============================================================ */

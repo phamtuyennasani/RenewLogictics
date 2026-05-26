@@ -1,5 +1,6 @@
 <?php
 use App\Enums\DebtStatusEnum;
+use App\Enums\InvoicePaymentStatusEnum;
 use App\Enums\OrderStatusEnum;
 use App\Models\CongNo;
 use App\Models\CongNoDetail;
@@ -226,10 +227,21 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
             ->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
             ->get();
 
+        $blockedCount = $debts->filter(fn (CongNo $debt) => $debt->payments()
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
+            ->exists())->count();
+
+        if ($blockedCount > 0) {
+            Flux::toast(heading: 'Không thể xóa', text: "{$blockedCount} công nợ còn hóa đơn đang xử lý.", variant: 'warning');
+            return;
+        }
+
         DB::transaction(function () use ($debts) {
             foreach ($debts as $debt) {
-                $debt->details()->delete();
-                $debt->payments()->delete();
+                $debt->orders()->update([
+                    'customer_payment_status' => null,
+                    'customer_paid_at' => null,
+                ]);
                 $debt->delete();
             }
         });
@@ -237,7 +249,7 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
         $this->selectedIds = [];
         unset($this->items, $this->statusCounts, $this->summary);
 
-        Flux::toast(heading: 'Đã xóa công nợ', text: "Đã xóa {$debts->count()} công nợ chưa thanh toán.", variant: 'success');
+        Flux::toast(heading: 'Đã hủy công nợ', text: "Đã hủy {$debts->count()} công nợ và giữ lại lịch sử hóa đơn.", variant: 'success');
     }
 
     public function exportExcel()
@@ -310,7 +322,10 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
     #[Computed]
     public function debtStatuses(): array
     {
-        return DebtStatusEnum::cases();
+        return array_values(array_filter(
+            DebtStatusEnum::cases(),
+            fn (DebtStatusEnum $status) => $status !== DebtStatusEnum::QUA_HAN
+        ));
     }
 
     #[Computed]
@@ -339,16 +354,13 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
         $total = (float) $items->sum('total_cuocban');
         $paid = (float) $items->sum('paid_amount');
         $remaining = (float) $items->sum(fn (CongNo $debt) => $debt->remaining_amount);
-        $overdue = (float) $items->where('status', DebtStatusEnum::QUA_HAN)->sum(fn (CongNo $debt) => $debt->remaining_amount);
 
         return [
             'total' => $total,
             'paid' => $paid,
             'remaining' => $remaining,
-            'overdue' => $overdue,
             'paid_percent' => $this->percentOf($paid, $total),
             'remaining_percent' => $this->percentOf($remaining, $total),
-            'overdue_percent' => $this->percentOf($overdue, $total),
         ];
     }
 

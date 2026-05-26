@@ -8,8 +8,6 @@
     $remainingAmount = (float) $debt->remaining_amount;
     $paidPercent = $totalAmount > 0 ? min(100, round(($paidAmount / $totalAmount) * 100)) : 0;
     $remainingPercent = $totalAmount > 0 ? min(100, round(($remainingAmount / $totalAmount) * 100)) : 0;
-    $dueDate = $debt->hanthanhtoan;
-    $isOverdue = $dueDate && $remainingAmount > 0 && $dueDate->copy()->endOfDay()->isPast();
     $canCreateInvoice = $debt->canCreatePaymentInvoice();
     $availableForInvoice = $this->availableForNewInvoice;
     $sortedInvoices = $debt->payments->sortByDesc(fn ($p) => $p->created_at?->timestamp ?? 0);
@@ -29,12 +27,6 @@
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $debt->status->color() }}">{{ $debt->status->label() }}</span>
-                    @if ($isOverdue)
-                        <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
-                            <flux:icon.exclamation-triangle class="size-3.5" />
-                            Quá hạn
-                        </span>
-                    @endif
                 </div>
                 <div class="mt-3 flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
                     <div class="min-w-0">
@@ -62,14 +54,9 @@
 
             @if ($this->canManage())
                 <div class="flex flex-wrap items-center gap-2 lg:justify-end">
-                    @if (in_array($debt->status, [\App\Enums\DebtStatusEnum::MOI_TAO, \App\Enums\DebtStatusEnum::QUA_HAN], true))
+                    @if ($debt->status === \App\Enums\DebtStatusEnum::MOI_TAO)
                         <flux:button type="button" wire:click="confirmDebt" variant="primary" icon="check-circle">
                             Chốt cước
-                        </flux:button>
-                    @endif
-                    @if ($debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN)
-                        <flux:button type="button" wire:click="markOverdue" variant="danger" icon="exclamation-triangle">
-                            Quá hạn
                         </flux:button>
                     @endif
                 </div>
@@ -367,6 +354,12 @@
                                     @if ($invoice->ketoan)
                                         <p class="mt-1 text-xs text-neutral-500">KT: {{ $invoice->ketoan->fullname ?: $invoice->ketoan->username }}</p>
                                     @endif
+                                    @if ($invoice->approver)
+                                        <p class="mt-1 text-xs text-blue-600">Duyệt: {{ $invoice->approver->fullname ?: $invoice->approver->username }}</p>
+                                    @endif
+                                    @if ($invoice->paymentConfirmer)
+                                        <p class="mt-1 text-xs text-emerald-700">Xác nhận: {{ $invoice->paymentConfirmer->fullname ?: $invoice->paymentConfirmer->username }}</p>
+                                    @endif
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-4 text-right align-top font-bold text-neutral-950">
                                     {{ $this->money($invoice->amount) }}
@@ -381,9 +374,12 @@
                                 </td>
                                 <td class="px-4 py-4 align-top">
                                     <p class="font-semibold text-neutral-800">{{ $invoice->method ? ucfirst(str_replace('_', ' ', $invoice->method)) : '-' }}</p>
+                                    @if ($invoice->submitted_at)
+                                        <p class="mt-1 text-xs text-amber-700">Gửi bằng chứng: {{ $invoice->submitted_at->format('H:i d/m/Y') }}</p>
+                                    @endif
                                     @if ($invoice->paid_at)
                                         <p class="mt-1 text-xs text-emerald-700">Đã thu: {{ $invoice->paid_at->format('H:i d/m/Y') }}</p>
-                                    @elseif ($invoice->qr_generated_at)
+                                    @elseif ($invoice->qr_generated_at && ! $statusEnum?->isCancelled())
                                         <p class="mt-1 text-xs text-indigo-700">QR: {{ $invoice->qr_generated_at->format('H:i d/m/Y') }}</p>
                                     @else
                                         <p class="mt-1 text-xs text-neutral-500">Chưa phát sinh thanh toán</p>
@@ -391,8 +387,8 @@
                                     @if ($invoice->sepay_transaction_id)
                                         <p class="mt-1 max-w-[180px] truncate text-xs text-neutral-500" title="{{ $invoice->sepay_transaction_id }}">SePay: {{ $invoice->sepay_transaction_id }}</p>
                                     @endif
-                                    @if ($invoice->qr_url)
-                                        <a href="{{ $invoice->qr_url }}" target="_blank" rel="noopener" class="mt-1 inline-flex text-xs font-semibold text-primary-700 hover:text-primary-800">Xem QR</a>
+                                    @if ($invoice->payment_url || $invoice->qr_url)
+                                        <a href="{{ $invoice->payment_url ?: $invoice->qr_url }}" target="_blank" rel="noopener" class="mt-1 inline-flex text-xs font-semibold text-primary-700 hover:text-primary-800">Mở thanh toán</a>
                                     @endif
                                     @if ($invoice->photo)
                                         <a href="{{ asset('storage/'.$invoice->photo) }}" target="_blank" rel="noopener" class="mt-1 inline-flex text-xs font-semibold text-primary-700 hover:text-primary-800">Xem ảnh hóa đơn</a>
@@ -400,6 +396,9 @@
                                 </td>
                                 <td class="px-4 py-4 align-top">
                                     <p class="max-w-[260px] truncate text-neutral-700" title="{{ $invoice->note }}">{{ $invoice->note ?: '-' }}</p>
+                                    @if ($invoice->cancel_reason)
+                                        <p class="mt-1 max-w-[260px] text-xs text-red-600" title="{{ $invoice->cancel_reason }}">Lý do hủy: {{ $invoice->cancel_reason }}</p>
+                                    @endif
                                     @if ($invoice->cancelledBy)
                                         <p class="mt-1 text-xs text-red-600">Người hủy: {{ $invoice->cancelledBy->fullname ?: $invoice->cancelledBy->username }}</p>
                                     @endif
@@ -609,6 +608,26 @@
                     <flux:button type="button" variant="outline">Hủy</flux:button>
                 </flux:modal.close>
                 <flux:button type="submit" variant="primary" icon="check">Lưu cước bán</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    <flux:modal name="cancel-invoice" class="w-full max-w-lg" @close="$wire.closeCancelInvoiceModal()">
+        <form wire:submit="submitCancelInvoice" class="space-y-4">
+            <div>
+                <h2 class="text-lg font-bold text-neutral-950">Hủy hóa đơn</h2>
+                <p class="mt-1 text-sm text-neutral-500">Nhập lý do hủy để lưu vào lịch sử xử lý hóa đơn.</p>
+            </div>
+
+            <label class="block">
+                <span class="text-sm font-semibold text-neutral-700">Lý do hủy <span class="text-rose-600">*</span></span>
+                <textarea wire:model="cancelReason" rows="4" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100" placeholder="Nhập lý do hủy hóa đơn..."></textarea>
+                @error('cancelReason') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+            </label>
+
+            <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+                <flux:button type="button" variant="outline" wire:click="closeCancelInvoiceModal">Đóng</flux:button>
+                <flux:button type="submit" variant="danger" icon="x-circle">Xác nhận hủy</flux:button>
             </div>
         </form>
     </flux:modal>

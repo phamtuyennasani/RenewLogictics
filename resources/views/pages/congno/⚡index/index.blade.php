@@ -36,7 +36,7 @@
                 </div>
             </div>
         </section>
-        <div class="grid gap-3 lg:grid-cols-4">
+        <div class="grid gap-3 lg:grid-cols-3">
             <div class="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
                 <div class="flex items-start justify-between gap-4">
                     <div class="min-w-0 pl-2">
@@ -96,25 +96,6 @@
                 </div>
             </div>
 
-            <div class="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-                <div class="absolute inset-y-4 left-0 w-1 rounded-r-full bg-red-500"></div>
-                <div class="flex items-start justify-between gap-4">
-                    <div class="min-w-0 pl-2">
-                        <div class="flex items-center gap-2">
-                            <span class="h-2 w-2 rounded-full bg-red-500"></span>
-                            <p class="text-[11px] font-bold uppercase tracking-wide text-red-700">Quá hạn</p>
-                        </div>
-                        <p class="mt-3 truncate text-3xl font-black leading-none tracking-normal text-neutral-950" data-summary-money="overdue">{{ $this->money($this->summary['overdue']) }}</p>
-                        <p class="mt-2 text-xs font-medium text-neutral-500">Cần ưu tiên xử lý</p>
-                    </div>
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                        <flux:icon.exclamation-triangle class="size-5" />
-                    </div>
-                </div>
-                <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-red-100">
-                    <div class="h-full rounded-full bg-red-500" data-summary-bar="overdue" style="width: {{ $this->summary['overdue_percent'] }}%"></div>
-                </div>
-            </div>
         </div>
         <section class="debt-status-nav">
             <div class="debt-status-nav-header">
@@ -683,11 +664,9 @@
                     document.querySelector('[data-summary-money="total"]')?.replaceChildren(document.createTextNode(money(summary.total || 0)));
                     document.querySelector('[data-summary-money="paid"]')?.replaceChildren(document.createTextNode(money(summary.paid || 0)));
                     document.querySelector('[data-summary-money="remaining"]')?.replaceChildren(document.createTextNode(money(summary.remaining || 0)));
-                    document.querySelector('[data-summary-money="overdue"]')?.replaceChildren(document.createTextNode(money(summary.overdue || 0)));
                     setBar('total', Number(summary.total || 0) > 0 ? 100 : 0);
                     setBar('paid', summary.paid_percent || 0);
                     setBar('remaining', summary.remaining_percent || 0);
-                    setBar('overdue', summary.overdue_percent || 0);
                 }
 
                 function setBar(name, value) {

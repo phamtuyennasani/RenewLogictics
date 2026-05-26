@@ -8,7 +8,8 @@ use App\Models\CongNoPayment;
 use App\Models\News;
 use App\Models\Order;
 use App\Services\Payments\InvoiceCodeGenerator;
-use App\Services\Providers\Sepay\SepayPaymentService;
+use App\Services\Payments\PaymentProviderManager;
+use App\Services\Payments\Data\PaymentRequestData;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                 'details.order.packages',
                 'payments.user:id,fullname,username,code',
                 'payments.ketoan:id,fullname,username,code',
+                'payments.approver:id,fullname,username,code',
+                'payments.paymentConfirmer:id,fullname,username,code',
                 'payments.cancelledBy:id,fullname,username,code',
             ])
             ->where(function ($query) use ($id) {
@@ -138,8 +141,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         abort_unless($this->canManage(), 403);
 
-        if (! in_array($this->debt->status, [DebtStatusEnum::MOI_TAO, DebtStatusEnum::QUA_HAN], true)) {
-            Flux::toast(heading: 'Không hợp lệ', text: 'Chỉ công nợ mới tạo hoặc quá hạn mới có thể chốt lại.', variant: 'warning');
+        if ($this->debt->status !== DebtStatusEnum::MOI_TAO) {
+            Flux::toast(heading: 'Không hợp lệ', text: 'Chỉ công nợ mới tạo mới có thể chốt cước.', variant: 'warning');
             return;
         }
 
@@ -159,15 +162,6 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         Flux::toast(heading: 'Đã chốt cước', text: 'Công nợ đã được chuyển sang trạng thái đã chốt cước.', variant: 'success');
     }
 
-    public function markOverdue(): void
-    {
-        abort_unless($this->canManage(), 403);
-
-        $this->debt->forceFill(['status' => DebtStatusEnum::QUA_HAN])->save();
-        $this->reloadDebt();
-        Flux::toast(heading: 'Đã cập nhật', text: 'Công nợ đã chuyển sang trạng thái quá hạn.', variant: 'success');
-    }
-
     public function createPaymentInvoice(): void
     {
         abort_unless($this->canManage(), 403);
@@ -184,7 +178,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             'invoiceAmount' => 'Số tiền hóa đơn',
         ]);
 
-        $amount = $this->number($data['invoiceAmount']);
+        $amount = round($this->number($data['invoiceAmount']), 2);
         if ($amount <= 0) {
             Flux::toast(heading: 'Số tiền không hợp lệ', text: 'Vui lòng nhập số tiền lớn hơn 0.', variant: 'warning');
             return;
@@ -203,6 +197,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                     'id_congno' => $debt->id,
                     'id_user' => auth()->id(),
                     'amount' => $amount,
+                    'due_at' => $debt->hanthanhtoan,
                     'note' => $data['invoiceNote'] ?: 'Hóa đơn thu công nợ khách hàng ' . ($debt->customer?->fullname ?: $debt->customer?->username ?: ''),
                     'status' => InvoicePaymentStatusEnum::MOI_TAO->value,
                     'loai_hoa_don' => InvoiceTypeEnum::THU->value,
@@ -226,30 +221,88 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
         abort_unless($invoice->canApprove(auth()->user()), 403);
 
+        $fromStatus = $invoice->status;
+
         $invoice->forceFill([
             'status' => InvoicePaymentStatusEnum::DA_DUYET->value,
             'id_ketoan' => auth()->id(),
+            'approved_by' => auth()->id(),
             'ngay_duyet' => now(),
         ])->save();
+
+        $invoice->writeStatusLog('approved', $fromStatus, InvoicePaymentStatusEnum::DA_DUYET, auth()->id());
 
         $this->reloadDebt();
         Flux::toast(heading: 'Đã duyệt', text: 'Hóa đơn ' . $invoice->ma_hoa_don . ' đã được duyệt.', variant: 'success');
     }
 
-    public function cancelInvoice(int $invoiceId): void
+    public ?int $cancellingInvoiceId = null;
+    public string $cancelReason = '';
+
+    public function openCancelInvoiceModal(int $invoiceId): void
     {
         $invoice = CongNoPayment::query()->whereKey($invoiceId)->firstOrFail();
 
         abort_unless($invoice->canCancel(auth()->user()), 403);
 
+        $this->cancellingInvoiceId = $invoice->id;
+        $this->cancelReason = '';
+
+        Flux::modal('cancel-invoice')->show();
+    }
+
+    public function closeCancelInvoiceModal(): void
+    {
+        $this->resetErrorBag('cancelReason');
+        $this->cancellingInvoiceId = null;
+        $this->cancelReason = '';
+
+        Flux::modal('cancel-invoice')->close();
+    }
+
+    public function submitCancelInvoice(): void
+    {
+        $invoice = $this->cancellingInvoiceId
+            ? CongNoPayment::query()->whereKey($this->cancellingInvoiceId)->first()
+            : null;
+
+        if (! $invoice) {
+            Flux::toast(heading: 'Không tìm thấy', text: 'Hóa đơn không tồn tại.', variant: 'danger');
+            return;
+        }
+
+        abort_unless($invoice->canCancel(auth()->user()), 403);
+
+        $this->validate([
+            'cancelReason' => ['required', 'string', 'max:500'],
+        ], [
+            'cancelReason.required' => 'Vui lòng nhập lý do hủy hóa đơn.',
+            'cancelReason.max' => 'Lý do hủy không vượt quá 500 ký tự.',
+        ]);
+
+        $fromStatus = $invoice->status;
+
         $invoice->forceFill([
             'status' => InvoicePaymentStatusEnum::HUY->value,
             'cancelled_at' => now(),
             'id_cancelled_by' => auth()->id(),
+            'cancel_reason' => $this->cancelReason,
+            'payment_url' => null,
+            'qr_url' => null,
+            'qr_expires_at' => null,
         ])->save();
 
+        $invoice->writeStatusLog('cancelled', $fromStatus, InvoicePaymentStatusEnum::HUY, auth()->id(), $this->cancelReason);
+
+        $this->closeCancelInvoiceModal();
         $this->reloadDebt();
+
         Flux::toast(heading: 'Đã hủy hóa đơn', text: 'Hóa đơn ' . $invoice->ma_hoa_don . ' đã chuyển sang trạng thái hủy.', variant: 'success');
+    }
+
+    public function cancelInvoice(int $invoiceId): void
+    {
+        $this->openCancelInvoiceModal($invoiceId);
     }
 
     public function openPayModal(int $invoiceId): void
@@ -299,12 +352,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
         $path = $this->cashInvoicePhoto->store('customer-debt-invoices', 'public');
 
+        $fromStatus = $invoice->status;
+
         $invoice->forceFill([
             'method' => 'cash',
             'photo' => $path,
             'status' => InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT->value,
-            'paid_at' => now(),
+            'submitted_at' => now(),
+            'paid_at' => null,
         ])->save();
+
+        $invoice->writeStatusLog('cash_submitted', $fromStatus, InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, auth()->id(), null, [
+            'photo' => $path,
+        ]);
 
         $this->closePayModal();
         $this->reloadDebt();
@@ -326,18 +386,44 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         abort_unless($invoice->canPay(auth()->user()), 403);
 
         try {
-            $sepay = app(SepayPaymentService::class);
-            $code = $invoice->qr_payment_code ?: app(InvoiceCodeGenerator::class)->generatePaymentCode($invoice->ma_hoa_don);
-            $qrUrl = $sepay->makeQrUrl((int) round((float) $invoice->amount), $code);
+            DB::transaction(function () use ($invoice) {
+                $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
-            $invoice->forceFill([
-                'method' => 'bank_transfer',
-                'status' => InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT->value,
-                'qr_payment_code' => $code,
-                'qr_url' => $qrUrl,
-                'qr_generated_at' => now(),
-                'qr_expires_at' => now()->addMinutes(CongNoPayment::QR_THROTTLE_MINUTES),
-            ])->save();
+                abort_unless($locked->canPay(auth()->user()), 403);
+
+                $code = $locked->payment_reference
+                    ?: $locked->qr_payment_code
+                    ?: app(InvoiceCodeGenerator::class)->generatePaymentCode($locked->ma_hoa_don);
+                $intent = app(PaymentProviderManager::class)
+                    ->driver($locked->payment_provider)
+                    ->createPayment(new PaymentRequestData(
+                        amount: (int) round((float) $locked->amount),
+                        reference: $code,
+                        description: $code,
+                        expiresAt: now()->addMinutes(CongNoPayment::QR_THROTTLE_MINUTES),
+                    ));
+
+                $fromStatus = $locked->status;
+
+                $locked->forceFill([
+                    'method' => $intent->channel === 'qr' ? 'bank_transfer' : 'online',
+                    'status' => InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT->value,
+                    'payment_provider' => $intent->provider,
+                    'payment_channel' => $intent->channel,
+                    'payment_reference' => $intent->reference,
+                    'payment_url' => $intent->paymentUrl,
+                    'provider_intent_id' => $intent->providerIntentId,
+                    'provider_payload' => $intent->raw ?: null,
+                    'qr_payment_code' => $intent->reference,
+                    'qr_url' => $intent->qrUrl,
+                    'qr_generated_at' => now(),
+                    'qr_expires_at' => $intent->expiresAt,
+                ])->save();
+
+                $locked->writeStatusLog('qr_requested', $fromStatus, InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT, auth()->id(), null, [
+                    'qr_payment_code' => $code,
+                ]);
+            });
         } catch (\Throwable $exception) {
             Flux::toast(heading: 'Không thể tạo QR', text: $exception->getMessage(), variant: 'danger');
             return;
@@ -366,16 +452,51 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         }
 
         try {
-            $sepay = app(SepayPaymentService::class);
-            $code = $invoice->qr_payment_code ?: app(InvoiceCodeGenerator::class)->generatePaymentCode($invoice->ma_hoa_don);
-            $qrUrl = $sepay->makeQrUrl((int) round((float) $invoice->amount), $code);
+            DB::transaction(function () use ($invoice) {
+                $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
-            $invoice->forceFill([
-                'qr_payment_code' => $code,
-                'qr_url' => $qrUrl,
-                'qr_generated_at' => now(),
-                'qr_expires_at' => now()->addMinutes(CongNoPayment::QR_THROTTLE_MINUTES),
-            ])->save();
+                abort_unless($locked->canPay(auth()->user()) || $locked->canManageQr(auth()->user()), 403);
+
+                if (! $locked->canRegenerateQr()) {
+                    $nextAt = $locked->nextQrAvailableAt();
+                    throw new \RuntimeException(
+                        $nextAt
+                            ? 'Vui lòng đợi đến ' . $nextAt->format('H:i d/m/Y') . ' để tạo lại.'
+                            : 'Vui lòng đợi đủ ' . CongNoPayment::QR_THROTTLE_MINUTES . ' phút.'
+                    );
+                }
+
+                $code = $locked->payment_reference
+                    ?: $locked->qr_payment_code
+                    ?: app(InvoiceCodeGenerator::class)->generatePaymentCode($locked->ma_hoa_don);
+                $intent = app(PaymentProviderManager::class)
+                    ->driver($locked->payment_provider)
+                    ->createPayment(new PaymentRequestData(
+                        amount: (int) round((float) $locked->amount),
+                        reference: $code,
+                        description: $code,
+                        expiresAt: now()->addMinutes(CongNoPayment::QR_THROTTLE_MINUTES),
+                    ));
+
+                $fromStatus = $locked->status;
+
+                $locked->forceFill([
+                    'payment_provider' => $intent->provider,
+                    'payment_channel' => $intent->channel,
+                    'payment_reference' => $intent->reference,
+                    'payment_url' => $intent->paymentUrl,
+                    'provider_intent_id' => $intent->providerIntentId,
+                    'provider_payload' => $intent->raw ?: null,
+                    'qr_payment_code' => $intent->reference,
+                    'qr_url' => $intent->qrUrl,
+                    'qr_generated_at' => now(),
+                    'qr_expires_at' => $intent->expiresAt,
+                ])->save();
+
+                $locked->writeStatusLog('qr_regenerated', $fromStatus, $locked->status, auth()->id(), null, [
+                    'qr_payment_code' => $code,
+                ]);
+            });
         } catch (\Throwable $exception) {
             Flux::toast(heading: 'Lỗi tạo QR', text: $exception->getMessage(), variant: 'danger');
             return;
@@ -398,12 +519,16 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             $locked->forceFill([
                 'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
                 'paid_at' => now(),
+                'id_ketoan' => auth()->id(),
+                'payment_confirmed_by' => auth()->id(),
             ])->save();
+
+            $locked->writeStatusLog('cash_confirmed', InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, InvoicePaymentStatusEnum::DA_THANH_TOAN, auth()->id());
 
             $debt->syncPaidAmountFromPayments();
             $debt->refresh();
 
-            $orderStatus = (float) $debt->remaining_amount <= 0
+            $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
                 ? DebtStatusEnum::DA_THANH_TOAN->value
                 : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\DebtStatusEnum;
+use App\Enums\InvoicePaymentStatusEnum;
 use App\Enums\OrderStatusEnum;
 use App\Models\CongNoDaiLy;
 use App\Models\CongNoDaiLyDetail;
@@ -205,10 +206,21 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
             ->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
             ->get();
 
+        $blockedCount = $debts->filter(fn (CongNoDaiLy $debt) => $debt->payments()
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
+            ->exists())->count();
+
+        if ($blockedCount > 0) {
+            Flux::toast(heading: 'Không thể xóa', text: "{$blockedCount} công nợ đại lý còn hóa đơn đang xử lý.", variant: 'warning');
+            return;
+        }
+
         DB::transaction(function () use ($debts) {
             foreach ($debts as $debt) {
-                $debt->details()->delete();
-                $debt->payments()->delete();
+                $debt->orders()->update([
+                    'agency_payment_status' => null,
+                    'agency_paid_at' => null,
+                ]);
                 $debt->delete();
             }
         });
@@ -216,7 +228,7 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
         $this->selectedIds = [];
         unset($this->items, $this->statusCounts, $this->summary);
 
-        Flux::toast(heading: 'Đã xóa công nợ', text: "Đã xóa {$debts->count()} công nợ chưa thanh toán.", variant: 'success');
+        Flux::toast(heading: 'Đã hủy công nợ', text: "Đã hủy {$debts->count()} công nợ đại lý và giữ lại lịch sử hóa đơn.", variant: 'success');
     }
 
     public function exportExcel()

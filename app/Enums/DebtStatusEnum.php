@@ -74,23 +74,20 @@ enum DebtStatusEnum: string
         if ($admin) {
             return array_values(array_filter(
                 self::cases(),
-                fn (self $status) => $status !== $this
+                fn (self $status) => $status !== $this && $status !== self::QUA_HAN
             ));
         }
 
         return match ($this) {
             self::MOI_TAO => [
                 self::DA_CHOT_CUOC,
-                self::QUA_HAN,
             ],
             self::DA_CHOT_CUOC => [
                 self::DA_THANH_TOAN_MOT_PHAN,
                 self::DA_THANH_TOAN,
-                self::QUA_HAN,
             ],
             self::DA_THANH_TOAN_MOT_PHAN => [
                 self::DA_THANH_TOAN,
-                self::QUA_HAN,
             ],
             self::QUA_HAN => [
                 self::DA_THANH_TOAN_MOT_PHAN,

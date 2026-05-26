@@ -6,6 +6,8 @@ use App\Enums\DebtStatusEnum;
 use App\Enums\InvoicePaymentStatusEnum;
 use App\Models\CongNo;
 use App\Models\CongNoPayment;
+use App\Models\SepayWebhookLog;
+use App\Services\Payments\Data\PaymentWebhookData;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,42 +15,67 @@ use Throwable;
 
 class PaymentInvoiceMatcher
 {
-    /**
-     * Try to match a SePay webhook payload against an open income invoice.
-     */
-    public function matchCustomerDebtPayment(array $payload): ?CongNoPayment
+    public function matchCustomerDebtPayment(array $payload, ?SepayWebhookLog $webhookLog = null): ?CongNoPayment
     {
-        if (($payload['transferType'] ?? null) !== 'in') {
+        $webhook = new PaymentWebhookData(
+            provider: 'sepay',
+            reference: $this->extractPaymentCode($payload),
+            amount: (int) ($payload['transferAmount'] ?? 0),
+            status: ($payload['transferType'] ?? null) === 'in' ? 'paid' : 'ignored',
+            providerTransactionId: (string) ($payload['id'] ?? ''),
+            paidAt: Carbon::now(),
+            raw: $payload,
+            message: $payload['referenceCode'] ?? null,
+        );
+
+        return $this->matchWebhookPayment($webhook, $webhookLog);
+    }
+
+    public function matchWebhookPayment(PaymentWebhookData $webhook, ?SepayWebhookLog $webhookLog = null): ?CongNoPayment
+    {
+        if (! $webhook->isPaid()) {
+            $this->markWebhook($webhookLog, 'ignored', 'Webhook status is not paid.');
             return null;
         }
 
-        $code = $this->extractPaymentCode($payload);
+        $code = $webhook->reference;
         if (! $code) {
+            $this->markWebhook($webhookLog, 'no_code', 'No payment reference found in webhook payload.');
             return null;
         }
 
-        $amount = (int) ($payload['transferAmount'] ?? 0);
-        $transactionId = (string) ($payload['id'] ?? '');
+        $amount = $webhook->amount;
+        $transactionId = (string) ($webhook->providerTransactionId ?? '');
 
         if ($amount <= 0) {
-            Log::warning('SePay matcher: invalid or missing amount', [
+            Log::warning('Payment matcher: invalid or missing amount', [
+                'provider' => $webhook->provider,
                 'code' => $code,
-                'amount' => $payload['transferAmount'] ?? null,
+                'amount' => $webhook->amount,
             ]);
+
+            $this->markWebhook($webhookLog, 'invalid_amount', 'Invalid or missing transfer amount.');
 
             return null;
         }
 
         try {
-            return DB::transaction(function () use ($code, $amount, $transactionId, $payload) {
+            return DB::transaction(function () use ($code, $amount, $transactionId, $webhook, $webhookLog) {
                 $invoice = CongNoPayment::query()
-                    ->where('qr_payment_code', $code)
+                    ->where(function ($query) use ($code) {
+                        $query->where('payment_reference', $code)
+                            ->orWhere('qr_payment_code', $code);
+                    })
                     ->where('status', InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT->value)
                     ->lockForUpdate()
                     ->first();
 
                 if (! $invoice) {
-                    Log::info('SePay matcher: no open invoice for code', ['code' => $code]);
+                    Log::info('Payment matcher: no open invoice for code', [
+                        'provider' => $webhook->provider,
+                        'code' => $code,
+                    ]);
+                    $this->markWebhook($webhookLog, 'no_open_invoice', 'No open invoice matched the payment reference.');
 
                     return null;
                 }
@@ -56,21 +83,34 @@ class PaymentInvoiceMatcher
                 $expected = (int) round((float) $invoice->amount);
 
                 if ($expected > 0 && abs($amount - $expected) > 1) {
-                    Log::warning('SePay matcher: amount mismatch', [
+                    Log::warning('Payment matcher: amount mismatch', [
+                        'provider' => $webhook->provider,
                         'code' => $code,
                         'expected' => $expected,
                         'received' => $amount,
                     ]);
 
+                    $this->markWebhook($webhookLog, 'amount_mismatch', "Expected {$expected}, received {$amount}.", $invoice);
+
                     return null;
                 }
 
+                $fromStatus = $invoice->status;
                 $invoice->status = InvoicePaymentStatusEnum::DA_THANH_TOAN;
-                $invoice->paid_at = Carbon::now();
-                $invoice->method = 'bank_transfer';
+                $invoice->paid_at = $webhook->paidAt ?? Carbon::now();
+                $invoice->method = $invoice->method ?: 'online';
+                $invoice->payment_provider = $webhook->provider;
+                $invoice->provider_transaction_id = $transactionId ?: $invoice->provider_transaction_id;
+                $invoice->provider_payload = $webhook->raw ?: $invoice->provider_payload;
                 $invoice->sepay_transaction_id = $transactionId ?: $invoice->sepay_transaction_id;
-                $invoice->reference = $payload['referenceCode'] ?? $invoice->reference;
+                $invoice->reference = $webhook->message ?? $invoice->reference;
                 $invoice->save();
+                $invoice->writeStatusLog('webhook_paid', $fromStatus, InvoicePaymentStatusEnum::DA_THANH_TOAN, null, null, [
+                    'provider' => $webhook->provider,
+                    'provider_transaction_id' => $transactionId,
+                    'amount' => $amount,
+                    'reference' => $webhook->message,
+                ]);
 
                 /** @var CongNo $debt */
                 $debt = $invoice->congNo()->lockForUpdate()->first();
@@ -78,7 +118,7 @@ class PaymentInvoiceMatcher
                     $debt->syncPaidAmountFromPayments();
                     $debt->refresh();
 
-                    $orderStatus = (float) $debt->remaining_amount <= 0
+                    $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
                         ? DebtStatusEnum::DA_THANH_TOAN->value
                         : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
 
@@ -88,19 +128,25 @@ class PaymentInvoiceMatcher
                     ]);
                 }
 
-                Log::info('SePay matcher: invoice marked paid', [
+                Log::info('Payment matcher: invoice marked paid', [
                     'invoice_id' => $invoice->id,
+                    'provider' => $webhook->provider,
                     'code' => $code,
                     'amount' => $amount,
                 ]);
 
+                $this->markWebhook($webhookLog, 'matched', 'Invoice marked paid from webhook.', $invoice);
+
                 return $invoice;
             });
         } catch (Throwable $exception) {
-            Log::error('SePay matcher failed', [
+            Log::error('Payment matcher failed', [
                 'message' => $exception->getMessage(),
+                'provider' => $webhook->provider,
                 'code' => $code,
             ]);
+
+            $this->markWebhook($webhookLog, 'error', $exception->getMessage());
 
             return null;
         }
@@ -130,5 +176,19 @@ class PaymentInvoiceMatcher
         }
 
         return null;
+    }
+
+    protected function markWebhook(?SepayWebhookLog $webhookLog, string $status, string $message, ?CongNoPayment $invoice = null): void
+    {
+        if (! $webhookLog) {
+            return;
+        }
+
+        $webhookLog->forceFill([
+            'matched_congno_payment_id' => $invoice?->id,
+            'processed_status' => $status,
+            'processed_message' => $message,
+            'processed_at' => Carbon::now(),
+        ])->save();
     }
 }

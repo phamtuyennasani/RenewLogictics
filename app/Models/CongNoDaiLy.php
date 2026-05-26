@@ -7,11 +7,12 @@ use App\Enums\InvoicePaymentStatusEnum;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class CongNoDaiLy extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'congno_daily';
 
@@ -65,6 +66,7 @@ class CongNoDaiLy extends Model
         'paid_amount' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     protected $appends = [
@@ -174,13 +176,13 @@ class CongNoDaiLy extends Model
         $status = match (true) {
             $total > 0 && $paidAmount >= $total => DebtStatusEnum::DA_THANH_TOAN,
             $paidAmount > 0 => DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN,
-            default => $this->status,
+            default => DebtStatusEnum::DA_CHOT_CUOC,
         };
 
         $this->forceFill([
             'paid_amount' => $paidAmount,
             'status' => $status->value,
-            'ngaythanhtoan' => $status === DebtStatusEnum::DA_THANH_TOAN ? now() : $this->ngaythanhtoan,
+            'ngaythanhtoan' => $status === DebtStatusEnum::DA_THANH_TOAN ? now() : null,
         ])->save();
     }
 
@@ -189,14 +191,13 @@ class CongNoDaiLy extends Model
         return in_array($this->status, [
             DebtStatusEnum::DA_CHOT_CUOC,
             DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN,
-            DebtStatusEnum::QUA_HAN,
         ], true);
     }
 
     public function pendingInvoicesTotal(): float
     {
         return (float) $this->payments()
-            ->where('status', InvoicePaymentStatusEnum::MOI_TAO->value)
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
             ->sum('amount');
     }
 

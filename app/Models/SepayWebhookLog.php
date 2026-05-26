@@ -10,6 +10,10 @@ class SepayWebhookLog extends Model
 
     protected $fillable = [
         'transaction_id',
+        'matched_congno_payment_id',
+        'processed_status',
+        'processed_message',
+        'processed_at',
         'payload',
         'headers',
         'received_at',
@@ -19,5 +23,11 @@ class SepayWebhookLog extends Model
         'payload' => 'array',
         'headers' => 'array',
         'received_at' => 'datetime',
+        'processed_at' => 'datetime',
     ];
+
+    public function matchedInvoice()
+    {
+        return $this->belongsTo(CongNoPayment::class, 'matched_congno_payment_id');
+    }
 }

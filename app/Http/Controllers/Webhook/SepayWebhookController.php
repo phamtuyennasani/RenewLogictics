@@ -17,11 +17,9 @@ class SepayWebhookController extends Controller
 {
     public function __invoke(Request $request, SepayPaymentService $sepay): JsonResponse
     {
-        $rawBody = (string) $request->getContent();
-
         try {
-            $sepay->verifyRequest($request);
-            $payload = $sepay->parseWebhookPayload($rawBody);
+            $webhook = $sepay->parseWebhook($request);
+            $payload = $webhook->raw;
         } catch (Throwable $exception) {
             Log::warning('SePay webhook rejected.', [
                 'message' => $exception->getMessage(),
@@ -46,6 +44,10 @@ class SepayWebhookController extends Controller
             return response()->json($sepay->successResponse());
         }
 
+        $webhookLog = SepayWebhookLog::query()
+            ->where('transaction_id', $payload['id'] ?? null)
+            ->first();
+
         Log::info('SePay webhook received.', [
             'transaction_id' => $payload['id'] ?? null,
             'payment_code' => $payload['code'] ?? null,
@@ -54,11 +56,17 @@ class SepayWebhookController extends Controller
         ]);
 
         try {
-            app(PaymentInvoiceMatcher::class)->matchCustomerDebtPayment($payload);
+            app(PaymentInvoiceMatcher::class)->matchWebhookPayment($webhook, $webhookLog);
         } catch (Throwable $exception) {
             Log::error('Payment invoice matcher failed.', [
                 'message' => $exception->getMessage(),
             ]);
+
+            $webhookLog?->forceFill([
+                'processed_status' => 'error',
+                'processed_message' => $exception->getMessage(),
+                'processed_at' => Carbon::now(),
+            ])->save();
         }
 
         return response()->json($sepay->successResponse());

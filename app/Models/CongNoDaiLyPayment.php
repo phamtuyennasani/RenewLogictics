@@ -19,7 +19,15 @@ class CongNoDaiLyPayment extends Model
         'id_user',
         'amount',
         'paid_at',
+        'due_at',
         'method',
+        'payment_provider',
+        'payment_channel',
+        'payment_reference',
+        'payment_url',
+        'provider_intent_id',
+        'provider_transaction_id',
+        'provider_payload',
         'reference',
         'photo',
         'note',
@@ -27,6 +35,8 @@ class CongNoDaiLyPayment extends Model
         'ma_hoa_don',
         'status',
         'id_ketoan',
+        'approved_by',
+        'payment_confirmed_by',
         'ngay_duyet',
         'cancelled_at',
         'id_cancelled_by',
@@ -35,8 +45,10 @@ class CongNoDaiLyPayment extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'paid_at' => 'datetime',
+        'due_at' => 'datetime',
         'ngay_duyet' => 'datetime',
         'cancelled_at' => 'datetime',
+        'provider_payload' => 'array',
         'status' => InvoicePaymentStatusEnum::class,
         'loai_hoa_don' => InvoiceTypeEnum::class,
         'created_at' => 'datetime',
@@ -58,7 +70,7 @@ class CongNoDaiLyPayment extends Model
 
     public function congNoDaiLy()
     {
-        return $this->belongsTo(CongNoDaiLy::class, 'id_congno_daily');
+        return $this->belongsTo(CongNoDaiLy::class, 'id_congno_daily')->withTrashed();
     }
 
     public function user()
@@ -71,9 +83,42 @@ class CongNoDaiLyPayment extends Model
         return $this->belongsTo(User::class, 'id_ketoan');
     }
 
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function paymentConfirmer()
+    {
+        return $this->belongsTo(User::class, 'payment_confirmed_by');
+    }
+
     public function cancelledBy()
     {
         return $this->belongsTo(User::class, 'id_cancelled_by');
+    }
+
+    public function logs()
+    {
+        return $this->hasMany(InvoicePaymentLog::class, 'congno_daily_payment_id');
+    }
+
+    public function writeStatusLog(
+        string $action,
+        InvoicePaymentStatusEnum|string|null $fromStatus,
+        InvoicePaymentStatusEnum|string|null $toStatus,
+        ?int $actorId = null,
+        ?string $note = null,
+        array $metadata = []
+    ): void {
+        $this->logs()->create([
+            'action' => $action,
+            'from_status' => $fromStatus instanceof InvoicePaymentStatusEnum ? $fromStatus->value : $fromStatus,
+            'to_status' => $toStatus instanceof InvoicePaymentStatusEnum ? $toStatus->value : $toStatus,
+            'actor_id' => $actorId,
+            'note' => $note,
+            'metadata' => $metadata ?: null,
+        ]);
     }
 
     public function isCreator(?User $user): bool

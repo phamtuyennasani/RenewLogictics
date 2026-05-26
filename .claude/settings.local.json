@@ -23,7 +23,24 @@
       "Bash(php -l app/Http/Controllers/Invoice/InvoiceDataTableController.php)",
       "Bash(php -l app/Providers/AuthServiceProvider.php)",
       "Bash(php -l app/View/Components/Sidebar.php)",
-      "Bash(php -r '$files=[\"resources/views/pages/invoice/⚡index/index.php\",\"resources/views/pages/invoice/⚡index/index.blade.php\",\"resources/views/components/sidebar/⚡icon.blade.php\"]; foreach\\($files as $file\\){ try { app\\(\"blade.compiler\"\\)->compileString\\(file_get_contents\\($file\\)\\); echo \"Blade OK: {$file}\\\\n\"; } catch \\(Throwable $e\\) { fwrite\\(STDERR, \"Blade FAIL: {$file}: \".$e->getMessage\\(\\).\"\\\\n\"\\); exit\\(1\\); } }')"
+      "Bash(php -r '$files=[\"resources/views/pages/invoice/⚡index/index.php\",\"resources/views/pages/invoice/⚡index/index.blade.php\",\"resources/views/components/sidebar/⚡icon.blade.php\"]; foreach\\($files as $file\\){ try { app\\(\"blade.compiler\"\\)->compileString\\(file_get_contents\\($file\\)\\); echo \"Blade OK: {$file}\\\\n\"; } catch \\(Throwable $e\\) { fwrite\\(STDERR, \"Blade FAIL: {$file}: \".$e->getMessage\\(\\).\"\\\\n\"\\); exit\\(1\\); } }')",
+      "mcp__plugin_context-mode_context-mode__ctx_execute",
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+      "Bash(php artisan *)",
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file",
+      "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Http/Controllers/Invoice/InvoiceDataTableController.php\")",
+      "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Models/CongNoPayment.php\")",
+      "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Enums/InvoicePaymentStatusEnum.php\")",
+      "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/database/migrations/2026_05_26_102632_add_cancel_reason_to_congno_payments_table.php\")",
+      "Bash(php -l /Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Models/CongNo.php)",
+      "Bash(php -l /Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Services/Payments/PaymentInvoiceMatcher.php)",
+      "Bash(php -l /Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Http/Controllers/Invoice/InvoiceDataTableController.php)",
+      "Bash(python3 -)",
+      "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/resources/views/pages/congno/⚡show/show.php\")",
+      "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Http/Controllers/CongNo/CongNoDataTableController.php\")",
+      "Bash(php -l \"/Users/phamtuyen/DataCode/Hethong/RenewLogictics/app/Http/Controllers/CongNo/CongNoDaiLyDataTableController.php\")",
+      "mcp__plugin_context-mode_context-mode__ctx_search",
+      "mcp__plugin_context-mode_context-mode__ctx_fetch_and_index"
     ]
   }
 }

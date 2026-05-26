@@ -322,6 +322,44 @@
                 </div>
             </form>
         </div>
+
+        <div id="invoice-cancel-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+            <form id="invoice-cancel-form" class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+                <div class="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-neutral-950">Hủy hóa đơn</h2>
+                        <p class="mt-1 text-sm text-neutral-500">
+                            <span data-cancel-modal-code>-</span>
+                            <span class="mx-1">/</span>
+                            <span data-cancel-modal-amount>-</span>
+                        </p>
+                    </div>
+                    <button type="button" id="invoice-cancel-close" class="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800">
+                        <span class="sr-only">Đóng</span>
+                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="py-4">
+                    <label class="block">
+                        <span class="text-sm font-semibold text-neutral-700">Ghi chú hủy</span>
+                        <textarea name="cancel_reason" rows="4" class="mt-2 block w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm" placeholder="Nhập lý do hủy hóa đơn" required></textarea>
+                    </label>
+                    <p class="mt-2 hidden text-sm text-red-600" data-cancel-modal-error></p>
+                </div>
+
+                <div class="flex justify-end gap-2 border-t border-neutral-100 pt-4">
+                    <button type="button" id="invoice-cancel-dismiss" class="inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">
+                        Đóng
+                    </button>
+                    <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        Xác nhận hủy
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -431,6 +469,9 @@
                 const cashModal = document.getElementById('invoice-cash-modal');
                 const cashForm = document.getElementById('invoice-cash-form');
                 const cashState = { invoiceId: null };
+                const cancelModal = document.getElementById('invoice-cancel-modal');
+                const cancelForm = document.getElementById('invoice-cancel-form');
+                const cancelState = { invoiceId: null };
 
                 const filters = () => ({
                     status: field('status')?.value || '',
@@ -595,26 +636,18 @@
                     const btn = event.target.closest('[data-invoice-cancel]');
                     if (!btn) return;
 
-                    const invoiceId = btn.dataset.invoiceCancel;
-                    if (!window.confirm('Hủy hóa đơn này?')) return;
-
-                    btn.disabled = true;
-
-                    postJson(`${routes.cancel}/${invoiceId}/cancel`, {})
-                        .then((payload) => {
-                            notify(payload.message || 'Đã hủy hóa đơn.');
-                            reload();
-                        })
-                        .catch((err) => {
-                            btn.disabled = false;
-                            notify(err?.message || 'Không thể hủy hóa đơn. Vui lòng thử lại.');
-                        });
+                    openCancelModal(btn);
                 });
 
                 document.getElementById('invoice-cash-close')?.addEventListener('click', closeCashModal);
                 document.getElementById('invoice-cash-cancel')?.addEventListener('click', closeCashModal);
                 cashModal?.addEventListener('click', (event) => {
                     if (event.target === cashModal) closeCashModal();
+                });
+                document.getElementById('invoice-cancel-close')?.addEventListener('click', closeCancelModal);
+                document.getElementById('invoice-cancel-dismiss')?.addEventListener('click', closeCancelModal);
+                cancelModal?.addEventListener('click', (event) => {
+                    if (event.target === cancelModal) closeCancelModal();
                 });
 
                 cashForm?.addEventListener('submit', (event) => {
@@ -634,6 +667,29 @@
                         })
                         .catch((err) => {
                             setCashError(err?.message || 'Không thể gửi hóa đơn thanh toán. Vui lòng thử lại.');
+                        })
+                        .finally(() => {
+                            submitButton.disabled = false;
+                        });
+                });
+
+                cancelForm?.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    if (!cancelState.invoiceId) return;
+
+                    const submitButton = cancelForm.querySelector('button[type="submit"]');
+                    const formData = new FormData(cancelForm);
+                    submitButton.disabled = true;
+                    setCancelError('');
+
+                    postForm(`${routes.cancel}/${cancelState.invoiceId}/cancel`, formData)
+                        .then((payload) => {
+                            notify(payload.message || 'Đã hủy hóa đơn.');
+                            closeCancelModal();
+                            reload();
+                        })
+                        .catch((err) => {
+                            setCancelError(err?.message || 'Không thể hủy hóa đơn. Vui lòng thử lại.');
                         })
                         .finally(() => {
                             submitButton.disabled = false;
@@ -797,6 +853,36 @@
 
                 function setCashError(message) {
                     const error = cashModal?.querySelector('[data-cash-modal-error]');
+                    if (!error) return;
+
+                    error.textContent = message || '';
+                    error.classList.toggle('hidden', !message);
+                }
+
+                function openCancelModal(button) {
+                    if (!cancelModal || !cancelForm) return;
+
+                    cancelState.invoiceId = button.dataset.invoiceCancel || null;
+                    cancelForm.reset();
+                    setCancelError('');
+                    cancelModal.querySelector('[data-cancel-modal-code]')?.replaceChildren(document.createTextNode(button.dataset.invoiceCode || '-'));
+                    cancelModal.querySelector('[data-cancel-modal-amount]')?.replaceChildren(document.createTextNode(button.dataset.invoiceAmount || '-'));
+                    cancelModal.classList.remove('hidden');
+                    cancelModal.classList.add('flex');
+                }
+
+                function closeCancelModal() {
+                    if (!cancelModal || !cancelForm) return;
+
+                    cancelState.invoiceId = null;
+                    cancelForm.reset();
+                    setCancelError('');
+                    cancelModal.classList.add('hidden');
+                    cancelModal.classList.remove('flex');
+                }
+
+                function setCancelError(message) {
+                    const error = cancelModal?.querySelector('[data-cancel-modal-error]');
                     if (!error) return;
 
                     error.textContent = message || '';

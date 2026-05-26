@@ -2,11 +2,12 @@
 
 namespace App\Services\Payments;
 
+use App\Services\Payments\Contracts\PaymentProvider;
 use InvalidArgumentException;
 
 class PaymentProviderManager
 {
-    public function driver(?string $provider = null): object
+    public function driver(?string $provider = null): PaymentProvider
     {
         $provider ??= config('payment_providers.default');
 
@@ -20,6 +21,12 @@ class PaymentProviderManager
             throw new InvalidArgumentException("Payment provider [{$provider}] is not registered.");
         }
 
-        return app($className);
+        $driver = app($className);
+
+        if (! $driver instanceof PaymentProvider) {
+            throw new InvalidArgumentException("Payment provider [{$provider}] must implement ".PaymentProvider::class.'.');
+        }
+
+        return $driver;
     }
 }

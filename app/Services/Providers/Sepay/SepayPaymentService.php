@@ -2,6 +2,10 @@
 
 namespace App\Services\Providers\Sepay;
 
+use App\Services\Payments\Contracts\PaymentProvider;
+use App\Services\Payments\Data\PaymentIntentData;
+use App\Services\Payments\Data\PaymentRequestData;
+use App\Services\Payments\Data\PaymentWebhookData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -10,7 +14,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 
-class SepayPaymentService
+class SepayPaymentService implements PaymentProvider
 {
     protected const GATEWAY_SIGNED_FIELDS = [
         'order_amount',
@@ -71,6 +75,52 @@ class SepayPaymentService
         $this->gatewaySuccessUrl ??= Arr::get($gatewayConfig, 'default_success_url');
         $this->gatewayErrorUrl ??= Arr::get($gatewayConfig, 'default_error_url');
         $this->gatewayCancelUrl ??= Arr::get($gatewayConfig, 'default_cancel_url');
+    }
+
+    public function key(): string
+    {
+        return 'sepay';
+    }
+
+    public function createPayment(PaymentRequestData $data): PaymentIntentData
+    {
+        $expiresAt = $data->expiresAt ?? Carbon::now()->addMinutes(15);
+        $raw = $this->makePaymentData($data->amount, $data->reference, [
+            'description' => $data->description ?: $data->reference,
+            'expires_at' => $expiresAt->toDateTimeString(),
+            ...$data->metadata,
+        ]);
+
+        return new PaymentIntentData(
+            provider: $this->key(),
+            channel: 'qr',
+            reference: $data->reference,
+            amount: $data->amount,
+            paymentUrl: $raw['qr_url'] ?? null,
+            qrUrl: $raw['qr_url'] ?? null,
+            providerIntentId: $data->reference,
+            expiresAt: $expiresAt,
+            raw: $raw,
+        );
+    }
+
+    public function parseWebhook(Request $request): PaymentWebhookData
+    {
+        $this->verifyRequest($request);
+
+        $payload = $this->parseWebhookPayload((string) $request->getContent());
+        $amount = (int) ($payload['transferAmount'] ?? 0);
+
+        return new PaymentWebhookData(
+            provider: $this->key(),
+            reference: $this->extractPaymentReference($payload),
+            amount: $amount,
+            status: ($payload['transferType'] ?? null) === 'in' ? 'paid' : 'ignored',
+            providerTransactionId: isset($payload['id']) ? (string) $payload['id'] : null,
+            paidAt: Carbon::now(),
+            raw: $payload,
+            message: $payload['referenceCode'] ?? null,
+        );
     }
 
     public function makeQrUrl(int $amount, string $description, ?string $bank = null, ?string $accountNumber = null): string
@@ -248,6 +298,32 @@ class SepayPaymentService
         }
 
         return true;
+    }
+
+    protected function extractPaymentReference(array $payload): ?string
+    {
+        $candidates = [
+            $payload['code'] ?? null,
+            $payload['content'] ?? null,
+            $payload['description'] ?? null,
+            $payload['transferContent'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (! is_string($candidate) || trim($candidate) === '') {
+                continue;
+            }
+
+            if (preg_match('/HDTH[0-9A-Z]+/i', $candidate, $matches)) {
+                return strtoupper($matches[0]);
+            }
+
+            if (preg_match('/[A-Z0-9]{8,32}/i', $candidate, $matches)) {
+                return strtoupper($matches[0]);
+            }
+        }
+
+        return null;
     }
 
     public function signGatewayFields(array $fields): string

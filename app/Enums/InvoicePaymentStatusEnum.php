@@ -16,7 +16,7 @@ enum InvoicePaymentStatusEnum: string
         return match ($this) {
             self::MOI_TAO => 'Mới tạo',
             self::DA_DUYET => 'Đã duyệt',
-            self::DA_GUI_HOA_DON_TT => 'Đã gửi hóa đơn thanh toán',
+            self::DA_GUI_HOA_DON_TT => 'Chờ xác nhận thanh toán',
             self::DA_GUI_YEU_CAU_TT => 'Đã gửi yêu cầu thanh toán',
             self::DA_THANH_TOAN => 'Đã thanh toán',
             self::HUY => 'Đã hủy',
@@ -81,12 +81,25 @@ enum InvoicePaymentStatusEnum: string
 
     public function isPendingPayment(): bool
     {
-        return in_array($this, [
+        return in_array($this, self::pendingCases(), true);
+    }
+
+    /**
+     * @return self[]
+     */
+    public static function pendingCases(): array
+    {
+        return [
             self::MOI_TAO,
             self::DA_DUYET,
             self::DA_GUI_HOA_DON_TT,
             self::DA_GUI_YEU_CAU_TT,
-        ], true);
+        ];
+    }
+
+    public static function pendingValues(): array
+    {
+        return array_map(fn (self $status) => $status->value, self::pendingCases());
     }
 
     /**

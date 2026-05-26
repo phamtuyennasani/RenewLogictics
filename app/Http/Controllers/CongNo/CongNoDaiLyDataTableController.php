@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CongNo;
 
 use App\Enums\DebtStatusEnum;
+use App\Enums\InvoicePaymentStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Models\CongNoDaiLy;
 use App\Models\News;
@@ -57,15 +58,27 @@ class CongNoDaiLyDataTableController extends Controller
             ->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
             ->get();
 
+        $blockedCount = $debts->filter(fn (CongNoDaiLy $debt) => $debt->payments()
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
+            ->exists())->count();
+
+        if ($blockedCount > 0) {
+            return response()->json([
+                'message' => "Không thể xóa {$blockedCount} công nợ đại lý còn hóa đơn đang xử lý.",
+            ], 422);
+        }
+
         DB::transaction(function () use ($debts) {
             foreach ($debts as $debt) {
-                $debt->details()->delete();
-                $debt->payments()->delete();
+                $debt->orders()->update([
+                    'agency_payment_status' => null,
+                    'agency_paid_at' => null,
+                ]);
                 $debt->delete();
             }
         });
 
-        return response()->json(['message' => "Đã xóa {$debts->count()} công nợ đại lý chưa thanh toán."]);
+        return response()->json(['message' => "Đã hủy {$debts->count()} công nợ đại lý chưa thanh toán và giữ lại lịch sử hóa đơn."]);
     }
 
     public function export(Request $request): BinaryFileResponse

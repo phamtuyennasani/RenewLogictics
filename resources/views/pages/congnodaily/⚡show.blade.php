@@ -36,6 +36,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                 'details.order.packages',
                 'payments.user:id,fullname,username,code',
                 'payments.ketoan:id,fullname,username,code',
+                'payments.approver:id,fullname,username,code',
+                'payments.paymentConfirmer:id,fullname,username,code',
                 'payments.cancelledBy:id,fullname,username,code',
             ])
             ->where(function ($query) use ($id) {
@@ -64,7 +66,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
             'invoiceAmount' => 'Số tiền hóa đơn',
         ]);
 
-        $amount = $this->number($data['invoiceAmount']);
+        $amount = round($this->number($data['invoiceAmount']), 2);
         if ($amount <= 0) {
             Flux::toast(heading: 'Số tiền không hợp lệ', text: 'Vui lòng nhập số tiền lớn hơn 0.', variant: 'warning');
             return;
@@ -83,6 +85,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                     'id_congno_daily' => $debt->id,
                     'id_user' => auth()->id(),
                     'amount' => $amount,
+                    'due_at' => $debt->hanthanhtoan,
                     'note' => $data['invoiceNote'] ?: 'Hóa đơn chi cho đại lý ' . ($debt->daily?->namevi ?: $debt->daily?->nameen ?: ''),
                     'status' => InvoicePaymentStatusEnum::MOI_TAO->value,
                     'loai_hoa_don' => InvoiceTypeEnum::CHI->value,
@@ -111,13 +114,18 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                 throw new \RuntimeException('Hóa đơn không thể chuyển sang đã thanh toán.');
             }
 
+            $fromStatus = $invoice->status;
+
             $invoice->forceFill([
                 'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
                 'paid_at' => now(),
                 'ngay_duyet' => now(),
                 'id_ketoan' => auth()->id(),
+                'payment_confirmed_by' => auth()->id(),
                 'method' => $invoice->method ?: 'bank_transfer',
             ])->save();
+
+            $invoice->writeStatusLog('expense_paid', $fromStatus, InvoicePaymentStatusEnum::DA_THANH_TOAN, auth()->id());
 
             $debt = CongNoDaiLy::query()->whereKey($this->debt->id)->lockForUpdate()->firstOrFail();
             $debt->syncPaidAmountFromPayments();
@@ -146,11 +154,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                 throw new \RuntimeException('Bạn không có quyền hủy hóa đơn này.');
             }
 
+            $fromStatus = $invoice->status;
+
             $invoice->forceFill([
                 'status' => InvoicePaymentStatusEnum::HUY->value,
                 'cancelled_at' => now(),
                 'id_cancelled_by' => auth()->id(),
             ])->save();
+
+            $invoice->writeStatusLog('cancelled', $fromStatus, InvoicePaymentStatusEnum::HUY, auth()->id());
         });
 
         $this->reloadDebt();
@@ -183,14 +195,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
             return;
         }
 
+        if ($this->debt->payments()
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
+            ->exists()) {
+            Flux::toast(heading: 'Không thể hủy', text: 'Công nợ còn hóa đơn đang xử lý.', variant: 'warning');
+            return;
+        }
+
         DB::transaction(function () {
             $this->debt->orders()->update([
                 'agency_payment_status' => null,
                 'agency_paid_at' => null,
             ]);
 
-            $this->debt->details()->delete();
-            $this->debt->payments()->delete();
             $this->debt->delete();
         });
 
@@ -215,7 +232,40 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
 
     protected function number(mixed $value): float
     {
-        return (float) preg_replace('/[^\d.-]/', '', (string) ($value ?? 0));
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        $normalized = preg_replace('/[^\d.,-]/', '', (string) ($value ?? 0));
+
+        if ($normalized === '' || $normalized === '-') {
+            return 0;
+        }
+
+        $hasComma = str_contains($normalized, ',');
+        $hasDot = str_contains($normalized, '.');
+
+        if ($hasComma && $hasDot) {
+            $lastComma = strrpos($normalized, ',');
+            $lastDot = strrpos($normalized, '.');
+
+            if ($lastComma > $lastDot) {
+                $normalized = str_replace('.', '', $normalized);
+                $normalized = str_replace(',', '.', $normalized);
+            } else {
+                $normalized = str_replace(',', '', $normalized);
+            }
+        } elseif ($hasComma) {
+            if (preg_match('/^-?\d{1,3}(,\d{3})+$/', $normalized)) {
+                $normalized = str_replace(',', '', $normalized);
+            } else {
+                $normalized = str_replace(',', '.', $normalized);
+            }
+        } elseif ($hasDot && preg_match('/^-?\d{1,3}(\.\d{3})+$/', $normalized)) {
+            $normalized = str_replace('.', '', $normalized);
+        }
+
+        return (float) $normalized;
     }
 
     public function money(mixed $value): string
@@ -380,7 +430,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                                             @if ($invoice->status === \App\Enums\InvoicePaymentStatusEnum::HUY)
                                                 <span class="text-xs text-red-600">{{ $invoice->cancelledBy?->fullname ?: $invoice->cancelledBy?->username ?: '-' }}</span>
                                             @else
-                                                {{ $invoice->ketoan?->fullname ?: $invoice->ketoan?->username ?: '-' }}
+                                                <p>{{ $invoice->ketoan?->fullname ?: $invoice->ketoan?->username ?: '-' }}</p>
+                                                @if ($invoice->paymentConfirmer)
+                                                    <p class="mt-1 text-xs text-emerald-700">Xác nhận: {{ $invoice->paymentConfirmer->fullname ?: $invoice->paymentConfirmer->username }}</p>
+                                                @endif
                                             @endif
                                         </td>
                                         <td class="px-4 py-4 align-top text-xs text-neutral-600">{{ $invoice->note }}</td>

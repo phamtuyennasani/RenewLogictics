@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\CongNo;
 
 use App\Enums\DebtStatusEnum;
+use App\Enums\InvoicePaymentStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Models\CongNo;
 use App\Models\User;
@@ -78,15 +79,27 @@ class CongNoDataTableController extends Controller
             ->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
             ->get();
 
+        $blockedCount = $debts->filter(fn (CongNo $debt) => $debt->payments()
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
+            ->exists())->count();
+
+        if ($blockedCount > 0) {
+            return response()->json([
+                'message' => "Không thể xóa {$blockedCount} công nợ còn hóa đơn đang xử lý.",
+            ], 422);
+        }
+
         DB::transaction(function () use ($debts) {
             foreach ($debts as $debt) {
-                $debt->details()->delete();
-                $debt->payments()->delete();
+                $debt->orders()->update([
+                    'customer_payment_status' => null,
+                    'customer_paid_at' => null,
+                ]);
                 $debt->delete();
             }
         });
 
-        return response()->json(['message' => "Đã xóa {$debts->count()} công nợ chưa thanh toán."]);
+        return response()->json(['message' => "Đã hủy {$debts->count()} công nợ chưa thanh toán và giữ lại lịch sử hóa đơn."]);
     }
 
     public function export(Request $request): BinaryFileResponse
@@ -200,16 +213,13 @@ class CongNoDataTableController extends Controller
         $total = (float) $items->sum('total_cuocban');
         $paid = (float) $items->sum('paid_amount');
         $remaining = (float) $items->sum(fn (CongNo $debt) => $debt->remaining_amount);
-        $overdue = (float) $items->where('status', DebtStatusEnum::QUA_HAN)->sum(fn (CongNo $debt) => $debt->remaining_amount);
 
         return [
             'total' => $total,
             'paid' => $paid,
             'remaining' => $remaining,
-            'overdue' => $overdue,
             'paid_percent' => $this->percentOf($paid, $total),
             'remaining_percent' => $this->percentOf($remaining, $total),
-            'overdue_percent' => $this->percentOf($overdue, $total),
         ];
     }
 

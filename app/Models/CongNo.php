@@ -7,11 +7,12 @@ use App\Enums\InvoicePaymentStatusEnum;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class CongNo extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'congno';
 
@@ -67,6 +68,7 @@ class CongNo extends Model
         'paid_amount' => 'decimal:2',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     protected $appends = [
@@ -178,17 +180,20 @@ class CongNo extends Model
             ->where('status', InvoicePaymentStatusEnum::DA_THANH_TOAN->value)
             ->sum('amount');
         $total = (float) $this->total_cuocban;
+        $hasUnfinishedInvoices = $this->payments()
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
+            ->exists();
 
         $status = match (true) {
-            $total > 0 && $paidAmount >= $total => DebtStatusEnum::DA_THANH_TOAN,
+            $paidAmount > 0 && ! $hasUnfinishedInvoices && $total > 0 && $paidAmount >= $total => DebtStatusEnum::DA_THANH_TOAN,
             $paidAmount > 0 => DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN,
-            default => $this->status,
+            default => DebtStatusEnum::DA_CHOT_CUOC,
         };
 
         $this->forceFill([
             'paid_amount' => $paidAmount,
             'status' => $status->value,
-            'ngaythanhtoan' => $status === DebtStatusEnum::DA_THANH_TOAN ? now() : $this->ngaythanhtoan,
+            'ngaythanhtoan' => $status === DebtStatusEnum::DA_THANH_TOAN ? now() : null,
         ])->save();
     }
 
@@ -197,19 +202,13 @@ class CongNo extends Model
         return in_array($this->status, [
             DebtStatusEnum::DA_CHOT_CUOC,
             DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN,
-            DebtStatusEnum::QUA_HAN,
         ], true);
     }
 
     public function pendingInvoicesTotal(): float
     {
         return (float) $this->payments()
-            ->whereIn('status', [
-                InvoicePaymentStatusEnum::MOI_TAO->value,
-                InvoicePaymentStatusEnum::DA_DUYET->value,
-                InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT->value,
-                InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT->value,
-            ])
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
             ->sum('amount');
     }
 
