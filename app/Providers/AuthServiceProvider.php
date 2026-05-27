@@ -66,7 +66,7 @@ class AuthServiceProvider extends ServiceProvider
 
         // Gate for thongke
         Gate::define('thongke', function ($user) {
-            return $user->hasAnyRole(['admin', 'manager', 'ketoan']);
+            return $user->hasAnyRole(['admin', 'manager', 'ketoan', 'sale', 'SALE', 'ctv', 'CTV', 'cs', 'ops']);
         });
 
         // Gate for customers

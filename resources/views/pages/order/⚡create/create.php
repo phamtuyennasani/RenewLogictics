@@ -150,12 +150,16 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         redirect()->route('orders.index');
     }
 
-    public function showRequiredFieldsToast(): void
+    public function showRequiredFieldsToast(array $fields = []): void
     {
+        $text = empty($fields)
+            ? 'Bạn cần nhập đầy đủ các trường dữ liệu bắt buộc'
+            : "Vui lòng nhập đầy đủ:\n• " . implode("\n• ", $fields);
+
         Flux::toast(
             duration: 200000,
-            heading: 'Cảnh báo',
-            text: 'Bạn cần nhập đầy đủ các trường dữ liệu bắt buộc',
+            heading: 'Thiếu thông tin',
+            text: $text,
             variant: 'danger'
         );
     }
@@ -592,7 +596,14 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             return;
         } catch (ValidationException $e) {
             $this->setErrorBag($e->validator->errors());
-            $this->showRequiredFieldsToast();
+            $errors = $e->validator->errors()->all();
+            $errorList = implode("\n• ", $errors);
+            Flux::toast(
+                duration: 200000,
+                heading: 'Thiếu thông tin bắt buộc',
+                text: "• {$errorList}",
+                variant: 'danger'
+            );
             return;
         }
 

@@ -19,6 +19,7 @@ class CongNoPayment extends Model
 
     protected $fillable = [
         'id_congno',
+        'id_order',
         'id_user',
         'amount',
         'paid_at',
@@ -53,6 +54,7 @@ class CongNoPayment extends Model
         'payment_rejection_reason',
         'payment_rejected_at',
         'payment_rejected_by',
+        'order_snapshot',
     ];
 
     protected $casts = [
@@ -66,6 +68,7 @@ class CongNoPayment extends Model
         'cancelled_at' => 'datetime',
         'payment_rejected_at' => 'datetime',
         'provider_payload' => 'array',
+        'order_snapshot' => 'array',
         'status' => InvoicePaymentStatusEnum::class,
         'loai_hoa_don' => InvoiceTypeEnum::class,
         'created_at' => 'datetime',
@@ -90,6 +93,11 @@ class CongNoPayment extends Model
     public function congNo()
     {
         return $this->belongsTo(CongNo::class, 'id_congno')->withTrashed();
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class, 'id_order');
     }
 
     public function user()
@@ -172,13 +180,8 @@ class CongNoPayment extends Model
             return false;
         }
 
-        $status = $this->status;
-        if ($status === InvoicePaymentStatusEnum::DA_THANH_TOAN
-            || $status === InvoicePaymentStatusEnum::HUY) {
-            return false;
-        }
-
-        if ($status === InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT && ! $this->canRegenerateQr()) {
+        if ($this->status === InvoicePaymentStatusEnum::DA_THANH_TOAN
+            || $this->status === InvoicePaymentStatusEnum::HUY) {
             return false;
         }
 
@@ -232,6 +235,23 @@ class CongNoPayment extends Model
                 InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT,
                 InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT,
             ], true);
+    }
+
+    public function canAdminMarkPaid(?User $user): bool
+    {
+        return $user instanceof User
+            && $user->hasRole('admin')
+            && $this->status === InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT;
+    }
+
+    public function scopeForOrder($query, int $orderId)
+    {
+        return $query->where('id_order', $orderId);
+    }
+
+    public function hasDirectOrder(): bool
+    {
+        return $this->id_order !== null;
     }
 
     public function hasRejectionMetadata(): bool

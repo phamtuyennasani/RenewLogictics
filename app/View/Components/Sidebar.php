@@ -67,7 +67,7 @@ class Sidebar extends Component
                     'route'  => 'dashboard',
                     'icon'   => 'dashboard',
                     'label'  => 'Dashboard',
-                    'roles'  => ['admin', 'manager', 'ketoan', 'cs', 'sale', 'ops', 'ctv', 'shipper'],
+                    'roles'  => ['admin', 'manager', 'ketoan', 'cs', 'sale', 'ops', 'ctv'],
                 ],
                 [
                     'route'  => 'orders.index',
@@ -118,10 +118,10 @@ class Sidebar extends Component
                     'roles'  => ['admin', 'manager', 'ketoan'],
                 ],
                 [
-                    'route'  => 'thongke',
+                    'route'  => 'dashboard',
                     'icon'   => 'stats',
                     'label'  => 'Thống kê',
-                    'roles'  => ['admin', 'manager', 'sale', 'ketoan', 'ctv'],
+                    'roles'  => ['__hidden'],
                 ],
             ],
         ], $role);

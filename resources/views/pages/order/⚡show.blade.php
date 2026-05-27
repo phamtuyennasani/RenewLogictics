@@ -31,6 +31,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 'cs:id,fullname,username,code',
                 'packages',
                 'invoices',
+                'congNoPayments.user:id,fullname,username',
+                'congNoPayments.paymentConfirmer:id,fullname,username',
                 'photos',
                 'dichvu:id,namevi',
                 'chiTietDichVu:id,namevi',
@@ -716,6 +718,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         <div class="space-y-5 xl:col-span-2">
             <livewire:order.shipment-metrics :order="$order" wire:key="order-shipment-metrics-{{ $order->id }}" />
             <livewire:order.invoices-detail :order="$order" wire:key="order-invoices-detail-{{ $order->id }}" />
+            <livewire:order.payment-invoices :order="$order" wire:key="order-payment-invoices-{{ $order->id }}" />
         </div>
         <div class="space-y-5">
             <livewire:order.charges-summary :order="$order" wire:key="order-charges-summary-{{ $order->id }}" />

@@ -130,6 +130,14 @@ class PaymentInvoiceMatcher
                         'customer_payment_status' => $orderStatus,
                         'customer_paid_at' => $orderStatus === DebtStatusEnum::DA_THANH_TOAN->value ? Carbon::now() : null,
                     ]);
+                } elseif ($invoice->hasDirectOrder()) {
+                    $order = $invoice->order()->lockForUpdate()->first();
+                    if ($order) {
+                        $order->forceFill([
+                            'customer_payment_status' => DebtStatusEnum::DA_THANH_TOAN->value,
+                            'customer_paid_at' => $invoice->paid_at ?? Carbon::now(),
+                        ])->save();
+                    }
                 }
 
                 Log::info('Payment matcher: invoice marked paid', [

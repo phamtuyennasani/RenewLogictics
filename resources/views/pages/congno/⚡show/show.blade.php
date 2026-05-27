@@ -202,13 +202,13 @@
                                 <td class="whitespace-nowrap px-4 py-4 text-right align-top font-bold text-neutral-950">{{ $this->money($detail->cuocban) }}</td>
                                 <td class="px-4 py-4 text-right align-top">
                                     <div class="flex justify-end gap-2">
-                                        @if ($this->canManage() && ! $debt->canCreatePaymentInvoice() && $order?->uuid)
+                                        @if ($this->canManage() && ! $debt->canCreatePaymentInvoice() && $debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN && $order?->uuid)
                                             <button type="button" wire:click="openSaleChargeModal({{ $detail->id }})" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700" title="Edit cước bán">
                                                 <flux:icon.pencil-square class="size-4" />
                                                 Cước bán
                                             </button>
                                         @endif
-                                        @if ($this->canManage() && ! $debt->canCreatePaymentInvoice())
+                                        @if ($this->canManage() && ! $debt->canCreatePaymentInvoice() && $debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN)
                                             <button type="button" wire:click="removeOrder({{ $detail->id }})" wire:confirm="Gỡ order này khỏi công nợ?" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600" title="Delete order" aria-label="Delete order">
                                                 <flux:icon.trash class="size-4" />
                                             </button>
@@ -288,7 +288,7 @@
                         </flux:button>
                     </div>
                 </section>
-            @elseif (! $canCreateInvoice)
+            @elseif (! $canCreateInvoice && $debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN)
                 <section class="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
                     <div class="flex items-start gap-3">
                         <flux:icon.exclamation-triangle class="size-5 shrink-0 text-amber-600" />
@@ -302,7 +302,7 @@
         </aside>
     </div>
 
-    @if ($canCreateInvoice)
+    @if ($canCreateInvoice || $sortedInvoices->isNotEmpty())
         <section class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -732,12 +732,12 @@
                     <div class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
                         <div class="flex items-start gap-2 text-sm text-neutral-600">
                             <flux:icon.information-circle class="mt-0.5 size-4 text-rose-500" />
-                            <p>Khi bấm "Tạo mã QR", hệ thống sẽ sinh yêu cầu thanh toán theo cổng đã chọn. SePay tạo QR ngân hàng, MoMo tạo link/ví MoMo, VNPAY tạo link chuyển hướng; webhook sẽ tự cập nhật trạng thái sang "Đã thanh toán".</p>
+                            <p>Khi bấm "Tạo thanh toán", hệ thống sẽ sinh yêu cầu thanh toán theo cổng đã chọn. SePay tạo QR ngân hàng, MoMo tạo link/ví MoMo, VNPAY tạo link chuyển hướng; webhook sẽ tự cập nhật trạng thái sang "Đã thanh toán".</p>
                         </div>
                         <div class="flex items-center justify-end gap-2 border-t border-neutral-200 pt-3">
                             <flux:button type="button" variant="outline" wire:click="closePayModal">Hủy</flux:button>
-                            <flux:button type="button" variant="primary" icon="qr-code" wire:click="submitOnlinePayment" wire:loading.attr="disabled" wire:target="submitOnlinePayment">
-                                Tạo mã QR thanh toán
+                            <flux:button type="button" variant="primary" icon="{{ $selectedProvider === 'sepay' ? 'qr-code' : 'link' }}" wire:click="submitOnlinePayment" wire:loading.attr="disabled" wire:target="submitOnlinePayment">
+                                {{ $selectedProvider === 'sepay' ? 'Tạo mã QR thanh toán' : 'Tạo link thanh toán' }}
                             </flux:button>
                         </div>
                     </div>

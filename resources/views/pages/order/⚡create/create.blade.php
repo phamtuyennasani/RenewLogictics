@@ -15,7 +15,7 @@
 
             const requiredEls = [...form.querySelectorAll('[required]')].filter((f) => !f.disabled);
 
-            let firstInvalid = null;
+            let invalidFields = [];
 
             for (const el of requiredEls) {
                 let checkEl = el;
@@ -33,17 +33,23 @@
                 const isEmpty = checkEl.type === 'checkbox' ? !checkEl.checked : !String(checkEl.value ?? '').trim();
 
                 if (isEmpty) {
-                    firstInvalid = { checkEl, scrollEl, nativeEl: el };
-                    break;
+                    const label = el.closest('.field, [data-field]')?.querySelector('label')?.textContent?.trim()
+                        || el.getAttribute('data-label')
+                        || el.getAttribute('placeholder')
+                        || el.name
+                        || 'Trường không xác định';
+                    invalidFields.push({ el, scrollEl, checkEl, label: label.replace(/\s*Bắt buộc\s*/gi, '').trim() });
                 }
             }
 
-            if (firstInvalid) {
+            if (invalidFields.length > 0) {
+                const first = invalidFields[0];
                 requestAnimationFrame(() => {
-                    firstInvalid.scrollEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    firstInvalid.checkEl.focus?.({ preventScroll: true });
+                    first.scrollEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    first.checkEl.focus?.({ preventScroll: true });
                 });
-                this.$wire.showRequiredFieldsToast();
+                const labels = invalidFields.map(f => f.label);
+                this.$wire.showRequiredFieldsToast(labels);
                 return;
             }
 

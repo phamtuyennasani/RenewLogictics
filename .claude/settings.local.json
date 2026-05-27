@@ -50,7 +50,13 @@
       "mcp__plugin_ecc_exa__web_search_exa",
       "Bash(php h:/laragon/www/Hethong/hethong-laravel/test_payment_providers.php)",
       "Bash(php -l h:/laragon/www/Hethong/hethong-laravel/app/Services/Providers/MoMo/MoMoPaymentService.php)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(php -l \"app/Models/CongNoPayment.php\")",
+      "Bash(php -l \"app/Http/Controllers/Invoice/InvoiceDataTableController.php\")",
+      "Bash(php -l \"resources/views/pages/invoice/⚡index/index.php\")",
+      "Bash(php -l \"routes/web.php\")",
+      "Bash(php -l resources/views/pages/congno/⚡show/show.blade.php)",
+      "Bash(php -l \"resources/views/pages/order/⚡payment.blade.php\")"
     ]
   }
 }

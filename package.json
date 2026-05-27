@@ -17,6 +17,9 @@
     },
     "dependencies": {
         "@fancyapps/ui": "^6.1.14",
+        "@zxing/browser": "^0.1.5",
+        "@zxing/library": "^0.21.3",
+        "chart.js": "^4.5.1",
         "flatpickr": "^4.6.13",
         "primeicons": "^7.0.0",
         "smooth-scrollbar": "^8.8.4",

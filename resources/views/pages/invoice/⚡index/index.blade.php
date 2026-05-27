@@ -84,22 +84,22 @@
             </div>
 
             <div class="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-                <div class="absolute inset-y-4 left-0 w-1 rounded-r-full bg-red-500"></div>
+                <div class="absolute inset-y-4 left-0 w-1 rounded-r-full bg-blue-500"></div>
                 <div class="flex items-start justify-between gap-4">
                     <div class="min-w-0 pl-2">
                         <div class="flex items-center gap-2">
-                            <span class="h-2 w-2 rounded-full bg-red-500"></span>
-                            <p class="text-[11px] font-bold uppercase tracking-wide text-red-700">Đã hủy</p>
+                            <span class="h-2 w-2 rounded-full bg-blue-500"></span>
+                            <p class="text-[11px] font-bold uppercase tracking-wide text-blue-700">Chờ duyệt</p>
                         </div>
-                        <p class="mt-3 truncate text-3xl font-black leading-none tracking-normal text-neutral-950" data-summary-money="cancelled">{{ $this->money(0) }}</p>
-                        <p class="mt-2 text-xs font-medium text-neutral-500">Hóa đơn bị hủy</p>
+                        <p class="mt-3 truncate text-3xl font-black leading-none tracking-normal text-neutral-950" data-summary-money="awaiting">{{ $this->money(0) }}</p>
+                        <p class="mt-2 text-xs font-medium text-neutral-500">Hóa đơn chờ duyệt</p>
                     </div>
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                        <flux:icon.x-circle class="size-5" />
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <flux:icon.clock class="size-5" />
                     </div>
                 </div>
-                <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-red-100">
-                    <div class="h-full rounded-full bg-red-500" data-summary-bar="cancelled" style="width: 0%"></div>
+                <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-blue-100">
+                    <div class="h-full rounded-full bg-blue-500" data-summary-bar="awaiting" style="width: 0%"></div>
                 </div>
             </div>
         </div>
@@ -394,19 +394,23 @@
                     </section>
 
                     <section class="mt-4 hidden rounded-lg border border-neutral-200 bg-white p-4" data-detail-payment-result>
-                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="mb-3 flex items-center justify-between">
                             <div class="min-w-0">
                                 <p class="text-xs font-bold uppercase text-neutral-500">Kết quả thanh toán</p>
-                                <div class="mt-1 text-base font-black text-neutral-950" data-detail-payment-result-title></div>
+                                <div class="mt-0.5 text-sm font-semibold text-neutral-700" data-detail-payment-result-title></div>
                             </div>
                             <div class="flex flex-wrap gap-2">
-                                <a data-detail-download-qr href="#" download class="hidden inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition hover:bg-neutral-50">Tải QR</a>
+                                <button type="button" data-detail-download-qr class="hidden inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition hover:bg-neutral-50">Tải QR</button>
                                 <button type="button" data-detail-copy-link class="hidden inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-bold text-neutral-700 transition hover:bg-neutral-50">Copy link</button>
                             </div>
                         </div>
-                        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-                            <img data-detail-payment-qr class="hidden size-36 rounded-lg border border-neutral-200 bg-white object-contain p-2" alt="QR thanh toán">
-                            <input data-detail-payment-link type="text" readonly class="hidden h-11 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-xs font-medium text-neutral-700">
+                        <div class="flex flex-col items-center gap-3">
+                            <div class="items-center justify-center rounded-xl border border-neutral-200 bg-white p-4" style="display:none" data-detail-qr-container>
+                                <img data-detail-payment-qr class="max-w-[20rem] w-full rounded-lg object-contain" alt="QR thanh toán">
+                            </div>
+                            <div class="w-full ">
+                                <input data-detail-payment-link type="text" readonly class="hidden h-11 w-full rounded-lg border border-neutral-200 bg-neutral-50 px-3 text-xs font-medium text-neutral-700">
+                            </div>
                         </div>
                     </section>
 
@@ -481,6 +485,7 @@
                     <button type="button" hidden data-detail-action="online-submit" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">Tạo Mã thanh toán</button>
                     <button type="button" hidden data-detail-action="regenerate" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">Tạo lại mã thanh toán</button>
                     <button type="button" hidden data-detail-action="reset-payment-channel" class="inline-flex h-10 items-center justify-center rounded-lg border border-primary-200 bg-white px-4 text-sm font-bold text-primary-700 transition hover:bg-primary-50">Reset về đã duyệt</button>
+                    <button type="button" hidden data-detail-action="mark-paid" class="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">Xác nhận đã thanh toán</button>
                     <button type="button" hidden data-detail-action="reject" class="inline-flex h-10 items-center justify-center rounded-lg border border-orange-200 bg-white px-4 text-sm font-bold text-orange-700 transition hover:bg-orange-50">Không chấp nhận</button>
                     <button type="button" hidden data-detail-action="cancel" class="inline-flex h-10 items-center justify-center rounded-lg border border-red-200 bg-white px-4 text-sm font-bold text-red-700 transition hover:bg-red-50">Hủy hóa đơn</button>
                     <button type="button" data-detail-action="close" class="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50">Đóng</button>
@@ -598,6 +603,80 @@
                     </button>
                     <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg bg-orange-600 px-4 text-sm font-semibold text-white transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-60">
                         Từ chối
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="invoice-mark-paid-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+            <form id="invoice-mark-paid-form" class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+                <div class="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-neutral-950">Xác nhận đã thanh toán</h2>
+                        <p class="mt-1 text-sm text-neutral-500">
+                            <span data-mark-paid-modal-code>-</span>
+                            <span class="mx-1">/</span>
+                            <span data-mark-paid-modal-amount>-</span>
+                        </p>
+                    </div>
+                    <button type="button" id="invoice-mark-paid-close" class="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800">
+                        <span class="sr-only">Đóng</span>
+                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="py-4">
+                    <p class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+                        Hóa đơn sẽ được chuyển sang trạng thái Đã thanh toán và cập nhật công nợ tương ứng.
+                    </p>
+                    <p class="mt-2 hidden text-sm text-red-600" data-mark-paid-modal-error></p>
+                </div>
+
+                <div class="flex justify-end gap-2 border-t border-neutral-100 pt-4">
+                    <button type="button" id="invoice-mark-paid-dismiss" class="inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">
+                        Đóng
+                    </button>
+                    <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        Xác nhận thanh toán
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="invoice-reset-channel-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+            <form id="invoice-reset-channel-form" class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+                <div class="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-neutral-950">Reset về đã duyệt</h2>
+                        <p class="mt-1 text-sm text-neutral-500">
+                            <span data-reset-channel-modal-code>-</span>
+                            <span class="mx-1">/</span>
+                            <span data-reset-channel-modal-amount>-</span>
+                        </p>
+                    </div>
+                    <button type="button" id="invoice-reset-channel-close" class="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800">
+                        <span class="sr-only">Đóng</span>
+                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="py-4">
+                    <p class="rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm font-semibold text-primary-800">
+                        Hóa đơn sẽ được reset về trạng thái Đã duyệt để chọn lại kênh thanh toán. Thông tin thanh toán cũ sẽ bị xóa.
+                    </p>
+                    <p class="mt-2 hidden text-sm text-red-600" data-reset-channel-modal-error></p>
+                </div>
+
+                <div class="flex justify-end gap-2 border-t border-neutral-100 pt-4">
+                    <button type="button" id="invoice-reset-channel-dismiss" class="inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">
+                        Đóng
+                    </button>
+                    <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        Xác nhận reset
                     </button>
                 </div>
             </form>
@@ -836,6 +915,12 @@
                 const rejectModal = document.getElementById('invoice-reject-modal');
                 const rejectForm = document.getElementById('invoice-reject-form');
                 const rejectState = { invoiceId: null };
+                const markPaidModal = document.getElementById('invoice-mark-paid-modal');
+                const markPaidForm = document.getElementById('invoice-mark-paid-form');
+                const markPaidState = { invoiceId: null };
+                const resetChannelModal = document.getElementById('invoice-reset-channel-modal');
+                const resetChannelForm = document.getElementById('invoice-reset-channel-form');
+                const resetChannelState = { invoiceId: null };
                 const detailState = { invoice: null, method: null, provider: null, regenerateTimer: null };
 
                 const filters = () => ({
@@ -925,6 +1010,11 @@
                 detailModal?.addEventListener('click', (event) => {
                     if (event.target.closest('[data-detail-copy-link]')) {
                         copyDetailPaymentLink();
+                        return;
+                    }
+
+                    if (event.target.closest('[data-detail-download-qr]')) {
+                        downloadDetailQr();
                         return;
                     }
 
@@ -1060,6 +1150,16 @@
                 rejectModal?.addEventListener('click', (event) => {
                     if (event.target === rejectModal) closeRejectModal();
                 });
+                document.getElementById('invoice-mark-paid-close')?.addEventListener('click', closeMarkPaidModal);
+                document.getElementById('invoice-mark-paid-dismiss')?.addEventListener('click', closeMarkPaidModal);
+                markPaidModal?.addEventListener('click', (event) => {
+                    if (event.target === markPaidModal) closeMarkPaidModal();
+                });
+                document.getElementById('invoice-reset-channel-close')?.addEventListener('click', closeResetChannelModal);
+                document.getElementById('invoice-reset-channel-dismiss')?.addEventListener('click', closeResetChannelModal);
+                resetChannelModal?.addEventListener('click', (event) => {
+                    if (event.target === resetChannelModal) closeResetChannelModal();
+                });
 
                 cashForm?.addEventListener('submit', (event) => {
                     event.preventDefault();
@@ -1132,6 +1232,52 @@
                         });
                 });
 
+                markPaidForm?.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    if (!markPaidState.invoiceId) return;
+
+                    const submitButton = markPaidForm.querySelector('button[type="submit"]');
+                    submitButton.disabled = true;
+                    setMarkPaidError('');
+
+                    postJson(`${routes.markPaid}/${markPaidState.invoiceId}/mark-paid`, {})
+                        .then((payload) => {
+                            notify(payload.message || 'Đã xác nhận thanh toán.');
+                            closeMarkPaidModal();
+                            closeDetailModal();
+                            reload();
+                        })
+                        .catch((err) => {
+                            setMarkPaidError(err?.message || 'Không thể xác nhận thanh toán. Vui lòng thử lại.');
+                        })
+                        .finally(() => {
+                            submitButton.disabled = false;
+                        });
+                });
+
+                resetChannelForm?.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    if (!resetChannelState.invoiceId) return;
+
+                    const submitButton = resetChannelForm.querySelector('button[type="submit"]');
+                    submitButton.disabled = true;
+                    setResetChannelError('');
+
+                    postJson(`${routes.resetPaymentChannel}/${resetChannelState.invoiceId}/reset-payment-channel`, {})
+                        .then((payload) => {
+                            notify(payload.message || 'Đã reset hóa đơn về trạng thái Đã duyệt.');
+                            closeResetChannelModal();
+                            closeDetailModal();
+                            reload();
+                        })
+                        .catch((err) => {
+                            setResetChannelError(err?.message || 'Không thể reset kênh thanh toán. Vui lòng thử lại.');
+                        })
+                        .finally(() => {
+                            submitButton.disabled = false;
+                        });
+                });
+
                 document.querySelectorAll('[data-invoice-status-tab]').forEach((button) => {
                     button.addEventListener('click', () => {
                         setFilterValue('status', button.dataset.invoiceStatusTab || '');
@@ -1180,10 +1326,10 @@
                     document.querySelector('[data-summary-money="total"]')?.replaceChildren(document.createTextNode(money(summary.total || 0)));
                     document.querySelector('[data-summary-money="paid"]')?.replaceChildren(document.createTextNode(money(summary.paid || 0)));
                     document.querySelector('[data-summary-money="pending"]')?.replaceChildren(document.createTextNode(money(summary.pending || 0)));
-                    document.querySelector('[data-summary-money="cancelled"]')?.replaceChildren(document.createTextNode(money(summary.cancelled || 0)));
+                    document.querySelector('[data-summary-money="awaiting"]')?.replaceChildren(document.createTextNode(money(summary.awaiting || 0)));
                     setBar('paid', summary.paid_percent || 0);
                     setBar('pending', summary.pending_percent || 0);
-                    setBar('cancelled', summary.cancelled_percent || 0);
+                    setBar('awaiting', summary.awaiting_percent || 0);
                 }
 
                 function setBar(name, value) {
@@ -1352,6 +1498,7 @@
                         toggleDetailAction('regenerate', true);
                         toggleDetailAction('cancel', !!invoice.payment?.can_regenerate);
                         toggleDetailAction('reset-payment-channel', !!invoice.permissions?.reset_payment_channel && !!invoice.payment?.can_regenerate);
+                        toggleDetailAction('mark-paid', !!invoice.permissions?.admin_mark_paid);
                         const button = detailModal.querySelector('[data-detail-action="regenerate"]');
                         if (button && invoice.payment && !invoice.payment.can_regenerate) {
                             startDetailRegenerateCountdown(button, invoice);
@@ -1518,8 +1665,13 @@
                     }
 
                     if (action === 'reset-payment-channel') {
-                        if (!window.confirm('Reset hóa đơn về trạng thái Đã duyệt để chọn lại kênh thanh toán?')) return;
-                        runDetailJson(button, `${routes.resetPaymentChannel}/${invoice.id}/reset-payment-channel`, {}, 'Đã reset hóa đơn về trạng thái Đã duyệt.');
+                        openResetChannelModal(detailDataset('invoiceResetChannel'));
+                        return;
+                    }
+
+                    if (action === 'mark-paid') {
+                        openMarkPaidModal(detailDataset('invoiceMarkPaid'));
+                        return;
                     }
                 }
 
@@ -1573,30 +1725,35 @@
                     const linkValue = showQr ? '' : (paymentUrl || qrUrl || '');
                     const box = detailModal.querySelector('[data-detail-payment-result]');
                     const qr = detailModal.querySelector('[data-detail-payment-qr]');
+                    const qrContainer = detailModal.querySelector('[data-detail-qr-container]');
                     const link = detailModal.querySelector('[data-detail-payment-link]');
                     const download = detailModal.querySelector('[data-detail-download-qr]');
                     const copy = detailModal.querySelector('[data-detail-copy-link]');
 
+                    const decodedQrUrl = qrUrl ? decodeHTMLEntities(qrUrl) : '';
+                    const decodedLinkValue = linkValue ? decodeHTMLEntities(linkValue) : '';
                     box?.classList.toggle('hidden', !qrUrl && !paymentUrl);
                     setDetailText('[data-detail-payment-result-title]', showQr ? 'Mã QR thanh toán' : 'Link thanh toán');
+                    if (qrContainer) {
+                        qrContainer.style.display = showQr ? '' : 'none';
+                    }
                     if (qr) {
-                        qr.src = qrUrl || '';
+                        qr.src = decodedQrUrl;
                         qr.hidden = !showQr;
                         qr.classList.toggle('hidden', !showQr);
                     }
                     if (download) {
-                        download.href = qrUrl || '#';
                         download.hidden = !showQr;
                         download.classList.toggle('hidden', !showQr);
                     }
                     if (link) {
-                        link.value = linkValue;
-                        link.hidden = !linkValue;
-                        link.classList.toggle('hidden', !linkValue);
+                        link.value = decodedLinkValue;
+                        link.hidden = !decodedLinkValue;
+                        link.classList.toggle('hidden', !decodedLinkValue);
                     }
                     if (copy) {
-                        copy.hidden = !linkValue;
-                        copy.classList.toggle('hidden', !linkValue);
+                        copy.hidden = !decodedLinkValue;
+                        copy.classList.toggle('hidden', !decodedLinkValue);
                     }
                 }
 
@@ -1627,6 +1784,30 @@
                     navigator.clipboard?.writeText(value)
                         .then(() => notify('Đã copy link thanh toán.'))
                         .catch(() => window.prompt('Copy link thanh toán', value));
+                }
+
+                function downloadDetailQr() {
+                    const url = detailModal.querySelector('[data-detail-payment-qr]')?.src || '';
+                    if (!url) return;
+
+                    fetch(url)
+                        .then((response) => {
+                            if (!response.ok) throw new Error('Không thể tải ảnh QR.');
+                            return response.blob();
+                        })
+                        .then((blob) => {
+                            const objectUrl = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = objectUrl;
+                            link.download = `${detailState.invoice?.invoice_code || 'ma-qr-thanh-toan'}.png`;
+                            document.body.appendChild(link);
+                            link.click();
+                            link.remove();
+                            URL.revokeObjectURL(objectUrl);
+                        })
+                        .catch(() => {
+                            window.open(url, '_blank', 'noopener');
+                        });
                 }
 
                 function setDetailText(selector, value) {
@@ -1750,6 +1931,66 @@
                     error.classList.toggle('hidden', !message);
                 }
 
+                function openMarkPaidModal(button) {
+                    if (!markPaidModal || !markPaidForm) return;
+
+                    markPaidState.invoiceId = button.dataset.invoiceMarkPaid || null;
+                    markPaidForm.reset();
+                    setMarkPaidError('');
+                    markPaidModal.querySelector('[data-mark-paid-modal-code]')?.replaceChildren(document.createTextNode(button.dataset.invoiceCode || '-'));
+                    markPaidModal.querySelector('[data-mark-paid-modal-amount]')?.replaceChildren(document.createTextNode(button.dataset.invoiceAmount || '-'));
+                    markPaidModal.classList.remove('hidden');
+                    markPaidModal.classList.add('flex');
+                }
+
+                function closeMarkPaidModal() {
+                    if (!markPaidModal || !markPaidForm) return;
+
+                    markPaidState.invoiceId = null;
+                    markPaidForm.reset();
+                    setMarkPaidError('');
+                    markPaidModal.classList.add('hidden');
+                    markPaidModal.classList.remove('flex');
+                }
+
+                function setMarkPaidError(message) {
+                    const error = markPaidModal?.querySelector('[data-mark-paid-modal-error]');
+                    if (!error) return;
+
+                    error.textContent = message || '';
+                    error.classList.toggle('hidden', !message);
+                }
+
+                function openResetChannelModal(button) {
+                    if (!resetChannelModal || !resetChannelForm) return;
+
+                    resetChannelState.invoiceId = button.dataset.invoiceResetChannel || null;
+                    resetChannelForm.reset();
+                    setResetChannelError('');
+                    resetChannelModal.querySelector('[data-reset-channel-modal-code]')?.replaceChildren(document.createTextNode(button.dataset.invoiceCode || '-'));
+                    resetChannelModal.querySelector('[data-reset-channel-modal-amount]')?.replaceChildren(document.createTextNode(button.dataset.invoiceAmount || '-'));
+                    resetChannelModal.classList.remove('hidden');
+                    resetChannelModal.classList.add('flex');
+                }
+
+                function closeResetChannelModal() {
+                    if (!resetChannelModal || !resetChannelForm) return;
+
+                    resetChannelState.invoiceId = null;
+                    resetChannelForm.reset();
+                    setResetChannelError('');
+                    resetChannelModal.classList.add('hidden');
+                    resetChannelModal.classList.remove('flex');
+                }
+
+                function setResetChannelError(message) {
+                    const error = resetChannelModal?.querySelector('[data-reset-channel-modal-error]');
+                    if (!error) return;
+
+                    error.textContent = message || '';
+                    error.classList.toggle('hidden', !message);
+                }
+
                 function postJson(url, payload) {
                     return fetch(url, {
                         method: 'POST',
@@ -1813,6 +2054,12 @@
 
                 function money(value) {
                     return `${new Intl.NumberFormat('vi-VN').format(Number(value || 0))} đ`;
+                }
+
+                function decodeHTMLEntities(str) {
+                    const textarea = document.createElement('textarea');
+                    textarea.innerHTML = str;
+                    return textarea.value;
                 }
 
                 syncActiveStatus();

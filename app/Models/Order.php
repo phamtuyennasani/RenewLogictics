@@ -230,6 +230,42 @@ class Order extends Model
         return $this->hasMany(CongNoDaiLyDetail::class, 'id_order');
     }
 
+    public function congNoPayments()
+    {
+        return $this->hasMany(\App\Models\CongNoPayment::class, 'id_order');
+    }
+
+    public function isWalkIn(): bool
+    {
+        return ! $this->id_customer || (int) $this->id_customer === 0;
+    }
+
+    public function isInvoiceLocked(): bool
+    {
+        return $this->congNoPayments()
+            ->whereNotIn('status', [
+                \App\Enums\InvoicePaymentStatusEnum::HUY->value,
+            ])
+            ->exists();
+    }
+
+    public function hasActiveInvoice(): bool
+    {
+        return $this->congNoPayments()
+            ->whereNotIn('status', [
+                \App\Enums\InvoicePaymentStatusEnum::HUY->value,
+                \App\Enums\InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
+            ])
+            ->exists();
+    }
+
+    public function getActiveInvoice(): ?\App\Models\CongNoPayment
+    {
+        return $this->congNoPayments()
+            ->whereNotIn('status', [\App\Enums\InvoicePaymentStatusEnum::HUY->value])
+            ->first();
+    }
+
     public function congNos()
     {
         return $this->belongsToMany(CongNo::class, 'congno_detail', 'id_order', 'id_congno')

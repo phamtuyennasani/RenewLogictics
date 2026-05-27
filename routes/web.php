@@ -82,7 +82,8 @@ Route::middleware('guest')->group(function () {
    ============================================================ */
 Route::middleware('auth')->group(function () {
     // --- Dashboard ---
-    Route::livewire('/dashboard', 'pages::dashboard.index')->name('dashboard');
+    Route::livewire('/dashboard', 'pages::thongke.index')->name('dashboard')
+        ->middleware('can:thongke');
     // --- Đơn hàng ---
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::livewire('/', 'pages::order.index')->name('index');
@@ -103,7 +104,7 @@ Route::middleware('auth')->group(function () {
     })->middleware('can:pickups.index');
 
     // --- Scan ---
-    Route::get('/scan', fn () => view('scan.index'))->name('scan')
+    Route::livewire('/scan', 'pages::scan.index')->name('scan')
         ->middleware('can:scan');
 
     // --- Packages / Tải hàng ---
@@ -141,15 +142,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/confirm-cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'confirmCashPayment'])->name('confirm-cash')->middleware('can:invoice.index');
         Route::post('/{id}/reject-cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'rejectCashPayment'])->name('reject-cash')->middleware('can:invoice.index');
         Route::post('/{id}/reset-payment-channel', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'resetPaymentChannel'])->name('reset-payment-channel')->middleware('can:invoice.index');
+        Route::post('/{id}/mark-paid', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'markPaidByAdmin'])->name('mark-paid')->middleware('can:invoice.index');
         Route::post('/{id}/cancel', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'cancel'])->name('cancel')->middleware('can:invoice.index');
         Route::get('/sales', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'sales'])->name('sales');
         Route::get('/customers', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'customers'])->name('customers');
     })->middleware('can:invoice.index');
 
     // --- Thống kê ---
-    Route::get('/thong-ke', fn () => view('thongke.index'))->name('thongke')
-        ->middleware('can:thongke');
-
     // --- Khách hàng ---
     Route::prefix('khach-hang')->name('customers.')->group(function () {
         Route::get('/', fn () => view('customers.index'))->name('index');

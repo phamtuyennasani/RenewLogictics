@@ -7,6 +7,7 @@ use App\Enums\InvoicePaymentStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Models\CongNo;
 use App\Models\CongNoPayment;
+use App\Models\Order;
 use App\Models\User;
 use App\Services\Payments\InvoiceCodeGenerator;
 use App\Services\Payments\PaymentProviderManager;
@@ -25,7 +26,15 @@ class InvoiceDataTableController extends Controller
         $response = DataTables::eloquent($this->query($request))
             ->addColumn('invoice_code', function (CongNoPayment $invoice) {
                 $debt = $invoice->congNo;
-                $url = $debt ? route('congno.show', $debt->uuid) : '#';
+                $order = $invoice->order;
+
+                if ($order) {
+                    $url = route('orders.payment', $order->uuid);
+                } elseif ($debt) {
+                    $url = route('congno.show', $debt->uuid);
+                } else {
+                    $url = '#';
+                }
 
                 return '<a href="'.$url.'" class="font-mono font-semibold text-primary-700 hover:text-primary-800">'
                     .e($invoice->ma_hoa_don ?? '-')
@@ -33,6 +42,11 @@ class InvoiceDataTableController extends Controller
             })
             ->addColumn('debt_code', function (CongNoPayment $invoice) {
                 $debt = $invoice->congNo;
+                $order = $invoice->order;
+
+                if ($order) {
+                    return '<span class="font-semibold text-neutral-800">'.e($order->id_bill ?? 'ĐH-'.$order->id).'</span>';
+                }
 
                 return $debt
                     ? '<span class="font-semibold text-neutral-800">'.e($debt->sohoadon).'</span>'
@@ -40,6 +54,21 @@ class InvoiceDataTableController extends Controller
             })
             ->addColumn('customer_info', function (CongNoPayment $invoice) {
                 $debt = $invoice->congNo;
+                $order = $invoice->order;
+
+                if ($order) {
+                    $senderName = data_get($order->sender, 'fullname') ?: data_get($order->sender, 'company');
+                    $senderPhone = data_get($order->sender, 'phone');
+                    if ($senderName) {
+                        return '<div class="">'
+                            .'<div class="truncate font-semibold text-neutral-900 whitespace-pre-wrap">'.e($senderName).'</div>'
+                            .($senderPhone ? '<div class="mt-0.5 truncate text-xs text-neutral-500">'.e($senderPhone).'</div>' : '')
+                            .'</div>';
+                    }
+
+                    return '<span class="text-neutral-400">Vãng lai</span>';
+                }
+
                 if (! $debt || ! $debt->customer) {
                     return '<span class="text-neutral-400">-</span>';
                 }
@@ -58,6 +87,20 @@ class InvoiceDataTableController extends Controller
             })
             ->addColumn('sale_info', function (CongNoPayment $invoice) {
                 $debt = $invoice->congNo;
+                $order = $invoice->order;
+
+                if ($order) {
+                    $sale = $order->sale;
+                    if ($sale) {
+                        return '<div class="max-w-[180px]">'
+                            .'<div class="truncate font-medium text-neutral-800">'.e($sale->fullname ?: $sale->username).'</div>'
+                            .'<div class="mt-0.5 truncate font-mono text-xs text-neutral-500">'.e($sale->code ?: '-').'</div>'
+                            .'</div>';
+                    }
+
+                    return '<span class="text-neutral-400">-</span>';
+                }
+
                 if (! $debt || ! $debt->sale) {
                     return '<span class="text-neutral-400">-</span>';
                 }
@@ -119,16 +162,21 @@ class InvoiceDataTableController extends Controller
     protected function detailPayload(CongNoPayment $invoice, Request $request): array
     {
         $debt = $invoice->congNo;
+        $order = $invoice->hasDirectOrder() ? $invoice->order : null;
         $customer = $debt?->customer;
         $status = $invoice->status ?? InvoicePaymentStatusEnum::CHO_DUYET;
         $user = $request->user();
         $nextQrAt = $invoice->nextQrAvailableAt();
         $companyName = $this->customerCompanyName($customer);
 
-        return [
+        $payload = [
             'id' => $invoice->id,
             'invoice_code' => $invoice->ma_hoa_don,
             'debt_code' => $debt?->sohoadon,
+            'order_id' => $order?->id,
+            'order_uuid' => $order?->uuid,
+            'order_bill' => $order?->id_bill,
+            'has_direct_order' => $invoice->hasDirectOrder(),
             'amount' => (float) $invoice->amount,
             'amount_text' => $this->money($invoice->amount),
             'status' => $status->value,
@@ -138,13 +186,6 @@ class InvoiceDataTableController extends Controller
                 'created' => $invoice->created_at?->format('d/m/Y H:i'),
                 'approved' => $invoice->ngay_duyet?->format('d/m/Y H:i'),
                 'paid' => $invoice->paid_at?->format('d/m/Y H:i'),
-            ],
-            'customer' => [
-                'company' => $companyName,
-                'contact' => $customer?->fullname ?: data_get($customer?->options, 'company.representative_name') ?: $customer?->username,
-                'phone' => data_get($customer?->options, 'company.company_phone') ?: $customer?->phone,
-                'email' => data_get($customer?->options, 'company.company_email') ?: $customer?->email,
-                'address' => data_get($customer?->options, 'company.address_detail') ?: $customer?->address,
             ],
             'payment' => [
                 'provider' => $invoice->payment_provider,
@@ -166,8 +207,44 @@ class InvoiceDataTableController extends Controller
                 'reject_payment' => $invoice->canRejectPayment($user),
                 'manage_qr' => $invoice->canManageQr($user),
                 'reset_payment_channel' => $invoice->canResetPaymentChannel($user),
+                'admin_mark_paid' => $invoice->canAdminMarkPaid($user),
             ],
         ];
+
+        if ($order) {
+            $payload['order_info'] = [
+                'uuid' => $order->uuid,
+                'bill_code' => $order->id_bill,
+                'id_bill' => $order->id_bill,
+                'creator' => $order->creator?->fullname ?? $order->creator?->username,
+                'sale' => $order->sale?->fullname ?? $order->sale?->username,
+                'customer_payment_status' => $order->customer_payment_status,
+                'customer_paid_at' => $order->customer_paid_at?->format('d/m/Y H:i'),
+                'sender' => data_get($order->sender, 'fullname') ?: data_get($order->sender, 'company'),
+                'receiver' => data_get($order->receiver, 'fullname') ?: data_get($order->receiver, 'company'),
+                'snapshot' => $invoice->order_snapshot,
+            ];
+
+            // Customer info from sender for walk-in orders
+            $payload['customer'] = [
+                'company' => data_get($order->sender, 'company') ?: data_get($order->sender, 'fullname'),
+                'contact' => data_get($order->sender, 'fullname'),
+                'phone' => data_get($order->sender, 'phone'),
+                'email' => data_get($order->sender, 'email'),
+                'address' => data_get($order->sender, 'address'),
+            ];
+        } elseif ($customer) {
+            // Customer info from debt customer
+            $payload['customer'] = [
+                'company' => $companyName,
+                'contact' => $customer->fullname,
+                'phone' => data_get($customer->options, 'company.company_phone') ?: $customer->phone,
+                'email' => data_get($customer->options, 'company.company_email') ?: $customer->email,
+                'address' => data_get($customer->options, 'company.company_address') ?: $customer->address,
+            ];
+        }
+
+        return $payload;
     }
 
     protected function customerCompanyName(?User $customer): ?string
@@ -199,22 +276,39 @@ class InvoiceDataTableController extends Controller
                 'paymentConfirmer:id,fullname,username',
                 'congNo.customer:id,fullname,username,code,email,phone,address,options',
                 'congNo.sale:id,fullname,username,code',
+                'order:id,uuid,id_bill,id_sale,id_create,id_customer,sender',
+                'order.sale:id,fullname,username,code',
+                'order.creator:id,fullname,username,code',
             ])
             ->where('loai_hoa_don', 'thu')
             ->when($user->hasRole('sale'), function ($q) use ($user) {
-                $q->whereHas('congNo', fn ($d) => $d->where('id_sale', $user->id));
+                $q->where(function ($sub) use ($user) {
+                    $sub->whereHas('congNo', fn ($d) => $d->where('id_sale', $user->id))
+                        ->orWhereHas('order', fn ($o) => $o->where('id_sale', $user->id));
+                });
             })
             ->when($user->hasRole('ctv'), function ($q) use ($user) {
-                $q->whereHas('congNo', fn ($d) => $d->where('id_customer', $user->id));
+                $q->where(function ($sub) use ($user) {
+                    $sub->whereHas('congNo', fn ($d) => $d->where('id_customer', $user->id))
+                        ->orWhereHas('order', fn ($o) => $o->where('id_customer', $user->id));
+                });
             })
             ->when($includeStatus && $request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->filled('fromDate'), fn ($q) => $q->whereDate('created_at', '>=', $request->date('fromDate')))
             ->when($request->filled('toDate'), fn ($q) => $q->whereDate('created_at', '<=', $request->date('toDate')))
             ->when($request->filled('customerId'), function ($q) use ($request) {
-                $q->whereHas('congNo', fn ($d) => $d->where('id_customer', $request->integer('customerId')));
+                $customerId = $request->integer('customerId');
+                $q->where(function ($sub) use ($customerId) {
+                    $sub->whereHas('congNo', fn ($d) => $d->where('id_customer', $customerId))
+                        ->orWhereHas('order', fn ($o) => $o->where('id_customer', $customerId));
+                });
             })
             ->when($request->filled('saleId'), function ($q) use ($request) {
-                $q->whereHas('congNo', fn ($d) => $d->where('id_sale', $request->integer('saleId')));
+                $saleId = $request->integer('saleId');
+                $q->where(function ($sub) use ($saleId) {
+                    $sub->whereHas('congNo', fn ($d) => $d->where('id_sale', $saleId))
+                        ->orWhereHas('order', fn ($o) => $o->where('id_sale', $saleId));
+                });
             })
             ->when(filled($request->input('search.value')), function ($q) use ($request) {
                 $keyword = '%'.trim((string) $request->input('search.value')).'%';
@@ -222,6 +316,7 @@ class InvoiceDataTableController extends Controller
                     $sub->where('ma_hoa_don', 'like', $keyword)
                         ->orWhere('reference', 'like', $keyword)
                         ->orWhereHas('congNo', fn ($d) => $d->where('sohoadon', 'like', $keyword))
+                        ->orWhereHas('order', fn ($o) => $o->where('id_bill', 'like', $keyword))
                         ->orWhereHas('user', fn ($u) => $u->where('fullname', 'like', $keyword)->orWhere('username', 'like', $keyword));
                 });
             })
@@ -253,16 +348,16 @@ class InvoiceDataTableController extends Controller
         $total = (float) $items->sum('amount');
         $paid = (float) $items->where('status', InvoicePaymentStatusEnum::DA_THANH_TOAN->value)->sum('amount');
         $pending = (float) $items->filter(fn ($inv) => $inv->status?->isOpen())->sum('amount');
-        $cancelled = (float) $items->where('status', InvoicePaymentStatusEnum::HUY->value)->sum('amount');
+        $awaiting = (float) $items->where('status', InvoicePaymentStatusEnum::CHO_DUYET->value)->sum('amount');
 
         return [
             'total' => $total,
             'paid' => $paid,
             'pending' => $pending,
-            'cancelled' => $cancelled,
+            'awaiting' => $awaiting,
             'paid_percent' => $this->percentOf($paid, $total),
             'pending_percent' => $this->percentOf($pending, $total),
-            'cancelled_percent' => $this->percentOf($cancelled, $total),
+            'awaiting_percent' => $this->percentOf($awaiting, $total),
         ];
     }
 
@@ -466,29 +561,48 @@ class InvoiceDataTableController extends Controller
         }
 
         DB::transaction(function () use ($invoice, $user) {
-            $debt = CongNo::query()->whereKey($invoice->id_congno)->lockForUpdate()->firstOrFail();
             $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
 
-            $locked->forceFill([
-                'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
-                'paid_at' => now(),
-                'id_ketoan' => $user->id,
-                'payment_confirmed_by' => $user->id,
-            ])->save();
+            if ($invoice->hasDirectOrder()) {
+                $order = Order::query()->whereKey($invoice->id_order)->lockForUpdate()->firstOrFail();
 
-            $locked->writeStatusLog('cash_confirmed', InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, InvoicePaymentStatusEnum::DA_THANH_TOAN, $user->id);
+                $locked->forceFill([
+                    'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
+                    'paid_at' => now(),
+                    'id_ketoan' => $user->id,
+                    'payment_confirmed_by' => $user->id,
+                ])->save();
 
-            $debt->syncPaidAmountFromPayments();
-            $debt->refresh();
+                $locked->writeStatusLog('cash_confirmed', InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, InvoicePaymentStatusEnum::DA_THANH_TOAN, $user->id);
 
-            $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
-                ? DebtStatusEnum::DA_THANH_TOAN->value
-                : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
+                $order->forceFill([
+                    'customer_payment_status' => DebtStatusEnum::DA_THANH_TOAN->value,
+                    'customer_paid_at' => now(),
+                ])->save();
+            } else {
+                $debt = CongNo::query()->whereKey($invoice->id_congno)->lockForUpdate()->firstOrFail();
 
-            $debt->orders()->update([
-                'customer_payment_status' => $orderStatus,
-                'customer_paid_at' => $orderStatus === DebtStatusEnum::DA_THANH_TOAN->value ? now() : null,
-            ]);
+                $locked->forceFill([
+                    'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
+                    'paid_at' => now(),
+                    'id_ketoan' => $user->id,
+                    'payment_confirmed_by' => $user->id,
+                ])->save();
+
+                $locked->writeStatusLog('cash_confirmed', InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, InvoicePaymentStatusEnum::DA_THANH_TOAN, $user->id);
+
+                $debt->syncPaidAmountFromPayments();
+                $debt->refresh();
+
+                $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
+                    ? DebtStatusEnum::DA_THANH_TOAN->value
+                    : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
+
+                $debt->orders()->update([
+                    'customer_payment_status' => $orderStatus,
+                    'customer_paid_at' => $orderStatus === DebtStatusEnum::DA_THANH_TOAN->value ? now() : null,
+                ]);
+            }
         });
 
         return response()->json(['message' => "Đã xác nhận thanh toán hóa đơn {$invoice->ma_hoa_don}."]);
@@ -567,6 +681,54 @@ class InvoiceDataTableController extends Controller
         $invoice->writeStatusLog('payment_channel_reset', $fromStatus, InvoicePaymentStatusEnum::DA_DUYET, $user->id);
 
         return response()->json(['message' => "Đã reset hóa đơn {$invoice->ma_hoa_don} về trạng thái Đã duyệt."]);
+    }
+
+    public function markPaidByAdmin(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $invoice = CongNoPayment::whereKey($id)->firstOrFail();
+
+        if (! $invoice->canAdminMarkPaid($user)) {
+            return response()->json(['message' => 'Chỉ admin mới có quyền xác nhận thanh toán cho hóa đơn ở trạng thái đã gửi yêu cầu.'], 403);
+        }
+
+        DB::transaction(function () use ($invoice, $user) {
+            $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+
+            $locked->forceFill([
+                'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
+                'paid_at' => now(),
+                'id_ketoan' => $user->id,
+                'payment_confirmed_by' => $user->id,
+            ])->save();
+
+            $locked->writeStatusLog('admin_mark_paid', InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT, InvoicePaymentStatusEnum::DA_THANH_TOAN, $user->id);
+
+            if ($invoice->hasDirectOrder()) {
+                $order = Order::query()->whereKey($invoice->id_order)->lockForUpdate()->firstOrFail();
+
+                $order->forceFill([
+                    'customer_payment_status' => DebtStatusEnum::DA_THANH_TOAN->value,
+                    'customer_paid_at' => now(),
+                ])->save();
+            } else {
+                $debt = CongNo::query()->whereKey($invoice->id_congno)->lockForUpdate()->firstOrFail();
+
+                $debt->syncPaidAmountFromPayments();
+                $debt->refresh();
+
+                $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
+                    ? DebtStatusEnum::DA_THANH_TOAN->value
+                    : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
+
+                $debt->orders()->update([
+                    'customer_payment_status' => $orderStatus,
+                    'customer_paid_at' => $orderStatus === DebtStatusEnum::DA_THANH_TOAN->value ? now() : null,
+                ]);
+            }
+        });
+
+        return response()->json(['message' => "Đã xác nhận thanh toán hóa đơn {$invoice->ma_hoa_don} (admin)."]);
     }
 
     public function cancel(Request $request, int $id): JsonResponse

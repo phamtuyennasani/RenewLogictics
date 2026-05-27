@@ -3,13 +3,16 @@ import '../../vendor/power-components/livewire-powergrid/dist/powergrid';
 import TomSelect from 'tom-select';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
+import Chart from 'chart.js/auto';
 import { registerTomSelectNavigation } from './tom-select-helper';
 import { Fancybox } from '@fancyapps/ui';
 import '@fancyapps/ui/dist/fancybox/fancybox.css';
 
 window.TomSelect = TomSelect;
 window.flatpickr = flatpickr;
+window.Chart = Chart;
 window.Fancybox = Fancybox;
+window.loadZXingBrowser = () => import('@zxing/browser');
 Fancybox.bind('[data-fancybox]', {});
 import Scrollbar from 'smooth-scrollbar';
 const sidebarEl = document.querySelector('#sidebar-scrollbar');

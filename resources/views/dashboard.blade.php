@@ -129,7 +129,7 @@
                     @endcan
 
                     @can('thongke')
-                    <a href="{{ route('thongke') }}"
+                    <a href="{{ route('dashboard') }}"
                        class="flex items-center gap-3 p-3 rounded-xl bg-neutral-50 hover:bg-[var(--color-primary-50)] hover:border-[var(--color-primary-200)] border border-transparent transition-all group">
                         <div class="w-10 h-10 rounded-xl bg-neutral-200 flex items-center justify-center shrink-0">
                             <svg class="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
