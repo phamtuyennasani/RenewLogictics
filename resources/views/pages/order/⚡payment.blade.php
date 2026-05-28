@@ -33,6 +33,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     public ?CongNoPayment $invoice = null;
     public ?string $selectedPaymentMethod = null;
     public string $selectedProvider = 'sepay';
+    public array $enabledProviders = [];
     public $cashPhoto = null;
     public string $cancelInvoiceReason = '';
     public string $rejectPaymentReason = '';
@@ -59,6 +60,16 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         $this->recalculateAll();
         $this->enforceEditableChargeScope();
         $this->loadInvoice();
+        $this->loadEnabledProviders();
+    }
+
+    protected function loadEnabledProviders(): void
+    {
+        $this->enabledProviders = PaymentProviderManager::enabledProviders();
+
+        if (!($this->enabledProviders[$this->selectedProvider] ?? false)) {
+            $this->selectedProvider = PaymentProviderManager::defaultProvider();
+        }
     }
 
     protected function loadExpenseOptions(): array
@@ -795,7 +806,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     public function closePayModal(): void
     {
         $this->selectedPaymentMethod = null;
-        $this->selectedProvider = 'sepay';
+        $this->selectedProvider = PaymentProviderManager::defaultProvider();
         $this->cashPhoto = null;
         Flux::modal('pay-order-invoice')->close();
     }
@@ -845,9 +856,9 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         }
         abort_unless($this->invoice->canPay(auth()->user()), 403);
 
-        $providerKey = in_array($this->selectedProvider, ['sepay', 'momo', 'vnpay'], true)
+        $providerKey = in_array($this->selectedProvider, PaymentProviderManager::allProviders(), true)
             ? $this->selectedProvider
-            : 'sepay';
+            : PaymentProviderManager::defaultProvider();
 
         try {
             DB::transaction(function () use ($providerKey) {
@@ -917,9 +928,9 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             return;
         }
 
-        $providerKey = in_array($this->selectedProvider, ['sepay', 'momo', 'vnpay'], true)
+        $providerKey = in_array($this->selectedProvider, PaymentProviderManager::allProviders(), true)
             ? $this->selectedProvider
-            : ($this->invoice->payment_provider ?: 'sepay');
+            : ($this->invoice->payment_provider ?: PaymentProviderManager::defaultProvider());
 
         try {
             DB::transaction(function () use ($providerKey) {
@@ -1372,27 +1383,17 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                     <div class="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4" wire:key="pay-method-online">
                         <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">Chọn cổng thanh toán</p>
                         <div class="grid gap-2 sm:grid-cols-3">
-                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition {{ $selectedProvider === 'sepay' ? 'border-primary-400 bg-primary-50/70 ring-2 ring-primary-100' : 'border-neutral-200 bg-white hover:border-primary-200' }}">
-                                <input type="radio" wire:model.live="selectedProvider" value="sepay" class="h-4 w-4 text-primary-600 focus:ring-primary-500">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-neutral-900">SePay (QR Banking)</p>
-                                    <p class="text-xs text-neutral-500">Thanh toán qua app ngân hàng, ví điện tử.</p>
-                                </div>
-                            </label>
-                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition {{ $selectedProvider === 'momo' ? 'border-pink-400 bg-pink-50/70 ring-2 ring-pink-100' : 'border-neutral-200 bg-white hover:border-pink-200' }}">
-                                <input type="radio" wire:model.live="selectedProvider" value="momo" class="h-4 w-4 text-pink-600 focus:ring-pink-500">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-neutral-900">MoMo</p>
-                                    <p class="text-xs text-neutral-500">Thanh toán nhanh qua ví MoMo.</p>
-                                </div>
-                            </label>
-                            <label class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition {{ $selectedProvider === 'vnpay' ? 'border-sky-400 bg-sky-50/70 ring-2 ring-sky-100' : 'border-neutral-200 bg-white hover:border-sky-200' }}">
-                                <input type="radio" wire:model.live="selectedProvider" value="vnpay" class="h-4 w-4 text-sky-600 focus:ring-sky-500">
-                                <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-neutral-900">VNPAY</p>
-                                    <p class="text-xs text-neutral-500">Chuyển hướng sang cổng thanh toán VNPAY.</p>
-                                </div>
-                            </label>
+                            @foreach(\App\Services\Payments\PaymentProviderManager::providerLabels() as $key => $meta)
+                                @if($enabledProviders[$key] ?? false)
+                                <label class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition {{ $selectedProvider === $key ? 'border-'.$meta['color'].'-400 bg-'.$meta['color'].'-50/70 ring-2 ring-'.$meta['color'].'-100' : 'border-neutral-200 bg-white hover:border-'.$meta['color'].'-200' }}">
+                                    <input type="radio" wire:model.live="selectedProvider" value="{{ $key }}" class="h-4 w-4 text-{{ $meta['color'] }}-600 focus:ring-{{ $meta['color'] }}-500">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-neutral-900">{{ $meta['name'] }}</p>
+                                        <p class="text-xs text-neutral-500">{{ $meta['description'] }}</p>
+                                    </div>
+                                </label>
+                                @endif
+                            @endforeach
                         </div>
                     </div>
                 @endif

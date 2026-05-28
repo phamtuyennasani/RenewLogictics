@@ -2,6 +2,7 @@
 
 namespace App\Services\Providers\Sepay;
 
+use App\Models\Setting;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
@@ -17,8 +18,25 @@ class SepayEInvoiceService
         protected ?string $accessToken = null,
         protected ?string $tokenType = null,
     ) {
-        $config = [];
+        $this->loadFromSettings();
+    }
 
+    protected function loadFromSettings(): void
+    {
+        // Load from Setting (trang cấu hình hệ thống) nếu có
+        try {
+            $options = data_get(Setting::first(), 'options', []);
+
+            $this->environment ??= $options['einvoice_sepay_environment'] ?? $options['sepay_einvoice_environment'] ?? null;
+            $this->clientId ??= $options['einvoice_sepay_client_id'] ?? $options['sepay_einvoice_client_id'] ?? null;
+            $this->clientSecret ??= $options['einvoice_sepay_client_secret'] ?? $options['sepay_einvoice_client_secret'] ?? null;
+            $this->baseUrl ??= $options['einvoice_sepay_base_url'] ?? $options['sepay_einvoice_base_url'] ?? null;
+        } catch (\Throwable) {
+            // fallback to config
+        }
+
+        // Fallback to config file
+        $config = [];
         if (function_exists('app') && app()->bound('config')) {
             $config = (array) app('config')->get('sepay.einvoice', []);
         }

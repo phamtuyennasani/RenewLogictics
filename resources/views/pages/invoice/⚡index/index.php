@@ -68,6 +68,16 @@ new #[Layout('layouts.app')] #[Title('Hóa đơn thu')] class extends \Livewire\
         $this->toDate = now()->format('Y-m-d');
     }
 
+    public function enabledProviders(): array
+    {
+        return \App\Services\Payments\PaymentProviderManager::enabledProviders();
+    }
+
+    public function providerLabels(): array
+    {
+        return \App\Services\Payments\PaymentProviderManager::providerLabels();
+    }
+
     public function money(mixed $value): string
     {
         return number_format((float) ($value ?? 0), 0, ',', '.').' đ';

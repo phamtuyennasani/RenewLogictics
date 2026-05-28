@@ -52,7 +52,7 @@ class AddOrdersToShipmentLoadAction
 
             $attachedOrderIds = ShipmentLoadOrder::query()
                 ->whereIn('id_order', $orderIds)
-                ->whereHas('load', fn ($query) => $query->where('status', ShipmentLoadStatusEnum::MOI_TAO->value))
+                ->whereHas('shipmentLoad', fn ($query) => $query->where('status', ShipmentLoadStatusEnum::MOI_TAO->value))
                 ->pluck('id_order');
 
             if ($attachedOrderIds->isNotEmpty()) {

@@ -2,6 +2,7 @@
 
 namespace App\Services\Providers\Sepay;
 
+use App\Models\Setting;
 use App\Services\Payments\Contracts\PaymentProvider;
 use App\Services\Payments\Data\PaymentIntentData;
 use App\Services\Payments\Data\PaymentRequestData;
@@ -49,8 +50,24 @@ class SepayPaymentService implements PaymentProvider
         protected ?string $gatewayErrorUrl = null,
         protected ?string $gatewayCancelUrl = null,
     ) {
-        $config = [];
+        $this->loadFromSettings();
+    }
 
+    protected function loadFromSettings(): void
+    {
+        // Load bank info from Setting (trang cấu hình hệ thống)
+        try {
+            $options = data_get(Setting::first(), 'options', []);
+
+            $this->bank ??= $options['bank_name'] ?? null;
+            $this->accountNumber ??= $options['bank_account_number'] ?? null;
+            $this->accountName ??= $options['bank_account_name'] ?? null;
+        } catch (\Throwable) {
+            // fallback to config
+        }
+
+        // Load remaining config from config file
+        $config = [];
         if (function_exists('app') && app()->bound('config')) {
             $config = (array) app('config')->get('sepay', []);
         }

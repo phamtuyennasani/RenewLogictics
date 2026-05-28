@@ -76,6 +76,8 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         'vsvx' => false,
         'address' => '',
     ];
+
+    public ?int $lastSyncedSenderId = null;
     public array $packages = [
         [
             'number_of_package' => 1,
@@ -529,7 +531,14 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     }
     public function updatedSender(): void
     {
-        $this->syncReceivers();
+        $currentSenderId = $this->sender['id'] ?? null;
+
+        // Chỉ sync receivers khi sender ID thực sự thay đổi (user chọn người gửi khác)
+        // Không reset khi user chỉ chỉnh sửa thông tin sender
+        if ($currentSenderId !== $this->lastSyncedSenderId) {
+            $this->lastSyncedSenderId = $currentSenderId;
+            $this->syncReceivers();
+        }
     }
 
     public function updatedNewPhotos(): void

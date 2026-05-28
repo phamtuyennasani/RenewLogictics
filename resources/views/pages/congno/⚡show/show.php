@@ -32,6 +32,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public ?int $payingInvoiceId = null;
     public ?string $selectedMethod = null;
     public string $selectedProvider = 'sepay';
+    public array $enabledProviders = [];
     public $cashInvoicePhoto = null;
     public bool $showPayModal = false;
 
@@ -49,6 +50,16 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         abort_unless($this->canView(), 403);
         $this->feeOptions = $this->loadFeeOptions();
         $this->expenseOptions = $this->loadExpenseOptions();
+        $this->loadEnabledProviders();
+    }
+
+    protected function loadEnabledProviders(): void
+    {
+        $this->enabledProviders = \App\Services\Payments\PaymentProviderManager::enabledProviders();
+
+        if (!($this->enabledProviders[$this->selectedProvider] ?? false)) {
+            $this->selectedProvider = \App\Services\Payments\PaymentProviderManager::defaultProvider();
+        }
     }
 
     protected function loadDebt(string $id): CongNo
@@ -325,7 +336,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $this->payingInvoiceId = null;
         $this->selectedMethod = null;
-        $this->selectedProvider = 'sepay';
+        $this->selectedProvider = \App\Services\Payments\PaymentProviderManager::defaultProvider();
         $this->cashInvoicePhoto = null;
         $this->showPayModal = false;
 
@@ -396,9 +407,9 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
         abort_unless($invoice->canPay(auth()->user()), 403);
 
-        $providerKey = in_array($this->selectedProvider, ['sepay', 'momo', 'vnpay'], true)
+        $providerKey = in_array($this->selectedProvider, PaymentProviderManager::allProviders(), true)
             ? $this->selectedProvider
-            : 'sepay';
+            : PaymentProviderManager::defaultProvider();
 
         try {
             DB::transaction(function () use ($invoice, $providerKey) {
@@ -488,9 +499,9 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                 $code = $locked->payment_reference
                     ?: $locked->qr_payment_code
                     ?: app(InvoiceCodeGenerator::class)->generatePaymentCode($locked->ma_hoa_don);
-                $providerKey = in_array($this->selectedProvider, ['sepay', 'momo', 'vnpay'], true)
+                $providerKey = in_array($this->selectedProvider, PaymentProviderManager::allProviders(), true)
                     ? $this->selectedProvider
-                    : ($locked->payment_provider ?: 'sepay');
+                    : ($locked->payment_provider ?: PaymentProviderManager::defaultProvider());
                 $intent = app(PaymentProviderManager::class)
                     ->driver($providerKey)
                     ->createPayment(new PaymentRequestData(

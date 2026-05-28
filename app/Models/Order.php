@@ -242,6 +242,18 @@ class Order extends Model
             ->withTimestamps();
     }
 
+    public function shipmentLoadHistories()
+    {
+        return $this->hasManyThrough(
+            ShipmentLoadHistory::class,
+            ShipmentLoadOrder::class,
+            'id_order',
+            'shipment_load_id',
+            'id',
+            'shipment_load_id'
+        );
+    }
+
     public function isWalkIn(): bool
     {
         return ! $this->id_customer || (int) $this->id_customer === 0;

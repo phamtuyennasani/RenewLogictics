@@ -235,12 +235,20 @@ class InvoiceDataTableController extends Controller
             ];
         } elseif ($customer) {
             // Customer info from debt customer
+            $addressDetail = data_get($customer->options, 'company.address_detail');
+            $cityId = data_get($customer->options, 'company.city_id');
+            $cityName = $cityId
+                ? DB::table('province')->where('id', $cityId)->value('name')
+                : null;
+            $addressParts = array_filter([$addressDetail, $cityName], static fn ($v) => $v !== null && $v !== '');
+            $fullAddress = implode(', ', $addressParts) ?: null;
+
             $payload['customer'] = [
                 'company' => $companyName,
                 'contact' => $customer->fullname,
                 'phone' => data_get($customer->options, 'company.company_phone') ?: $customer->phone,
                 'email' => data_get($customer->options, 'company.company_email') ?: $customer->email,
-                'address' => data_get($customer->options, 'company.company_address') ?: $customer->address,
+                'address' => $fullAddress,
             ];
         }
 
@@ -462,7 +470,7 @@ class InvoiceDataTableController extends Controller
         }
 
         $providerKey = $request->input('provider');
-        if ($providerKey !== null && ! in_array($providerKey, ['sepay', 'momo', 'vnpay'], true)) {
+        if ($providerKey !== null && ! in_array($providerKey, PaymentProviderManager::allProviders(), true)) {
             return response()->json(['message' => 'Cổng thanh toán không hợp lệ.'], 422);
         }
 

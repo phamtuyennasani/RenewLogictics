@@ -47,8 +47,17 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         // Gate for packages
-        Gate::define('packages.index', function ($user) {
+        Gate::define('packages.view', function ($user) {
             return $user->hasAnyRole(['admin', 'manager', 'ops', 'cs', 'warehouse']);
+        });
+        Gate::define('packages.create', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'ops']);
+        });
+        Gate::define('packages.update', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'ops']);
+        });
+        Gate::define('packages.scan', function ($user) {
+            return $user->hasAnyRole(['admin', 'ops', 'warehouse']);
         });
 
         // Gate for congno

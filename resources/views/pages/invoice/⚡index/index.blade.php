@@ -4,6 +4,9 @@
     data-component-cloak
     data-ready="false"
     data-routes='@json($this->routes())'
+    data-enabled-providers='@json($this->enabledProviders())'
+    data-provider-labels='@json($this->providerLabels())'
+    data-all-providers='@json(\App\Services\Payments\PaymentProviderManager::allProviders())'
 >
     <div class="component-cloak-content space-y-4">
         <section class="space-y-4">
@@ -450,21 +453,15 @@
 
                         <div data-detail-online-panel class="mt-4 hidden space-y-4 rounded-lg border border-primary-200 bg-primary-50/50 p-4">
                             <div class="grid gap-3 sm:grid-cols-3">
-                                <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-provider-card="sepay">
-                                    <input type="radio" name="detail_provider" value="sepay" class="sr-only">
-                                    <span class="block text-sm font-black text-neutral-950">SePay</span>
-                                    <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Tạo mã QR thanh toán</span>
-                                </label>
-                                <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-provider-card="vnpay">
-                                    <input type="radio" name="detail_provider" value="vnpay" class="sr-only">
-                                    <span class="block text-sm font-black text-neutral-950">VNPAY</span>
-                                    <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Tạo link thanh toán</span>
-                                </label>
-                                <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-provider-card="momo">
-                                    <input type="radio" name="detail_provider" value="momo" class="sr-only">
-                                    <span class="block text-sm font-black text-neutral-950">MoMo</span>
-                                    <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Tạo link MoMo</span>
-                                </label>
+                                @foreach(\App\Services\Payments\PaymentProviderManager::providerLabels() as $key => $meta)
+                                    @if(($this->enabledProviders())[$key] ?? false)
+                                    <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-provider-card="{{ $key }}">
+                                        <input type="radio" name="detail_provider" value="{{ $key }}" class="sr-only">
+                                        <span class="block text-sm font-black text-neutral-950">{{ $meta['name'] }}</span>
+                                        <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">{{ $meta['description'] }}</span>
+                                    </label>
+                                    @endif
+                                @endforeach
                             </div>
                             <div data-detail-momo-request class="hidden">
                                 <label class="text-sm font-bold text-neutral-800">requestType</label>
@@ -882,6 +879,8 @@
                 const root = document.getElementById('invoice-index-page');
                 const tableEl = document.getElementById('invoices-table');
                 const routes = root ? JSON.parse(root.dataset.routes || '{}') : {};
+                const enabledProviders = root ? JSON.parse(root.dataset.enabledProviders || '{}') : {};
+                const allProviders = root ? JSON.parse(root.dataset.allProviders || '[]') : [];
                 initDatePickers();
                 if (root) window.TomSelectHelper?.init(root);
 
@@ -906,6 +905,17 @@
 
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 const detailModal = document.getElementById('invoice-detail-modal');
+
+                // Hide disabled provider cards
+                if (detailModal) {
+                    detailModal.querySelectorAll('[data-detail-provider-card]').forEach((el) => {
+                        const provider = el.dataset.detailProviderCard;
+                        if (enabledProviders[provider] === false) {
+                            el.style.display = 'none';
+                        }
+                    });
+                }
+                const defaultProvider = allProviders.find(p => enabledProviders[p]) || allProviders[0] || 'sepay';
                 const cashModal = document.getElementById('invoice-cash-modal');
                 const cashForm = document.getElementById('invoice-cash-form');
                 const cashState = { invoiceId: null };
@@ -1581,7 +1591,7 @@
                     detailModal.querySelector('[data-detail-online-panel]')?.classList.toggle('hidden', method !== 'online');
                     toggleDetailAction('cash-submit', method === 'cash');
                     toggleDetailAction('online-submit', method === 'online');
-                    if (method === 'online' && !detailState.provider) setDetailProvider('sepay');
+                    if (method === 'online' && !detailState.provider) setDetailProvider(defaultProvider);
                 }
 
                 function syncDetailMethodCards(method) {

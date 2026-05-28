@@ -2,6 +2,7 @@
 
 namespace App\Services\Providers\MoMo;
 
+use App\Models\Setting;
 use App\Services\Payments\Contracts\PaymentProvider;
 use App\Services\Payments\Data\PaymentIntentData;
 use App\Services\Payments\Data\PaymentRequestData;
@@ -27,22 +28,41 @@ class MoMoPaymentService implements PaymentProvider
         protected ?string $storeId = null,
         protected ?string $endpoint = null,
     ) {
-        $config = [];
+        $this->loadFromSettings();
+    }
 
-        if (function_exists('app') && app()->bound('config')) {
-            $config = (array) app('config')->get('momo', []);
+    protected function loadFromSettings(): void
+    {
+        try {
+            $options = data_get(Setting::first(), 'options', []);
+
+            $this->partnerCode ??= $options['payment_momo_partner_code'] ?? null;
+            $this->accessKey ??= $options['payment_momo_access_key'] ?? null;
+            $this->secretKey ??= $options['payment_momo_secret_key'] ?? null;
+            $this->environment ??= $options['payment_momo_environment'] ?? 'sandbox';
+        } catch (\Throwable) {
+            // fallback to config file
+            if (function_exists('app') && app()->bound('config')) {
+                $config = (array) app('config')->get('momo', []);
+                $this->partnerCode ??= Arr::get($config, 'partner_code');
+                $this->accessKey ??= Arr::get($config, 'access_key');
+                $this->secretKey ??= Arr::get($config, 'secret_key');
+                $this->environment ??= Arr::get($config, 'environment', 'sandbox');
+                $this->redirectUrl ??= Arr::get($config, 'redirect_url');
+                $this->ipnUrl ??= Arr::get($config, 'ipn_url');
+                $this->requestType ??= Arr::get($config, 'request_type', 'captureWallet');
+                $this->partnerName ??= Arr::get($config, 'partner_name', 'Test');
+                $this->storeId ??= Arr::get($config, 'store_id', 'MoMoTestStore');
+                $this->endpoint ??= Arr::get($config, 'endpoint');
+            }
         }
 
-        $this->partnerCode ??= Arr::get($config, 'partner_code');
-        $this->accessKey ??= Arr::get($config, 'access_key');
-        $this->secretKey ??= Arr::get($config, 'secret_key');
-        $this->environment ??= Arr::get($config, 'environment', 'sandbox');
-        $this->redirectUrl ??= Arr::get($config, 'redirect_url');
-        $this->ipnUrl ??= Arr::get($config, 'ipn_url');
-        $this->requestType ??= Arr::get($config, 'request_type', 'captureWallet');
-        $this->partnerName ??= Arr::get($config, 'partner_name', 'Test');
-        $this->storeId ??= Arr::get($config, 'store_id', 'MoMoTestStore');
-        $this->endpoint ??= Arr::get($config, 'endpoint');
+        $this->redirectUrl ??= config('momo.redirect_url');
+        $this->ipnUrl ??= config('momo.ipn_url');
+        $this->requestType ??= config('momo.request_type', 'captureWallet');
+        $this->partnerName ??= config('momo.partner_name', 'Test');
+        $this->storeId ??= config('momo.store_id', 'MoMoTestStore');
+        $this->endpoint ??= config('momo.endpoint');
     }
 
     public function key(): string

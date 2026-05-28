@@ -22,7 +22,7 @@ class ShipmentLoadHistory extends Model
         'thoigian' => 'datetime',
     ];
 
-    public function load()
+    public function shipmentLoad()
     {
         return $this->belongsTo(ShipmentLoad::class, 'shipment_load_id');
     }

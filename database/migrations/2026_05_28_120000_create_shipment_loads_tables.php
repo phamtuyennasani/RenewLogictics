@@ -13,8 +13,10 @@ return new class extends Migration
             $table->id();
             $table->string('code')->unique();
             $table->string('status')->default(ShipmentLoadStatusEnum::MOI_TAO->value)->index();
-            $table->foreignId('created_by')->nullable()->constrained('user')->nullOnDelete();
-            $table->foreignId('approved_by')->nullable()->constrained('user')->nullOnDelete();
+            $table->unsignedInteger('created_by')->nullable();
+            $table->foreign('created_by')->references('id')->on('user')->nullOnDelete();
+            $table->unsignedInteger('approved_by')->nullable();
+            $table->foreign('approved_by')->references('id')->on('user')->nullOnDelete();
             $table->timestamp('approved_at')->nullable();
             $table->unsignedInteger('orders_count')->default(0);
             $table->decimal('total_chargeable_weight', 12, 2)->default(0);
@@ -27,7 +29,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('shipment_load_id')->constrained('shipment_loads')->cascadeOnDelete();
             $table->foreignId('id_order')->constrained('orders')->cascadeOnDelete();
-            $table->foreignId('added_by')->nullable()->constrained('user')->nullOnDelete();
+            $table->unsignedInteger('added_by')->nullable();
+            $table->foreign('added_by')->references('id')->on('user')->nullOnDelete();
             $table->timestamps();
 
             $table->unique('id_order', 'shipment_load_orders_order_unique');
@@ -37,7 +40,8 @@ return new class extends Migration
         Schema::create('shipment_load_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('shipment_load_id')->constrained('shipment_loads')->cascadeOnDelete();
-            $table->foreignId('id_user')->nullable()->constrained('user')->nullOnDelete();
+            $table->unsignedInteger('id_user')->nullable();
+            $table->foreign('id_user')->references('id')->on('user')->nullOnDelete();
             $table->timestamp('thoigian');
             $table->string('diadiem');
             $table->string('trangthai');

@@ -2,6 +2,7 @@
 
 namespace App\Services\Providers\VNPay;
 
+use App\Models\Setting;
 use App\Services\Payments\Contracts\PaymentProvider;
 use App\Services\Payments\Data\PaymentIntentData;
 use App\Services\Payments\Data\PaymentRequestData;
@@ -26,21 +27,39 @@ class VNPayPaymentService implements PaymentProvider
         protected ?string $locale = null,
         protected ?string $currency = null,
     ) {
-        $config = [];
+        $this->loadFromSettings();
+    }
 
-        if (function_exists('app') && app()->bound('config')) {
-            $config = (array) app('config')->get('vnpay', []);
+    protected function loadFromSettings(): void
+    {
+        try {
+            $options = data_get(Setting::first(), 'options', []);
+
+            $this->tmnCode ??= $options['payment_vnpay_tmn_code'] ?? null;
+            $this->hashSecret ??= $options['payment_vnpay_hash_secret'] ?? null;
+        } catch (\Throwable) {
+            // fallback to config file
+            if (function_exists('app') && app()->bound('config')) {
+                $config = (array) app('config')->get('vnpay', []);
+                $this->tmnCode ??= Arr::get($config, 'tmn_code');
+                $this->hashSecret ??= Arr::get($config, 'hash_secret');
+                $this->environment ??= Arr::get($config, 'environment', 'sandbox');
+                $this->returnUrl ??= Arr::get($config, 'return_url');
+                $this->ipnUrl ??= Arr::get($config, 'ipn_url');
+                $this->command ??= Arr::get($config, 'command', 'pay');
+                $this->orderType ??= Arr::get($config, 'order_type', 'billpayment');
+                $this->locale ??= Arr::get($config, 'locale', 'vn');
+                $this->currency ??= Arr::get($config, 'currency', 'VND');
+            }
         }
 
-        $this->tmnCode ??= Arr::get($config, 'tmn_code');
-        $this->hashSecret ??= Arr::get($config, 'hash_secret');
-        $this->environment ??= Arr::get($config, 'environment', 'sandbox');
-        $this->returnUrl ??= Arr::get($config, 'return_url');
-        $this->ipnUrl ??= Arr::get($config, 'ipn_url');
-        $this->command ??= Arr::get($config, 'command', 'pay');
-        $this->orderType ??= Arr::get($config, 'order_type', 'billpayment');
-        $this->locale ??= Arr::get($config, 'locale', 'vn');
-        $this->currency ??= Arr::get($config, 'currency', 'VND');
+        $this->environment ??= config('vnpay.environment', 'sandbox');
+        $this->returnUrl ??= config('vnpay.return_url');
+        $this->ipnUrl ??= config('vnpay.ipn_url');
+        $this->command ??= config('vnpay.command', 'pay');
+        $this->orderType ??= config('vnpay.order_type', 'billpayment');
+        $this->locale ??= config('vnpay.locale', 'vn');
+        $this->currency ??= config('vnpay.currency', 'VND');
     }
 
     public function key(): string

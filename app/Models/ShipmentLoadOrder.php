@@ -15,7 +15,7 @@ class ShipmentLoadOrder extends Model
         'added_by',
     ];
 
-    public function load()
+    public function shipmentLoad()
     {
         return $this->belongsTo(ShipmentLoad::class, 'shipment_load_id');
     }

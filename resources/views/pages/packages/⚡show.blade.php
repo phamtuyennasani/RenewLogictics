@@ -249,6 +249,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
                                 <th class="px-4 py-3">Mã đơn</th>
                                 <th class="px-4 py-3">Khách hàng</th>
                                 <th class="px-4 py-3">Sale</th>
+                                <th class="px-4 py-3">Người nhận</th>
                                 <th class="px-4 py-3">Trạng thái</th>
                                 <th class="px-4 py-3 text-right">Cân tính phí</th>
                                 <th class="px-4 py-3 text-right">Thao tác</th>
@@ -260,8 +261,24 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
                                     <td class="px-4 py-3">
                                         <a href="{{ route('orders.show', ['uuid' => $order->uuid]) }}" wire:navigate class="font-semibold text-primary-700 hover:text-primary-800">{{ $order->id_bill ?: 'ORDER-'.$order->id }}</a>
                                     </td>
-                                    <td class="px-4 py-3 text-neutral-600">{{ $order->customerAccount?->fullname ?: $order->customerAccount?->username ?: '-' }}</td>
-                                    <td class="px-4 py-3 text-neutral-600">{{ $order->sale?->fullname ?: $order->sale?->username ?: '-' }}</td>
+                                    <td class="px-4 py-3">
+                                        @if($order->customerAccount)
+                                            <p class="font-medium text-neutral-900">{{ $order->customerAccount->fullname ?: $order->customerAccount->username ?: '-' }}</p>
+                                        @else
+                                            <p class="font-medium text-neutral-900">{{ $order->sender['company'] ?? '-' }}</p>
+                                            <p class="text-xs text-neutral-500">{{ $order->sender['fullname'] ?? '' }}{{ !empty($order->sender['fullname']) && !empty($order->sender['phone']) ? ' - ' : '' }}{{ $order->sender['phone'] ?? '' }}</p>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <p class="font-medium text-neutral-900">{{ $order->sale?->fullname ?: $order->sale?->username ?: '-' }}</p>
+                                        @if($order->sale?->code)
+                                            <p class="text-xs text-neutral-500">{{ $order->sale->code }}</p>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <p class="font-medium text-neutral-900">{{ $order->receiver['company'] ?? $order->receiver['fullname'] ?? '-' }}</p>
+                                        <p class="text-xs text-neutral-500">{{ $order->receiver['address'] ?? '' }}</p>
+                                    </td>
                                     <td class="px-4 py-3">
                                         <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $order->bill_status->color() }}">{{ $order->bill_status->label() }}</span>
                                     </td>
@@ -276,7 +293,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="px-4 py-10 text-center text-sm text-neutral-500">Tải chưa có đơn hàng.</td>
+                                    <td colspan="7" class="px-4 py-10 text-center text-sm text-neutral-500">Tải chưa có đơn hàng.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -313,7 +330,14 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
                                             <input type="checkbox" @checked($checked) wire:click="toggleOrder({{ $order->id }})" class="h-4 w-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500">
                                         </td>
                                         <td class="px-4 py-3 font-semibold text-neutral-900">{{ $order->id_bill ?: 'ORDER-'.$order->id }}</td>
-                                        <td class="px-4 py-3 text-neutral-600">{{ $order->customerAccount?->fullname ?: $order->customerAccount?->username ?: '-' }}</td>
+                                        <td class="px-4 py-3">
+                                        @if($order->customerAccount)
+                                            <p class="font-medium text-neutral-900">{{ $order->customerAccount->fullname ?: $order->customerAccount->username ?: '-' }}</p>
+                                        @else
+                                            <p class="font-medium text-neutral-900">{{ $order->sender['company'] ?? '-' }}</p>
+                                            <p class="text-xs text-neutral-500">{{ $order->sender['fullname'] ?? '' }}{{ !empty($order->sender['fullname']) && !empty($order->sender['phone']) ? ' - ' : '' }}{{ $order->sender['phone'] ?? '' }}</p>
+                                        @endif
+                                    </td>
                                         <td class="px-4 py-3 text-right text-neutral-700">{{ number_format((float) $order->chargeable_weight, 2, ',', '.') }} kg</td>
                                     </tr>
                                 @empty
@@ -332,32 +356,47 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
         </div>
 
         <div class="space-y-5">
-            <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-                <h2 class="text-sm font-semibold text-neutral-900">Nhập lịch sử vận chuyển</h2>
+            <form wire:submit="addHistory" class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+                <h2 class="text-sm font-semibold text-neutral-900">Thêm hành trình</h2>
                 <div class="mt-4 space-y-3">
                     <div>
-                        <label class="text-xs font-semibold text-neutral-600">Thời gian</label>
-                        <input type="text" wire:model="historyForm.thoigian" placeholder="YYYY-MM-DD HH:mm" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none">
+                        <label class="text-xs font-medium text-neutral-600">Thời gian</label>
+                        <div wire:ignore x-data x-init="
+                            const picker = window.flatpickr($refs.input, {
+                                enableTime: true,
+                                time_24hr: true,
+                                dateFormat: 'Y-m-d H:i',
+                                defaultDate: $wire.get('historyForm.thoigian'),
+                                onChange: (dates, value) => $wire.set('historyForm.thoigian', value),
+                            });
+
+                            Livewire.hook('morph.updated', () => {
+                                const value = $wire.get('historyForm.thoigian');
+                                if (picker.input.value !== value) picker.setDate(value, false);
+                            });
+                        ">
+                            <input x-ref="input" type="text" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none" autocomplete="off">
+                        </div>
                         @error('historyForm.thoigian') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="text-xs font-semibold text-neutral-600">Trạng thái</label>
-                        <input type="text" wire:model="historyForm.trangthai" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none">
+                        <label class="text-xs font-medium text-neutral-600">Trạng thái</label>
+                        <input type="text" wire:model="historyForm.trangthai" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none">
                         @error('historyForm.trangthai') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="text-xs font-semibold text-neutral-600">Địa điểm</label>
-                        <input type="text" wire:model="historyForm.diadiem" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none">
+                        <label class="text-xs font-medium text-neutral-600">Địa điểm</label>
+                        <input type="text" wire:model="historyForm.diadiem" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none">
                         @error('historyForm.diadiem') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="text-xs font-semibold text-neutral-600">Ghi chú</label>
-                        <textarea wire:model="historyForm.ghichu" rows="3" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"></textarea>
+                        <label class="text-xs font-medium text-neutral-600">Ghi chú</label>
+                        <textarea wire:model="historyForm.ghichu" rows="3" class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none"></textarea>
                         @error('historyForm.ghichu') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
-                    <button type="button" wire:click="addHistory" wire:loading.attr="disabled" class="w-full rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60">Lưu và đồng bộ xuống đơn</button>
+                    <button type="submit" wire:loading.attr="disabled" class="w-full rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60">Thêm hành trình</button>
                 </div>
-            </div>
+            </form>
 
             <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
                 <h2 class="text-sm font-semibold text-neutral-900">Lịch sử tải</h2>
