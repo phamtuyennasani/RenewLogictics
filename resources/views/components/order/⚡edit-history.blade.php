@@ -53,11 +53,24 @@ new class extends Component
         return [
             'label' => $payload['label'] ?? ($history->action ?: 'thao tác'),
             'summary' => $payload['summary'] ?? 'cập nhật đơn hàng',
+            'loadCode' => $payload['shipment_load_code'] ?? null,
+            'loadId' => $payload['shipment_load_id'] ?? null,
+            'loadHistoryId' => $payload['shipment_load_history_id'] ?? null,
         ];
+    }
+
+    public function isSyncedFromLoad(OrderHistory $history): bool
+    {
+        return $history->action === 'shipment_load_history';
     }
 
     public function line(OrderHistory $history): string
     {
+        if ($this->isSyncedFromLoad($history)) {
+            $loadCode = $this->payload($history)['loadCode'] ?? '?';
+            return "Đồng bộ từ tải {$loadCode}";
+        }
+
         $payload = $this->payload($history);
 
         if (! $history->user) {
@@ -105,11 +118,16 @@ new class extends Component
             <div class="space-y-3">
                 @foreach($this->latestBySection as $history)
                     <div class="flex gap-3">
-                        <div class="mt-1.5 h-2 w-2 rounded-full bg-primary-500"></div>
+                        <div class="mt-1.5 h-2 w-2 rounded-full {{ $this->isSyncedFromLoad($history) ? 'bg-purple-500' : 'bg-primary-500' }}"></div>
                         <div class="min-w-0">
                             <p class="text-sm leading-5 text-neutral-700">
-                                <span class="font-semibold text-neutral-900">{{ $this->userName($history->user) }}</span>
-                                chỉnh {{ $this->payload($history)['label'] }}
+                                @if($this->isSyncedFromLoad($history))
+                                    <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-semibold text-purple-700">Đồng bộ từ tải</span>
+                                    <span class="ml-2 font-semibold text-neutral-900">{{ $this->payload($history)['loadCode'] ?: 'Không rõ tải' }}</span>
+                                @else
+                                    <span class="font-semibold text-neutral-900">{{ $this->userName($history->user) }}</span>
+                                    chỉnh {{ $this->payload($history)['label'] }}
+                                @endif
                             </p>
                             <p class="mt-0.5 text-xs text-neutral-500">{{ $history->created_at?->format('d/m/Y H:i') }}</p>
                         </div>
@@ -131,9 +149,17 @@ new class extends Component
             <div class="max-h-[70vh] space-y-3 overflow-y-auto pr-2">
                 @foreach($this->histories as $history)
                     <div class="flex gap-3 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-                        <div class="mt-1.5 h-2 w-2 flex-none rounded-full bg-primary-500"></div>
+                        <div class="mt-1.5 h-2 w-2 flex-none rounded-full {{ $this->isSyncedFromLoad($history) ? 'bg-purple-500' : 'bg-primary-500' }}"></div>
                         <div class="min-w-0">
-                            <p class="text-sm font-medium text-neutral-900">{{ $this->line($history) }}</p>
+                            @if($this->isSyncedFromLoad($history))
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-[11px] font-semibold text-purple-700">Đồng bộ từ tải</span>
+                                    <span class="text-sm font-semibold text-neutral-900">{{ $this->payload($history)['loadCode'] ?: 'Không rõ tải' }}</span>
+                                </div>
+                                <p class="mt-1 text-sm text-neutral-700">{{ $this->payload($history)['summary'] }}</p>
+                            @else
+                                <p class="text-sm font-medium text-neutral-900">{{ $this->line($history) }}</p>
+                            @endif
                             <p class="mt-1 text-xs text-neutral-500">{{ $history->created_at?->format('d/m/Y H:i') }}</p>
                         </div>
                     </div>

@@ -48,7 +48,7 @@ class AuthServiceProvider extends ServiceProvider
 
         // Gate for packages
         Gate::define('packages.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'ops', 'warehouse']);
+            return $user->hasAnyRole(['admin', 'manager', 'ops', 'cs', 'warehouse']);
         });
 
         // Gate for congno

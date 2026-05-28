@@ -109,8 +109,10 @@ Route::middleware('auth')->group(function () {
 
     // --- Packages / Tải hàng ---
     Route::prefix('packages')->name('packages.')->group(function () {
-        Route::get('/', fn () => view('packages.index'))->name('index');
-    })->middleware('can:packages.index');
+        Route::livewire('/', 'pages::packages.index')->name('index')->middleware('can:packages.view');
+        Route::livewire('/create', 'pages::packages.create')->name('create')->middleware('can:packages.create');
+        Route::livewire('/{load}', 'pages::packages.show')->name('show')->middleware('can:packages.view');
+    });
 
     // --- Công nợ CTV ---
     Route::prefix('cong-no')->name('congno.')->group(function () {

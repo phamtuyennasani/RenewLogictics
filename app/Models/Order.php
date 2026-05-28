@@ -235,6 +235,13 @@ class Order extends Model
         return $this->hasMany(\App\Models\CongNoPayment::class, 'id_order');
     }
 
+    public function shipmentLoads()
+    {
+        return $this->belongsToMany(ShipmentLoad::class, 'shipment_load_orders', 'id_order', 'shipment_load_id')
+            ->withPivot(['added_by', 'created_at'])
+            ->withTimestamps();
+    }
+
     public function isWalkIn(): bool
     {
         return ! $this->id_customer || (int) $this->id_customer === 0;

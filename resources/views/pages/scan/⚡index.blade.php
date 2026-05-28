@@ -208,6 +208,65 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         }
     },
 
+    async ensureCameraDevices() {
+        const { BrowserCodeReader } = await this.loadScanner();
+        let devices = await BrowserCodeReader.listVideoInputDevices();
+        if (devices.length > 0) {
+            return devices;
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+            throw new Error('Camera API is not supported in this browser.');
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        stream.getTracks().forEach(track => track.stop());
+
+        devices = await BrowserCodeReader.listVideoInputDevices();
+        return devices;
+    },
+
+    async loadCamerasWithPermission() {
+        try {
+            const devices = await this.ensureCameraDevices();
+            const select = document.querySelector('[data-camera-select]');
+            if (!select) return devices;
+            select.replaceChildren(new Option('Camera mặc định', ''));
+            devices.forEach((d, i) => select.appendChild(new Option(d.label || `Camera ${i+1}`, d.deviceId)));
+            return devices;
+        } catch (e) {
+            this.setCameraStatus(this.cameraErrorMessage(e, 'Không thể đọc danh sách camera. Kiểm tra quyền camera hoặc HTTPS.'), 'error');
+            throw e;
+        }
+    },
+
+    cameraErrorMessage(error, fallback) {
+        const message = error?.message || '';
+        const name = error?.name || '';
+
+        if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+            return 'Bạn đã từ chối quyền camera. Hãy cấp quyền camera cho trình duyệt và thử lại.';
+        }
+
+        if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+            return 'Không tìm thấy camera trên thiết bị này.';
+        }
+
+        if (name === 'NotReadableError' || name === 'TrackStartError') {
+            return 'Camera đang được ứng dụng khác sử dụng. Hãy đóng ứng dụng đó rồi thử lại.';
+        }
+
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            return 'Trình duyệt chỉ cho phép mở camera trên HTTPS hoặc localhost.';
+        }
+
+        if (message) {
+            return `${fallback} (${message})`;
+        }
+
+        return fallback;
+    },
+
     async startCamera() {
         const video = document.querySelector('[data-camera-video]');
         const select = document.querySelector('[data-camera-select]');
@@ -215,10 +274,12 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         this.stopCamera();
         this.setCameraStatus('Đang bật camera...', 'neutral');
         try {
-            const { BrowserMultiFormatOneDReader } = await this.loadScanner();
-            this.codeReader = new BrowserMultiFormatOneDReader();
+            const { BrowserMultiFormatReader } = await this.loadScanner();
+            const devices = await this.loadCamerasWithPermission();
+            const preferredDeviceId = select?.value || devices[0]?.deviceId;
+            this.codeReader = new BrowserMultiFormatReader();
             this.scannerControls = await this.codeReader.decodeFromVideoDevice(
-                select?.value || undefined,
+                preferredDeviceId || undefined,
                 video,
                 (result) => {
                     const text = result?.getText?.();
@@ -233,9 +294,8 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
             );
             this.cameraActive = true;
             this.setCameraStatus('Camera đang quét. Đưa barcode vào khung hình.', 'success');
-            document.querySelector('[data-camera-stop-btn]')?.removeAttribute('hidden');
         } catch (e) {
-            this.setCameraStatus('Không thể bật camera. Trình duyệt cần HTTPS hoặc quyền camera.', 'error');
+            this.setCameraStatus(this.cameraErrorMessage(e, 'Không thể bật camera.'), 'error');
         }
     },
 
@@ -248,7 +308,6 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         }
         this.cameraActive = false;
         this.setCameraStatus('Camera chưa bật.', 'neutral');
-        document.querySelector('[data-camera-stop-btn]')?.setAttribute('hidden', '');
     },
 
     setCameraStatus(msg, type) {
@@ -314,10 +373,10 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
                         </select>
                     </label>
                     <div class="flex gap-2">
-                        <button type="button" x-on:click="startCamera()" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-bold text-white transition hover:bg-primary-700 disabled:opacity-60">
+                        <button type="button" x-show="!cameraActive" x-on:click="startCamera()" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary-600 px-4 text-sm font-bold text-white transition hover:bg-primary-700 disabled:opacity-60">
                             Bật camera
                         </button>
-                        <button type="button" data-camera-stop-btn hidden x-on:click="stopCamera()" class="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50">
+                        <button type="button" x-show="cameraActive" x-cloak x-on:click="stopCamera()" class="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50">
                             Tắt
                         </button>
                     </div>
