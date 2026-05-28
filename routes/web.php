@@ -243,6 +243,7 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/banner', 'pages::settings.banner')->name('banner');
         Route::livewire('/social', 'pages::settings.social')->name('social');
         Route::livewire('/thong-tin-cong-ty', 'pages::settings.company')->name('company');
+        Route::livewire('/he-thong', 'pages::settings.he-thong')->name('he-thong');
     })->middleware('can:settings.index');
 
     // --- Profile ---
