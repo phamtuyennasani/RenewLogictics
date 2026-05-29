@@ -757,6 +757,16 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
         </div>
     </form>
 
+    @php
+        // Lấy tên cổng động: payment lấy từ providerLabels(), e-invoice hardcode
+        // (vì einvoice không nằm trong PaymentProviderManager).
+        $authGatewayLabel = match (true) {
+            $sensitiveConfigAuthGateway === '' => '',
+            $sensitiveConfigAuthGateway === 'einvoice' => 'Hóa đơn SePay',
+            default => \App\Services\Payments\PaymentProviderManager::providerLabels()[$sensitiveConfigAuthGateway]['name'] ?? '',
+        };
+    @endphp
+
     <flux:modal name="payment-api-auth" class="w-full max-w-md" @close="$wire.closeSensitiveConfigAuth()">
         <div class="space-y-5">
             <div class="flex items-start gap-3">
@@ -765,12 +775,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                 </span>
                 <div class="min-w-0">
                     <h2 class="text-base font-black tracking-normal text-neutral-950">
-                        Xác thực Admin{{ $sensitiveConfigAuthGateway ? ' - ' . match ($sensitiveConfigAuthGateway) {
-                            'momo' => 'MoMo',
-                            'vnpay' => 'VNPay',
-                            'einvoice' => 'Hóa đơn SePay',
-                            default => '',
-                        } : '' }}
+                        Xác thực Admin{{ $authGatewayLabel !== '' ? ' - ' . $authGatewayLabel : '' }}
                     </h2>
                     <p class="mt-1 text-sm font-medium leading-6 text-neutral-500">
                         API key là thông tin bảo mật. Vui lòng nhập mật khẩu tài khoản Admin hiện tại để xem hoặc chỉnh sửa cổng đã chọn.

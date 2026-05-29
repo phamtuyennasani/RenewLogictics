@@ -123,6 +123,7 @@ public static function configSchema(): array
 - `sensitive: false` → field hiện form ngay khi bật cổng (kiểu SePay).
 - `sensitive: true` → giá trị bị che (`••••••••`); người dùng phải bấm **Xem / chỉnh sửa** và nhập lại mật khẩu Admin mới xem/sửa được. Khi cổng còn khóa, `save()` **không ghi đè** giá trị cũ → tránh xóa nhầm API key.
 - Chỉ cần **một** field `sensitive: true`, cả cụm cấu hình của cổng đó sẽ được đưa vào danh sách gateway nhạy cảm tự động — không khai báo thêm ở đâu khác.
+- Tiêu đề modal xác thực Admin đọc trực tiếp từ `providerLabels()[<key>]['name']`, nên cổng mới có `sensitive: true` sẽ tự hiện đúng tên (ví dụ "Xác thực Admin - VNPAY") mà không phải sửa blade.
 
 ### Bước 1.4 — Cấu trúc DTO trả về
 
