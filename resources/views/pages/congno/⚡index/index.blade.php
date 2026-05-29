@@ -541,7 +541,7 @@
                         { targets: 5, width: '150px' },
                         { targets: 6, width: '150px' },
                         { targets: 7, width: '150px' },
-                        { targets: 8, width: '150px' },
+                        { targets: 8, width: '100px' },
                         { targets: 9, width: '100px' },
                     ],
                     initComplete: markReady,

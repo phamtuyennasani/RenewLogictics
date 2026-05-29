@@ -1,0 +1,111 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Setting;
+use App\Services\Payments\PaymentProviderManager;
+use App\Services\Providers\MoMo\MoMoPaymentService;
+use App\Services\Providers\Sepay\SepayPaymentService;
+use App\Services\Providers\VNPay\VNPayPaymentService;
+use Illuminate\Support\Facades\Schema;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+class SettingsHeThongPageTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config([
+            'payment_providers.drivers.sepay' => SepayPaymentService::class,
+            'payment_providers.drivers.momo' => MoMoPaymentService::class,
+            'payment_providers.drivers.vnpay' => VNPayPaymentService::class,
+        ]);
+
+        // Migration của project dùng information_schema (MySQL-only) nên không chạy được
+        // bằng RefreshDatabase trên SQLite. Tự tạo bảng `setting` tối thiểu cho test.
+        Schema::dropIfExists('setting');
+        Schema::create('setting', function ($table) {
+            $table->id();
+            $table->string('namevi')->nullable();
+            $table->json('options')->nullable();
+            $table->string('photo')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    protected function tearDown(): void
+    {
+        Schema::dropIfExists('setting');
+
+        parent::tearDown();
+    }
+
+    public function test_it_renders_a_provider_block_for_every_registered_payment_gateway(): void
+    {
+        $component = Livewire::test('pages::settings.he-thong');
+
+        foreach (PaymentProviderManager::configSchemas() as $schema) {
+            $component->assertSee($schema['name']);
+        }
+    }
+
+    public function test_toggling_a_provider_flips_its_enabled_flag_in_state(): void
+    {
+        Livewire::test('pages::settings.he-thong')
+            ->assertSet('paymentEnabled.sepay', false)
+            ->call('togglePayment', 'sepay')
+            ->assertSet('paymentEnabled.sepay', true)
+            ->call('togglePayment', 'sepay')
+            ->assertSet('paymentEnabled.sepay', false);
+    }
+
+    public function test_saving_with_a_non_sensitive_provider_persists_storage_keys(): void
+    {
+        Livewire::test('pages::settings.he-thong')
+            ->set('tab', 'payment')
+            ->set('paymentEnabled.sepay', true)
+            ->set('paymentConfig.bank_account_name', 'CONG TY TEST')
+            ->set('paymentConfig.bank_account_number', '0123456789')
+            ->set('paymentConfig.bank_code', 'VCB')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $options = data_get(Setting::first(), 'options', []);
+
+        $this->assertTrue((bool) $options['payment_sepay_enabled']);
+        $this->assertSame('CONG TY TEST', $options['bank_account_name']);
+        $this->assertSame('0123456789', $options['bank_account_number']);
+        $this->assertSame('VCB', $options['bank_code']);
+        // mirrorKeys: bank_code phải được nhân bản sang bank_name để tương thích ngược.
+        $this->assertSame('VCB', $options['bank_name']);
+    }
+
+    public function test_save_blocks_writes_to_sensitive_fields_until_admin_unlocks(): void
+    {
+        Setting::create([
+            'namevi' => 'Cấu hình hệ thống',
+            'options' => [
+                'payment_momo_partner_code' => 'OLD_PARTNER',
+                'payment_momo_access_key' => 'OLD_ACCESS',
+                'payment_momo_secret_key' => 'OLD_SECRET',
+            ],
+        ]);
+
+        Livewire::test('pages::settings.he-thong')
+            ->set('paymentEnabled.momo', true)
+            ->set('paymentConfig.payment_momo_partner_code', 'NEW_PARTNER')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $options = data_get(Setting::first(), 'options', []);
+
+        // Vẫn giữ giá trị cũ (gateway còn khóa, không phải Admin xác thực).
+        $this->assertSame('OLD_PARTNER', $options['payment_momo_partner_code']);
+        $this->assertSame('OLD_ACCESS', $options['payment_momo_access_key']);
+        $this->assertSame('OLD_SECRET', $options['payment_momo_secret_key']);
+        $this->assertTrue((bool) $options['payment_momo_enabled']);
+    }
+}
+

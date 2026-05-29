@@ -67,6 +67,28 @@ class VNPayPaymentService implements PaymentProvider
         return 'vnpay';
     }
 
+    public static function configSchema(): array
+    {
+        return [
+            [
+                'key' => 'payment_vnpay_tmn_code',
+                'label' => 'TMN Code',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => true,
+                'placeholder' => 'Mã terminal từ VNPay',
+            ],
+            [
+                'key' => 'payment_vnpay_hash_secret',
+                'label' => 'Hash Secret',
+                'type' => 'password',
+                'required' => true,
+                'sensitive' => true,
+                'placeholder' => 'Hash secret từ VNPay',
+            ],
+        ];
+    }
+
     public function createPayment(PaymentRequestData $data): PaymentIntentData
     {
         $endpoint = $this->getEndpoint();

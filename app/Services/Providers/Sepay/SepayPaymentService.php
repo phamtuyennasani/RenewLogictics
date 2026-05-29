@@ -99,6 +99,37 @@ class SepayPaymentService implements PaymentProvider
         return 'sepay';
     }
 
+    public static function configSchema(): array
+    {
+        return [
+            [
+                'key' => 'bank_account_name',
+                'label' => 'Tên tài khoản',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => false,
+                'placeholder' => 'VD: CONG TY TNHH ABC',
+            ],
+            [
+                'key' => 'bank_account_number',
+                'label' => 'Số tài khoản',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => false,
+                'placeholder' => 'VD: 1234567890',
+            ],
+            [
+                'key' => 'bank_code',
+                'label' => 'Mã ngân hàng',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => false,
+                'placeholder' => 'VD: VCB, ACB, BIDV',
+                'mirrorKeys' => ['bank_name'],
+            ],
+        ];
+    }
+
     public function createPayment(PaymentRequestData $data): PaymentIntentData
     {
         $expiresAt = $data->expiresAt ?? Carbon::now()->addMinutes(15);

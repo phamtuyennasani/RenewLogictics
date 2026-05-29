@@ -70,6 +70,36 @@ class MoMoPaymentService implements PaymentProvider
         return 'momo';
     }
 
+    public static function configSchema(): array
+    {
+        return [
+            [
+                'key' => 'payment_momo_partner_code',
+                'label' => 'Partner Code',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => true,
+                'placeholder' => 'VD: MOMOBKUN...',
+            ],
+            [
+                'key' => 'payment_momo_access_key',
+                'label' => 'Access Key',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => true,
+                'placeholder' => 'Access key từ MoMo',
+            ],
+            [
+                'key' => 'payment_momo_secret_key',
+                'label' => 'Secret Key',
+                'type' => 'password',
+                'required' => true,
+                'sensitive' => true,
+                'placeholder' => 'Secret key từ MoMo',
+            ],
+        ];
+    }
+
     public function createPayment(PaymentRequestData $data): PaymentIntentData
     {
         $endpoint = $this->getEndpoint();

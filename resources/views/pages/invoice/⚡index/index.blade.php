@@ -439,10 +439,10 @@
                             <p class="text-xs font-bold uppercase text-neutral-500">Thanh toán</p>
                             <h3 class="mt-1 text-lg font-black text-neutral-950">Chọn phương thức thanh toán</h3>
                         </div>
-                        <flux:checkbox.group variant="cards" class="grid gap-3 sm:grid-cols-2" label="Phương thức thanh toán">
-                            <flux:checkbox value="cash" icon="banknotes" label="Thanh toán tiền mặt" description="Upload bằng chứng thanh toán để kế toán duyệt." data-detail-payment-method="cash" />
-                            <flux:checkbox value="online" icon="qr-code" label="Thanh toán Online" description="Tạo QR hoặc link thanh toán qua cổng thanh toán." data-detail-payment-method="online" />
-                        </flux:checkbox.group>
+                        <flux:radio.group variant="cards" class="grid gap-3 sm:grid-cols-2" label="Phương thức thanh toán">
+                            <flux:radio value="cash" icon="banknotes" label="Thanh toán tiền mặt" description="Upload bằng chứng thanh toán để kế toán duyệt." data-detail-payment-method="cash" />
+                            <flux:radio value="online" icon="qr-code" label="Thanh toán Online" description="Tạo QR hoặc link thanh toán qua cổng thanh toán." data-detail-payment-method="online" />
+                        </flux:radio.group>
 
                         <form data-detail-cash-form class="mt-4 hidden rounded-lg border border-amber-200 bg-amber-50 p-4">
                             <label class="block">
@@ -982,7 +982,7 @@
                         { targets: 4, width: '150px' },
                         { targets: 5, width: '100px'},
                         { targets: 6, width: '200px' },
-                        { targets: 7, width: '160px' },
+                        { targets: 7, width: '120px' },
                         { targets: 8, width: '100px' },
                     ],
                     initComplete: markReady,
@@ -1599,11 +1599,11 @@
                         const checked = el.dataset.detailPaymentMethod === method;
                         el.dataset.checked = checked ? 'true' : 'false';
                         el.setAttribute('aria-checked', checked ? 'true' : 'false');
-                        el.querySelectorAll('[role="checkbox"]').forEach((checkbox) => {
-                            checkbox.setAttribute('aria-checked', checked ? 'true' : 'false');
-                            checkbox.dataset.checked = checked ? 'true' : 'false';
+                        el.querySelectorAll('[role="radio"]').forEach((radio) => {
+                            radio.setAttribute('aria-checked', checked ? 'true' : 'false');
+                            radio.dataset.checked = checked ? 'true' : 'false';
                         });
-                        el.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+                        el.querySelectorAll('input[type="radio"]').forEach((input) => {
                             input.checked = checked;
                             input.toggleAttribute('checked', checked);
                         });

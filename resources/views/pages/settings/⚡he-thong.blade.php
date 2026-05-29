@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Setting;
+use App\Services\Payments\PaymentProviderManager;
 use Flux\Flux;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
@@ -9,16 +10,11 @@ new class extends Component
 {
     public string $tab = 'payment';
 
-    public bool $sepayEnabled = false;
-    public bool $momoEnabled = false;
-    public bool $vnpayEnabled = false;
+    /** @var array<string, bool> [providerKey => enabled] */
+    public array $paymentEnabled = [];
 
-    public string $momoPartnerCode = '';
-    public string $momoAccessKey = '';
-    public string $momoSecretKey = '';
-
-    public string $vnpayTmnCode = '';
-    public string $vnpayHashSecret = '';
+    /** @var array<string, string> [storageKey => value] — gom mọi field cấu hình của các cổng */
+    public array $paymentConfig = [];
 
     public bool $einvoiceSepayEnabled = false;
     public string $einvoiceSepayEnvironment = 'sandbox';
@@ -38,10 +34,6 @@ new class extends Component
     public string $smtpFromEmail = '';
     public string $smtpFromName = '';
 
-    public string $bankCode = '';
-    public string $bankAccountNumber = '';
-    public string $bankAccountName = '';
-
     public bool $isSaving = false;
 
     public function mount(): void
@@ -49,20 +41,27 @@ new class extends Component
         $this->loadFromSettings();
     }
 
+    /**
+     * Bật/tắt một cổng thanh toán theo key động.
+     * Dùng method thay vì $toggle để chắc chắn hoạt động trên dot-path mảng.
+     */
+    public function togglePayment(string $key): void
+    {
+        $this->paymentEnabled[$key] = ! ($this->paymentEnabled[$key] ?? false);
+    }
+
     protected function loadFromSettings(): void
     {
         $options = data_get(Setting::first(), 'options', []);
 
-        $this->sepayEnabled = (bool) ($options['payment_sepay_enabled'] ?? false);
-        $this->momoEnabled = (bool) ($options['payment_momo_enabled'] ?? false);
-        $this->vnpayEnabled = (bool) ($options['payment_vnpay_enabled'] ?? false);
+        // Payment: nạp động theo schema do từng cổng khai báo.
+        foreach (PaymentProviderManager::configSchemas() as $key => $schema) {
+            $this->paymentEnabled[$key] = (bool) ($options["payment_{$key}_enabled"] ?? false);
 
-        $this->momoPartnerCode = $options['payment_momo_partner_code'] ?? '';
-        $this->momoAccessKey = $options['payment_momo_access_key'] ?? '';
-        $this->momoSecretKey = $options['payment_momo_secret_key'] ?? '';
-
-        $this->vnpayTmnCode = $options['payment_vnpay_tmn_code'] ?? '';
-        $this->vnpayHashSecret = $options['payment_vnpay_hash_secret'] ?? '';
+            foreach ($schema['fields'] as $field) {
+                $this->paymentConfig[$field['key']] = (string) ($options[$field['key']] ?? '');
+            }
+        }
 
         $this->einvoiceSepayEnabled = (bool) ($options['einvoice_sepay_enabled'] ?? false);
         $this->einvoiceSepayEnvironment = $options['einvoice_sepay_environment'] ?? config('sepay.einvoice.environment', 'sandbox');
@@ -77,24 +76,37 @@ new class extends Component
         $this->smtpPassword = $options['smtp_password'] ?? '';
         $this->smtpFromEmail = $options['smtp_from_email'] ?? '';
         $this->smtpFromName = $options['smtp_from_name'] ?? '';
-
-        $this->bankCode = $options['bank_code'] ?? $options['bank_name'] ?? '';
-        $this->bankAccountNumber = $options['bank_account_number'] ?? '';
-        $this->bankAccountName = $options['bank_account_name'] ?? '';
     }
 
     public function save(): void
     {
-        if ($this->sepayEnabled) {
-            $this->validate([
-                'bankAccountName' => 'required|string|max:255',
-                'bankAccountNumber' => 'required|string|max:50',
-                'bankCode' => 'required|string|max:50',
-            ], [
-                'bankAccountName.required' => 'Vui lòng nhập tên tài khoản SePay.',
-                'bankAccountNumber.required' => 'Vui lòng nhập số tài khoản SePay.',
-                'bankCode.required' => 'Vui lòng nhập mã ngân hàng SePay.',
-            ]);
+        // Payment: validate động theo schema, chỉ khi cổng đang bật.
+        foreach (PaymentProviderManager::configSchemas() as $key => $schema) {
+            if (! ($this->paymentEnabled[$key] ?? false)) {
+                continue;
+            }
+
+            $rules = [];
+            $messages = [];
+
+            foreach ($schema['fields'] as $field) {
+                if (! ($field['required'] ?? false)) {
+                    continue;
+                }
+
+                // Field nhạy cảm chỉ validate được khi form đang mở khóa.
+                if (($field['sensitive'] ?? false) && $this->sensitiveConfigGateway !== $key) {
+                    continue;
+                }
+
+                $stateKey = "paymentConfig.{$field['key']}";
+                $rules[$stateKey] = 'required|string|max:255';
+                $messages["{$stateKey}.required"] = "Vui lòng nhập {$field['label']} ({$schema['name']}).";
+            }
+
+            if ($rules !== []) {
+                $this->validate($rules, $messages);
+            }
         }
 
         if ($this->einvoiceSepayEnabled) {
@@ -114,26 +126,29 @@ new class extends Component
         $setting = Setting::firstOrCreate([], ['namevi' => 'Cấu hình hệ thống', 'options' => []]);
         $options = $setting->options ?? [];
 
-        $options['payment_sepay_enabled'] = $this->sepayEnabled;
-        $options['payment_momo_enabled'] = $this->momoEnabled;
-        $options['payment_vnpay_enabled'] = $this->vnpayEnabled;
+        // Payment: lưu động theo schema.
+        foreach (PaymentProviderManager::configSchemas() as $key => $schema) {
+            $options["payment_{$key}_enabled"] = $this->paymentEnabled[$key] ?? false;
 
-        if ($this->sensitiveConfigGateway === 'momo' && $this->canManageSensitiveConfig()) {
-            $options['payment_momo_partner_code'] = $this->momoPartnerCode;
-            $options['payment_momo_access_key'] = $this->momoAccessKey;
-            $options['payment_momo_secret_key'] = $this->momoSecretKey;
-        } else {
-            $this->momoPartnerCode = $options['payment_momo_partner_code'] ?? '';
-            $this->momoAccessKey = $options['payment_momo_access_key'] ?? '';
-            $this->momoSecretKey = $options['payment_momo_secret_key'] ?? '';
-        }
+            foreach ($schema['fields'] as $field) {
+                $isSensitive = $field['sensitive'] ?? false;
 
-        if ($this->sensitiveConfigGateway === 'vnpay' && $this->canManageSensitiveConfig()) {
-            $options['payment_vnpay_tmn_code'] = $this->vnpayTmnCode;
-            $options['payment_vnpay_hash_secret'] = $this->vnpayHashSecret;
-        } else {
-            $this->vnpayTmnCode = $options['payment_vnpay_tmn_code'] ?? '';
-            $this->vnpayHashSecret = $options['payment_vnpay_hash_secret'] ?? '';
+                // Field nhạy cảm chỉ ghi khi đã mở khóa đúng cổng + có quyền Admin.
+                if ($isSensitive && ! ($this->sensitiveConfigGateway === $key && $this->canManageSensitiveConfig())) {
+                    // Nạp lại giá trị cũ để tránh ghi đè rỗng và để UI hiển thị đúng.
+                    $this->paymentConfig[$field['key']] = (string) ($options[$field['key']] ?? '');
+
+                    continue;
+                }
+
+                $value = $this->paymentConfig[$field['key']] ?? '';
+                $options[$field['key']] = $value;
+
+                // Ghi kèm các khóa mirror (tương thích ngược, vd bank_code -> bank_name).
+                foreach (($field['mirrorKeys'] ?? []) as $mirrorKey) {
+                    $options[$mirrorKey] = $value;
+                }
+            }
         }
 
         $options['einvoice_sepay_enabled'] = $this->einvoiceSepayEnabled;
@@ -157,11 +172,6 @@ new class extends Component
         $options['smtp_from_email'] = $this->smtpFromEmail;
         $options['smtp_from_name'] = $this->smtpFromName;
 
-        $options['bank_name'] = $this->bankCode;
-        $options['bank_code'] = $this->bankCode;
-        $options['bank_account_number'] = $this->bankAccountNumber;
-        $options['bank_account_name'] = $this->bankAccountName;
-
         $setting->update(['options' => $options]);
 
         $this->isSaving = false;
@@ -176,7 +186,7 @@ new class extends Component
 
     public function openSensitiveConfigAuth(string $gateway): void
     {
-        if (! in_array($gateway, ['momo', 'vnpay', 'einvoice'], true)) {
+        if (! in_array($gateway, $this->sensitiveGateways(), true)) {
             return;
         }
 
@@ -249,6 +259,28 @@ new class extends Component
         return (bool) auth()->user()?->hasRole('admin');
     }
 
+    /**
+     * Danh sách "cổng" có dữ liệu nhạy cảm cần xác thực lại Admin để xem/sửa:
+     * các cổng payment có field sensitive + cổng e-invoice.
+     *
+     * @return array<int, string>
+     */
+    protected function sensitiveGateways(): array
+    {
+        $gateways = ['einvoice'];
+
+        foreach (PaymentProviderManager::configSchemas() as $key => $schema) {
+            foreach ($schema['fields'] as $field) {
+                if ($field['sensitive'] ?? false) {
+                    $gateways[] = $key;
+                    break;
+                }
+            }
+        }
+
+        return $gateways;
+    }
+
     public function render()
     {
         return $this->view();
@@ -295,7 +327,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                         Cổng thanh toán
                     </p>
                     <p class="truncate text-xs font-medium text-neutral-500">
-                        {{ collect([$sepayEnabled, $momoEnabled, $vnpayEnabled])->filter()->count() }}/3 cổng bật
+                        {{ collect($paymentEnabled)->filter()->count() }}/{{ count($paymentEnabled) }} cổng bật
                     </p>
                 </div>
             </div>
@@ -368,238 +400,155 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                         <p class="mt-1 text-sm font-medium text-neutral-500">Kiểm soát các phương thức khách hàng có thể chọn khi thanh toán.</p>
                     </div>
                     <span class="inline-flex w-fit items-center rounded-md bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700">
-                        {{ collect([$sepayEnabled, $momoEnabled, $vnpayEnabled])->filter()->count() }} đang bật
+                        {{ collect($paymentEnabled)->filter()->count() }} đang bật
                     </span>
                 </div>
 
                 <div class="space-y-3 p-5 sm:p-6">
-                    <div class="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm">
-                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                            <flux:icon.qr-code class="size-5" />
-                        </span>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-bold leading-5 text-neutral-950">SePay</p>
-                            <p class="truncate text-xs font-medium leading-5 text-slate-400">Thanh toán QR và đối soát tự động.</p>
-                        </div>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked="{{ $sepayEnabled ? 'true' : 'false' }}"
-                            wire:click="$toggle('sepayEnabled')"
-                            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $sepayEnabled ? 'bg-emerald-500' : 'bg-neutral-300' }}">
-                            <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform {{ $sepayEnabled ? 'translate-x-4' : 'translate-x-0.5' }}"></span>
-                        </button>
-                    </div>
+                    @foreach (\App\Services\Payments\PaymentProviderManager::configSchemas() as $providerKey => $p)
+                        @php
+                            $isEnabled = $paymentEnabled[$providerKey] ?? false;
+                            $hasSensitive = collect($p['fields'])->contains(fn ($f) => $f['sensitive'] ?? false);
+                            $isUnlocked = $sensitiveConfigGateway === $providerKey;
+                            $fieldCount = count($p['fields']);
+                            $colsMd = $fieldCount <= 1 ? 'md:grid-cols-1' : ($fieldCount <= 2 ? 'md:grid-cols-2' : 'md:grid-cols-3');
+                            $colsLg = $fieldCount <= 1 ? 'lg:grid-cols-1' : ($fieldCount <= 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
+                        @endphp
 
-                    @if($sepayEnabled)
-                        <div class="overflow-hidden rounded-lg border border-emerald-100 bg-white shadow-sm">
-                            <div class="flex flex-col gap-3 border-b border-emerald-100 bg-emerald-50/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700 shadow-sm">
-                                        <flux:icon.banknotes class="size-5" />
-                                    </span>
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-bold text-neutral-950">Tài khoản ngân hàng SePay</p>
-                                        <p class="mt-1 text-xs font-medium text-neutral-500">Thông tin này bắt buộc để tạo QR thanh toán SePay.</p>
-                                    </div>
-                                </div>
-                                <span class="inline-flex w-fit items-center rounded-md bg-white px-2.5 py-1 text-xs font-bold text-emerald-700 shadow-sm">
-                                    Bắt buộc
-                                </span>
+                        <div class="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                                <flux:icon :icon="$p['icon']" class="size-5" />
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-bold leading-5 text-neutral-950">{{ $p['name'] }}</p>
+                                <p class="truncate text-xs font-medium leading-5 text-slate-400">{{ $p['description'] }}</p>
                             </div>
-
-                            <div class="grid grid-cols-1 gap-4 p-4 md:grid-cols-3">
-                                <flux:field>
-                                    <flux:label badge="Bắt buộc">Tên tài khoản</flux:label>
-                                    <flux:input wire:model="bankAccountName" placeholder="VD: CONG TY TNHH ABC" />
-                                    @error('bankAccountName') <flux:error>{{ $message }}</flux:error> @enderror
-                                </flux:field>
-
-                                <flux:field>
-                                    <flux:label badge="Bắt buộc">Số tài khoản</flux:label>
-                                    <flux:input wire:model="bankAccountNumber" placeholder="VD: 1234567890" />
-                                    @error('bankAccountNumber') <flux:error>{{ $message }}</flux:error> @enderror
-                                </flux:field>
-
-                                <flux:field>
-                                    <flux:label badge="Bắt buộc">Mã ngân hàng</flux:label>
-                                    <flux:input wire:model="bankCode" placeholder="VD: VCB, ACB, BIDV" />
-                                    @error('bankCode') <flux:error>{{ $message }}</flux:error> @enderror
-                                </flux:field>
-                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked="{{ $isEnabled ? 'true' : 'false' }}"
+                                wire:click="togglePayment('{{ $providerKey }}')"
+                                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $isEnabled ? 'bg-emerald-500' : 'bg-neutral-300' }}">
+                                <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform {{ $isEnabled ? 'translate-x-4' : 'translate-x-0.5' }}"></span>
+                            </button>
                         </div>
-                    @endif
 
-                    <div class="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm">
-                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                            <flux:icon.device-phone-mobile class="size-5" />
-                        </span>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-bold leading-5 text-neutral-950">MoMo</p>
-                            <p class="truncate text-xs font-medium leading-5 text-slate-400">Thanh toán qua ví điện tử.</p>
-                        </div>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked="{{ $momoEnabled ? 'true' : 'false' }}"
-                            wire:click="$toggle('momoEnabled')"
-                            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $momoEnabled ? 'bg-emerald-500' : 'bg-neutral-300' }}">
-                            <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform {{ $momoEnabled ? 'translate-x-4' : 'translate-x-0.5' }}"></span>
-                        </button>
-                    </div>
-
-                    @if($momoEnabled)
-                        <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-                            <div class="flex flex-col gap-3 border-b border-neutral-100 bg-neutral-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-pink-50 text-pink-600">
-                                        <flux:icon.key class="size-5" />
-                                    </span>
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-bold text-neutral-950">Thông tin API MoMo</p>
-                                        <p class="mt-1 text-xs font-medium text-neutral-500">Nhập khóa kết nối được cấp từ cổng thanh toán MoMo.</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    @if($sensitiveConfigGateway === 'momo')
-                                        <button
-                                            type="button"
-                                            wire:click="lockSensitiveConfig('momo')"
-                                            class="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-bold text-neutral-600 transition-colors hover:bg-neutral-50">
-                                            <flux:icon.lock-closed class="size-3.5" />
-                                            Khóa lại
-                                        </button>
-                                    @else
-                                        <span class="inline-flex w-fit items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
-                                            <flux:icon.lock-closed class="size-3.5" />
-                                            Đang khóa
-                                        </span>
-                                    @endif
-                                </div>
-                            </div>
-
-                            @if($sensitiveConfigGateway === 'momo')
-                                <div class="grid grid-cols-1 gap-4 p-4 lg:grid-cols-3">
-                                    <flux:field>
-                                        <flux:label>Partner Code</flux:label>
-                                        <flux:input wire:model="momoPartnerCode" placeholder="VD: MOMOBKUN..." />
-                                    </flux:field>
-
-                                    <flux:field>
-                                        <flux:label>Access Key</flux:label>
-                                        <flux:input wire:model="momoAccessKey" placeholder="Access key từ MoMo" />
-                                    </flux:field>
-
-                                    <flux:field>
-                                        <flux:label>Secret Key</flux:label>
-                                        <flux:input wire:model="momoSecretKey" type="password" placeholder="Secret key từ MoMo" />
-                                    </flux:field>
-                                </div>
-                            @else
-                                <div class="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
-                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                        @foreach (['Partner Code', 'Access Key', 'Secret Key'] as $label)
-                                            <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
-                                                <p class="text-xs font-bold text-neutral-500">{{ $label }}</p>
-                                                <p class="mt-1 font-mono text-sm font-bold tracking-normal text-neutral-400">••••••••••••</p>
+                        @if($isEnabled)
+                            @if(! $hasSensitive)
+                                {{-- Cổng KHÔNG có field nhạy cảm: hiển thị form trực tiếp (kiểu SePay). --}}
+                                <div class="overflow-hidden rounded-lg border border-emerald-100 bg-white shadow-sm">
+                                    <div class="flex flex-col gap-3 border-b border-emerald-100 bg-emerald-50/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="flex min-w-0 items-start gap-3">
+                                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700 shadow-sm">
+                                                <flux:icon.banknotes class="size-5" />
+                                            </span>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-bold text-neutral-950">Cấu hình {{ $p['name'] }}</p>
+                                                <p class="mt-1 text-xs font-medium text-neutral-500">Thông tin này bắt buộc để cổng hoạt động.</p>
                                             </div>
+                                        </div>
+                                        <span class="inline-flex w-fit items-center rounded-md bg-white px-2.5 py-1 text-xs font-bold text-emerald-700 shadow-sm">
+                                            Bắt buộc
+                                        </span>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 gap-4 p-4 {{ $colsMd }}">
+                                        @foreach ($p['fields'] as $field)
+                                            <flux:field>
+                                                <flux:label :badge="($field['required'] ?? false) ? 'Bắt buộc' : null">{{ $field['label'] }}</flux:label>
+                                                @if(($field['type'] ?? 'text') === 'select')
+                                                    <flux:select wire:model="paymentConfig.{{ $field['key'] }}">
+                                                        @foreach (($field['options'] ?? []) as $optValue => $optLabel)
+                                                            <flux:select.option value="{{ $optValue }}">{{ $optLabel }}</flux:select.option>
+                                                        @endforeach
+                                                    </flux:select>
+                                                @else
+                                                    <flux:input
+                                                        wire:model="paymentConfig.{{ $field['key'] }}"
+                                                        type="{{ $field['type'] ?? 'text' }}"
+                                                        placeholder="{{ $field['placeholder'] ?? '' }}" />
+                                                @endif
+                                                @error('paymentConfig.' . $field['key']) <flux:error>{{ $message }}</flux:error> @enderror
+                                            </flux:field>
                                         @endforeach
                                     </div>
-                                    <button
-                                        type="button"
-                                        wire:click="openSensitiveConfigAuth('momo')"
-                                        class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-                                        style="{{ $gradientStyle }}">
-                                        <flux:icon.eye class="size-4" />
-                                        Xem / chỉnh sửa
-                                    </button>
-                                </div>
-                            @endif
-                        </div>
-                    @endif
-
-                    <div class="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm">
-                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                            <flux:icon.credit-card class="size-5" />
-                        </span>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-bold leading-5 text-neutral-950">VNPay</p>
-                            <p class="truncate text-xs font-medium leading-5 text-slate-400">Thanh toán qua thẻ và Internet Banking.</p>
-                        </div>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked="{{ $vnpayEnabled ? 'true' : 'false' }}"
-                            wire:click="$toggle('vnpayEnabled')"
-                            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $vnpayEnabled ? 'bg-emerald-500' : 'bg-neutral-300' }}">
-                            <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform {{ $vnpayEnabled ? 'translate-x-4' : 'translate-x-0.5' }}"></span>
-                        </button>
-                    </div>
-
-                    @if($vnpayEnabled)
-                        <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-                            <div class="flex flex-col gap-3 border-b border-neutral-100 bg-neutral-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                                        <flux:icon.key class="size-5" />
-                                    </span>
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-bold text-neutral-950">Thông tin API VNPay</p>
-                                        <p class="mt-1 text-xs font-medium text-neutral-500">Nhập mã terminal và khóa bảo mật dùng để ký giao dịch.</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    @if($sensitiveConfigGateway === 'vnpay')
-                                        <button
-                                            type="button"
-                                            wire:click="lockSensitiveConfig('vnpay')"
-                                            class="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-bold text-neutral-600 transition-colors hover:bg-neutral-50">
-                                            <flux:icon.lock-closed class="size-3.5" />
-                                            Khóa lại
-                                        </button>
-                                    @else
-                                        <span class="inline-flex w-fit items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
-                                            <flux:icon.lock-closed class="size-3.5" />
-                                            Đang khóa
-                                        </span>
-                                    @endif
-                                </div>
-                            </div>
-
-                            @if($sensitiveConfigGateway === 'vnpay')
-                                <div class="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
-                                    <flux:field>
-                                        <flux:label>TMN Code</flux:label>
-                                        <flux:input wire:model="vnpayTmnCode" placeholder="Mã terminal từ VNPay" />
-                                    </flux:field>
-
-                                    <flux:field>
-                                        <flux:label>Hash Secret</flux:label>
-                                        <flux:input wire:model="vnpayHashSecret" type="password" placeholder="Hash secret từ VNPay" />
-                                    </flux:field>
                                 </div>
                             @else
-                                <div class="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
-                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                        @foreach (['TMN Code', 'Hash Secret'] as $label)
-                                            <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
-                                                <p class="text-xs font-bold text-neutral-500">{{ $label }}</p>
-                                                <p class="mt-1 font-mono text-sm font-bold tracking-normal text-neutral-400">••••••••••••</p>
+                                {{-- Cổng CÓ field nhạy cảm: gate sau xác thực Admin. --}}
+                                <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+                                    <div class="flex flex-col gap-3 border-b border-neutral-100 bg-neutral-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="flex min-w-0 items-start gap-3">
+                                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600">
+                                                <flux:icon.key class="size-5" />
+                                            </span>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-bold text-neutral-950">Thông tin API {{ $p['name'] }}</p>
+                                                <p class="mt-1 text-xs font-medium text-neutral-500">Nhập khóa kết nối được cấp từ {{ $p['name'] }}.</p>
                                             </div>
-                                        @endforeach
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            @if($isUnlocked)
+                                                <button
+                                                    type="button"
+                                                    wire:click="lockSensitiveConfig('{{ $providerKey }}')"
+                                                    class="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-bold text-neutral-600 transition-colors hover:bg-neutral-50">
+                                                    <flux:icon.lock-closed class="size-3.5" />
+                                                    Khóa lại
+                                                </button>
+                                            @else
+                                                <span class="inline-flex w-fit items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                                                    <flux:icon.lock-closed class="size-3.5" />
+                                                    Đang khóa
+                                                </span>
+                                            @endif
+                                        </div>
                                     </div>
-                                    <button
-                                        type="button"
-                                        wire:click="openSensitiveConfigAuth('vnpay')"
-                                        class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-                                        style="{{ $gradientStyle }}">
-                                        <flux:icon.eye class="size-4" />
-                                        Xem / chỉnh sửa
-                                    </button>
+
+                                    @if($isUnlocked)
+                                        <div class="grid grid-cols-1 gap-4 p-4 {{ $colsLg }}">
+                                            @foreach ($p['fields'] as $field)
+                                                <flux:field>
+                                                    <flux:label :badge="($field['required'] ?? false) ? 'Bắt buộc' : null">{{ $field['label'] }}</flux:label>
+                                                    @if(($field['type'] ?? 'text') === 'select')
+                                                        <flux:select wire:model="paymentConfig.{{ $field['key'] }}">
+                                                            @foreach (($field['options'] ?? []) as $optValue => $optLabel)
+                                                                <flux:select.option value="{{ $optValue }}">{{ $optLabel }}</flux:select.option>
+                                                            @endforeach
+                                                        </flux:select>
+                                                    @else
+                                                        <flux:input
+                                                            wire:model="paymentConfig.{{ $field['key'] }}"
+                                                            type="{{ $field['type'] ?? 'text' }}"
+                                                            placeholder="{{ $field['placeholder'] ?? '' }}" />
+                                                    @endif
+                                                    @error('paymentConfig.' . $field['key']) <flux:error>{{ $message }}</flux:error> @enderror
+                                                </flux:field>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
+                                            <div class="grid grid-cols-1 gap-3 {{ $colsMd }}">
+                                                @foreach ($p['fields'] as $field)
+                                                    <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
+                                                        <p class="text-xs font-bold text-neutral-500">{{ $field['label'] }}</p>
+                                                        <p class="mt-1 font-mono text-sm font-bold tracking-normal text-neutral-400">••••••••••••</p>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                            <button
+                                                type="button"
+                                                wire:click="openSensitiveConfigAuth('{{ $providerKey }}')"
+                                                class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                                                style="{{ $gradientStyle }}">
+                                                <flux:icon.eye class="size-4" />
+                                                Xem / chỉnh sửa
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
                             @endif
-                        </div>
-                    @endif
+                        @endif
+                    @endforeach
                 </div>
             </div>
         @endif

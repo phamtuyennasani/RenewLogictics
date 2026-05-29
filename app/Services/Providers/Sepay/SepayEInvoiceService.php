@@ -3,12 +3,16 @@
 namespace App\Services\Providers\Sepay;
 
 use App\Models\Setting;
+use App\Services\EInvoices\Contracts\EInvoiceProvider;
+use App\Services\EInvoices\Data\EInvoiceRequestData;
+use App\Services\EInvoices\Data\EInvoiceResultData;
+use App\Services\EInvoices\Data\EInvoiceStatusData;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use RuntimeException;
 
-class SepayEInvoiceService
+class SepayEInvoiceService implements EInvoiceProvider
 {
     public function __construct(
         protected ?string $environment = null,
@@ -304,5 +308,103 @@ class SepayEInvoiceService
     protected function isSandbox(): bool
     {
         return strtolower((string) $this->environment) !== 'production';
+    }
+
+    // =========================================================================
+    // EInvoiceProvider Interface Implementation
+    // =========================================================================
+
+    public function key(): string
+    {
+        return 'sepay';
+    }
+
+    public function create(EInvoiceRequestData $data): EInvoiceResultData
+    {
+        $buyer = $this->makeBuyerPayload($data->buyer['name'] ?? '', $data->buyer);
+
+        $items = array_map(function ($item, $index) {
+            return $this->makeInvoiceItem(
+                lineNumber: $index + 1,
+                lineType: $item['line_type'] ?? 1,
+                itemName: $item['item_name'] ?? $item['name'] ?? '',
+                overrides: $item,
+            );
+        }, $data->items, array_keys($data->items));
+
+        $payload = $this->makeInvoicePayload(
+            providerAccountId: $data->providerAccountId,
+            templateCode: $data->templateCode,
+            invoiceSeries: $data->invoiceSeries,
+            issuedDate: $data->issuedDate,
+            buyer: $buyer,
+            items: $items,
+            overrides: [
+                'currency' => $data->currency,
+                'payment_method' => $data->paymentMethod,
+                'is_draft' => $data->isDraft,
+                'notes' => $data->notes,
+            ],
+        );
+
+        $response = $this->createInvoice($payload);
+
+        return new EInvoiceResultData(
+            provider: $this->key(),
+            reference: $data->reference,
+            trackingCode: $response['tracking_code'] ?? null,
+            trackingUrl: $response['tracking_url'] ?? null,
+            message: $response['message'] ?? null,
+            raw: $response,
+        );
+    }
+
+    public function issue(string $referenceCode): EInvoiceResultData
+    {
+        $response = $this->issueInvoice($referenceCode);
+
+        return new EInvoiceResultData(
+            provider: $this->key(),
+            reference: $referenceCode,
+            trackingCode: $response['tracking_code'] ?? null,
+            trackingUrl: $response['tracking_url'] ?? null,
+            message: $response['message'] ?? null,
+            raw: $response,
+        );
+    }
+
+    public function status(string $trackingOrReferenceCode): EInvoiceStatusData
+    {
+        // Thử check issue status trước (tracking_code từ issue)
+        try {
+            $response = $this->checkIssueInvoiceStatus($trackingOrReferenceCode);
+        } catch (RuntimeException) {
+            // Fallback: check create status
+            $response = $this->checkCreateInvoiceStatus($trackingOrReferenceCode);
+        }
+
+        $rawStatus = strtolower($response['status'] ?? '');
+        $status = match ($rawStatus) {
+            'success' => EInvoiceStatusData::STATUS_SUCCESS,
+            'failed', 'error' => EInvoiceStatusData::STATUS_FAILED,
+            default => EInvoiceStatusData::STATUS_PENDING,
+        };
+
+        return new EInvoiceStatusData(
+            provider: $this->key(),
+            trackingCode: $trackingOrReferenceCode,
+            status: $status,
+            invoiceNumber: $response['invoice_number'] ?? null,
+            providerReferenceCode: $response['reference_code'] ?? null,
+            message: $response['message'] ?? null,
+            raw: $response,
+        );
+    }
+
+    public function download(string $trackingCode, string $type = 'pdf'): string
+    {
+        $response = $this->downloadInvoice($trackingCode, $type);
+
+        return $this->decodeDownloadedInvoice($response);
     }
 }

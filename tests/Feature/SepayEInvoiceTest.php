@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Services\Payments\SepayEInvoice;
 use App\Services\Providers\Sepay\SepayEInvoiceService;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -129,10 +128,5 @@ class SepayEInvoiceTest extends TestCase
         $this->expectExceptionMessage('REGISTRATION_NOT_TAX_APPROVED');
 
         $service->issueInvoice('draft-ref-001');
-    }
-
-    public function test_legacy_alias_remains_available(): void
-    {
-        $this->assertInstanceOf(SepayEInvoiceService::class, new SepayEInvoice());
     }
 }
