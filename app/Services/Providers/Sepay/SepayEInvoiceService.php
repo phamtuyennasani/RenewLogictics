@@ -319,6 +319,39 @@ class SepayEInvoiceService implements EInvoiceProvider
         return 'sepay';
     }
 
+    public static function configSchema(): array
+    {
+        return [
+            [
+                'key' => 'einvoice_sepay_environment',
+                'label' => 'Môi trường',
+                'type' => 'select',
+                'required' => true,
+                'sensitive' => true,
+                'options' => [
+                    'sandbox' => 'Sandbox',
+                    'production' => 'Production',
+                ],
+            ],
+            [
+                'key' => 'einvoice_sepay_client_id',
+                'label' => 'Client ID',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => true,
+                'placeholder' => 'Client ID từ SePay',
+            ],
+            [
+                'key' => 'einvoice_sepay_client_secret',
+                'label' => 'Client Secret',
+                'type' => 'password',
+                'required' => true,
+                'sensitive' => true,
+                'placeholder' => 'Client Secret từ SePay',
+            ],
+        ];
+    }
+
     public function create(EInvoiceRequestData $data): EInvoiceResultData
     {
         $buyer = $this->makeBuyerPayload($data->buyer['name'] ?? '', $data->buyer);

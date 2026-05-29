@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **RenewLogictics** (8244 symbols, 13955 relationships, 283 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **RenewLogictics** (5595 symbols, 10788 relationships, 269 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -12,7 +12,101 @@ This project is indexed by GitNexus as **RenewLogictics** (8244 symbols, 13955 r
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
 - When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
 - When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+## Work in Small Batches
 
+### Purpose
+
+Large refactors and wide-scope analysis can cause long execution times, stream stall timeouts, excessive token usage, and difficult reviews. Work incrementally and validate frequently.
+
+### Rules
+
+- **MUST split large tasks into small, verifiable batches.**
+- **MUST avoid attempting large multi-module refactors in a single iteration.**
+- **MUST complete one batch, validate it, report progress, then continue with the next batch.**
+- Prefer changing **1–3 related files per batch** whenever practical.
+- Prefer modifying **one execution flow, one bug fix, or one feature slice at a time**.
+- For large features, first create a concise implementation plan, then execute step-by-step.
+- After each batch, provide a progress report before continuing.
+
+### Required Progress Report
+
+After each batch, report:
+
+- Files changed
+- Symbols changed
+- Execution flows affected
+- Risk level
+- Validation completed
+- Remaining work
+
+Example:
+
+```text
+Batch 1/4 Completed
+
+Files Changed:
+- OrderController.php
+- OrderService.php
+
+Symbols Changed:
+- OrderController::store()
+- OrderService::create()
+
+Affected Flows:
+- Create Order
+
+Validation:
+- Static analysis passed
+- Existing tests passed
+
+Remaining:
+- Tracking integration
+- Notification dispatch
+- Audit logging
+```
+
+### Safe Stopping Points
+
+If any of the following conditions occur:
+
+- Stream stall risk
+- Long-running analysis
+- Large impact radius
+- Excessive token consumption
+- Unexpected dependency expansion
+
+Then:
+
+1. Finish the current safe batch.
+2. Report findings.
+3. Ask the user whether to continue.
+
+### Timeout Prevention
+
+- Prefer targeted searches over repository-wide scans.
+- Prefer symbol-level analysis over full-project analysis.
+- Avoid opening unnecessary files.
+- Avoid generating large outputs when a summary is sufficient.
+- Break investigations into stages:
+  - Discovery
+  - Analysis
+  - Implementation
+  - Validation
+
+### Refactoring Strategy
+
+For refactors:
+
+1. Impact Analysis
+2. Plan
+3. Batch 1
+4. Validate
+5. Batch 2
+6. Validate
+7. Batch N
+8. Final Verification
+
+Never perform a large refactor in one pass when it can be executed safely in multiple batches.
 ## Never Do
 
 - NEVER edit a function, class, or method without first running `gitnexus_impact` on it.

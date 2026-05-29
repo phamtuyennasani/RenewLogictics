@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Setting;
+use App\Services\EInvoices\EInvoiceProviderManager;
 use App\Services\Payments\PaymentProviderManager;
 use App\Services\Providers\MoMo\MoMoPaymentService;
+use App\Services\Providers\Sepay\SepayEInvoiceService;
 use App\Services\Providers\Sepay\SepayPaymentService;
 use App\Services\Providers\VNPay\VNPayPaymentService;
 use Illuminate\Support\Facades\Schema;
@@ -21,6 +23,7 @@ class SettingsHeThongPageTest extends TestCase
             'payment_providers.drivers.sepay' => SepayPaymentService::class,
             'payment_providers.drivers.momo' => MoMoPaymentService::class,
             'payment_providers.drivers.vnpay' => VNPayPaymentService::class,
+            'einvoice_providers.drivers.sepay' => SepayEInvoiceService::class,
         ]);
 
         // Migration của project dùng information_schema (MySQL-only) nên không chạy được
@@ -106,6 +109,52 @@ class SettingsHeThongPageTest extends TestCase
         $this->assertSame('OLD_ACCESS', $options['payment_momo_access_key']);
         $this->assertSame('OLD_SECRET', $options['payment_momo_secret_key']);
         $this->assertTrue((bool) $options['payment_momo_enabled']);
+    }
+
+    public function test_it_renders_a_provider_block_for_every_registered_einvoice_gateway(): void
+    {
+        $component = Livewire::test('pages::settings.he-thong')->set('tab', 'invoice');
+
+        foreach (EInvoiceProviderManager::configSchemas() as $schema) {
+            $component->assertSee($schema['name']);
+        }
+    }
+
+    public function test_toggling_an_einvoice_provider_flips_its_enabled_flag_in_state(): void
+    {
+        Livewire::test('pages::settings.he-thong')
+            ->assertSet('einvoiceEnabled.sepay', false)
+            ->call('toggleEinvoice', 'sepay')
+            ->assertSet('einvoiceEnabled.sepay', true)
+            ->call('toggleEinvoice', 'sepay')
+            ->assertSet('einvoiceEnabled.sepay', false);
+    }
+
+    public function test_save_blocks_writes_to_sensitive_einvoice_fields_until_admin_unlocks(): void
+    {
+        Setting::create([
+            'namevi' => 'Cấu hình hệ thống',
+            'options' => [
+                'einvoice_sepay_environment' => 'sandbox',
+                'einvoice_sepay_client_id' => 'OLD_CLIENT_ID',
+                'einvoice_sepay_client_secret' => 'OLD_CLIENT_SECRET',
+            ],
+        ]);
+
+        Livewire::test('pages::settings.he-thong')
+            ->set('einvoiceEnabled.sepay', true)
+            ->set('einvoiceConfig.einvoice_sepay_client_id', 'NEW_CLIENT_ID')
+            ->set('einvoiceConfig.einvoice_sepay_client_secret', 'NEW_SECRET')
+            ->call('save')
+            ->assertHasNoErrors();
+
+        $options = data_get(Setting::first(), 'options', []);
+
+        // Còn khóa => giữ nguyên giá trị cũ.
+        $this->assertSame('OLD_CLIENT_ID', $options['einvoice_sepay_client_id']);
+        $this->assertSame('OLD_CLIENT_SECRET', $options['einvoice_sepay_client_secret']);
+        $this->assertSame('sandbox', $options['einvoice_sepay_environment']);
+        $this->assertTrue((bool) $options['einvoice_sepay_enabled']);
     }
 }
 

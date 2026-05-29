@@ -70,13 +70,54 @@ class EInvoiceProviderManager
                 'name' => 'SePay eInvoice',
                 'description' => 'Hóa đơn điện tử qua SePay API.',
                 'color' => 'primary',
+                'icon' => 'receipt-percent',
             ],
             // Thêm provider mới tại đây:
             // 'vnpt' => [
             //     'name' => 'VNPT eInvoice',
             //     'description' => 'Hóa đơn điện tử VNPT.',
             //     'color' => 'sky',
+            //     'icon' => 'receipt-percent',
             // ],
         ];
+    }
+
+    /**
+     * Gom cấu hình hiển thị + schema field của mọi cổng e-invoice để trang
+     * Cấu hình render form động. Thêm cổng mới chỉ cần khai báo ở service +
+     * manager, không phải sửa giao diện settings.
+     *
+     * @return array<string, array{name:string,description:string,color:string,icon:string,fields:array<int,array<string,mixed>>}>
+     */
+    public static function configSchemas(): array
+    {
+        $labels = self::providerLabels();
+        $schemas = [];
+
+        foreach (self::PROVIDERS as $provider) {
+            $className = config("einvoice_providers.drivers.{$provider}");
+
+            if (! is_string($className) || ! class_exists($className)) {
+                continue;
+            }
+
+            if (! is_subclass_of($className, EInvoiceProvider::class)) {
+                continue;
+            }
+
+            $meta = $labels[$provider] ?? [
+                'name' => ucfirst($provider),
+                'description' => '',
+                'color' => 'primary',
+                'icon' => 'receipt-percent',
+            ];
+
+            $schemas[$provider] = [
+                ...$meta,
+                'fields' => $className::configSchema(),
+            ];
+        }
+
+        return $schemas;
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Setting;
+use App\Services\EInvoices\EInvoiceProviderManager;
 use App\Services\Payments\PaymentProviderManager;
 use Flux\Flux;
 use Illuminate\Support\Facades\Hash;
@@ -16,11 +17,17 @@ new class extends Component
     /** @var array<string, string> [storageKey => value] — gom mọi field cấu hình của các cổng */
     public array $paymentConfig = [];
 
-    public bool $einvoiceSepayEnabled = false;
-    public string $einvoiceSepayEnvironment = 'sandbox';
-    public string $einvoiceSepayClientId = '';
-    public string $einvoiceSepayClientSecret = '';
+    /** @var array<string, bool> [providerKey => enabled] */
+    public array $einvoiceEnabled = [];
 
+    /** @var array<string, string> [storageKey => value] */
+    public array $einvoiceConfig = [];
+
+    /**
+     * Gateway đã mở khóa hiện tại. Format:
+     *   - 'momo', 'vnpay'      → cổng payment
+     *   - 'einvoice:sepay'     → cổng e-invoice (prefix tránh va chạm key)
+     */
     public string $sensitiveConfigGateway = '';
     public string $sensitiveConfigAuthGateway = '';
     public string $sensitiveConfigPassword = '';
@@ -50,6 +57,14 @@ new class extends Component
         $this->paymentEnabled[$key] = ! ($this->paymentEnabled[$key] ?? false);
     }
 
+    /**
+     * Bật/tắt một cổng hóa đơn điện tử theo key động.
+     */
+    public function toggleEinvoice(string $key): void
+    {
+        $this->einvoiceEnabled[$key] = ! ($this->einvoiceEnabled[$key] ?? false);
+    }
+
     protected function loadFromSettings(): void
     {
         $options = data_get(Setting::first(), 'options', []);
@@ -63,10 +78,14 @@ new class extends Component
             }
         }
 
-        $this->einvoiceSepayEnabled = (bool) ($options['einvoice_sepay_enabled'] ?? false);
-        $this->einvoiceSepayEnvironment = $options['einvoice_sepay_environment'] ?? config('sepay.einvoice.environment', 'sandbox');
-        $this->einvoiceSepayClientId = $options['einvoice_sepay_client_id'] ?? config('sepay.einvoice.client_id', '');
-        $this->einvoiceSepayClientSecret = $options['einvoice_sepay_client_secret'] ?? config('sepay.einvoice.client_secret', '');
+        // E-invoice: cùng cơ chế schema-driven như payment.
+        foreach (EInvoiceProviderManager::configSchemas() as $key => $schema) {
+            $this->einvoiceEnabled[$key] = (bool) ($options["einvoice_{$key}_enabled"] ?? false);
+
+            foreach ($schema['fields'] as $field) {
+                $this->einvoiceConfig[$field['key']] = (string) ($options[$field['key']] ?? '');
+            }
+        }
 
         $this->emailOrderEnabled = (bool) ($options['email_order_enabled'] ?? false);
 
@@ -109,16 +128,37 @@ new class extends Component
             }
         }
 
-        if ($this->einvoiceSepayEnabled) {
-            $this->validate([
-                'einvoiceSepayEnvironment' => 'required|in:sandbox,production',
-                'einvoiceSepayClientId' => 'required|string|max:255',
-                'einvoiceSepayClientSecret' => 'required|string|max:255',
-            ], [
-                'einvoiceSepayEnvironment.required' => 'Vui lòng chọn môi trường hóa đơn điện tử.',
-                'einvoiceSepayClientId.required' => 'Vui lòng nhập Client ID hóa đơn điện tử SePay.',
-                'einvoiceSepayClientSecret.required' => 'Vui lòng nhập Client Secret hóa đơn điện tử SePay.',
-            ]);
+        // E-invoice: validate động theo schema, chỉ khi cổng đang bật + đã mở khóa.
+        foreach (EInvoiceProviderManager::configSchemas() as $key => $schema) {
+            if (! ($this->einvoiceEnabled[$key] ?? false)) {
+                continue;
+            }
+
+            $rules = [];
+            $messages = [];
+
+            foreach ($schema['fields'] as $field) {
+                if (! ($field['required'] ?? false)) {
+                    continue;
+                }
+
+                // Field nhạy cảm chỉ validate được khi form đang mở khóa.
+                if (($field['sensitive'] ?? false) && $this->sensitiveConfigGateway !== 'einvoice:'.$key) {
+                    continue;
+                }
+
+                $stateKey = "einvoiceConfig.{$field['key']}";
+                $rule = ($field['type'] ?? 'text') === 'select' && ! empty($field['options'])
+                    ? 'required|in:'.implode(',', array_keys($field['options']))
+                    : 'required|string|max:255';
+                $rules[$stateKey] = $rule;
+                $messages["{$stateKey}.required"] = "Vui lòng nhập {$field['label']} ({$schema['name']}).";
+                $messages["{$stateKey}.in"] = "Giá trị {$field['label']} ({$schema['name']}) không hợp lệ.";
+            }
+
+            if ($rules !== []) {
+                $this->validate($rules, $messages);
+            }
         }
 
         $this->isSaving = true;
@@ -151,16 +191,27 @@ new class extends Component
             }
         }
 
-        $options['einvoice_sepay_enabled'] = $this->einvoiceSepayEnabled;
+        // E-invoice: lưu động theo schema (gate sensitive bằng prefix 'einvoice:<key>').
+        foreach (EInvoiceProviderManager::configSchemas() as $key => $schema) {
+            $options["einvoice_{$key}_enabled"] = $this->einvoiceEnabled[$key] ?? false;
 
-        if ($this->sensitiveConfigGateway === 'einvoice' && $this->canManageSensitiveConfig()) {
-            $options['einvoice_sepay_environment'] = $this->einvoiceSepayEnvironment;
-            $options['einvoice_sepay_client_id'] = $this->einvoiceSepayClientId;
-            $options['einvoice_sepay_client_secret'] = $this->einvoiceSepayClientSecret;
-        } else {
-            $this->einvoiceSepayEnvironment = $options['einvoice_sepay_environment'] ?? config('sepay.einvoice.environment', 'sandbox');
-            $this->einvoiceSepayClientId = $options['einvoice_sepay_client_id'] ?? config('sepay.einvoice.client_id', '');
-            $this->einvoiceSepayClientSecret = $options['einvoice_sepay_client_secret'] ?? config('sepay.einvoice.client_secret', '');
+            foreach ($schema['fields'] as $field) {
+                $isSensitive = $field['sensitive'] ?? false;
+                $unlockToken = 'einvoice:'.$key;
+
+                if ($isSensitive && ! ($this->sensitiveConfigGateway === $unlockToken && $this->canManageSensitiveConfig())) {
+                    $this->einvoiceConfig[$field['key']] = (string) ($options[$field['key']] ?? '');
+
+                    continue;
+                }
+
+                $value = $this->einvoiceConfig[$field['key']] ?? '';
+                $options[$field['key']] = $value;
+
+                foreach (($field['mirrorKeys'] ?? []) as $mirrorKey) {
+                    $options[$mirrorKey] = $value;
+                }
+            }
         }
 
         $options['email_order_enabled'] = $this->emailOrderEnabled;
@@ -260,19 +311,30 @@ new class extends Component
     }
 
     /**
-     * Danh sách "cổng" có dữ liệu nhạy cảm cần xác thực lại Admin để xem/sửa:
-     * các cổng payment có field sensitive + cổng e-invoice.
+     * Danh sách "cổng" có dữ liệu nhạy cảm cần xác thực lại Admin để xem/sửa.
+     * Format token:
+     *   - 'momo', 'vnpay'      → cổng payment có field sensitive
+     *   - 'einvoice:sepay'     → cổng e-invoice có field sensitive (prefix tránh va chạm key)
      *
      * @return array<int, string>
      */
     protected function sensitiveGateways(): array
     {
-        $gateways = ['einvoice'];
+        $gateways = [];
 
         foreach (PaymentProviderManager::configSchemas() as $key => $schema) {
             foreach ($schema['fields'] as $field) {
                 if ($field['sensitive'] ?? false) {
                     $gateways[] = $key;
+                    break;
+                }
+            }
+        }
+
+        foreach (EInvoiceProviderManager::configSchemas() as $key => $schema) {
+            foreach ($schema['fields'] as $field) {
+                if ($field['sensitive'] ?? false) {
+                    $gateways[] = 'einvoice:'.$key;
                     break;
                 }
             }
@@ -340,7 +402,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                         Cổng hóa đơn
                     </p>
                     <p class="truncate text-xs font-medium text-neutral-500">
-                        {{ $einvoiceSepayEnabled ? 'SePay đang bật' : 'Chưa bật' }}
+                        {{ collect($einvoiceEnabled)->filter()->count() }}/{{ count($einvoiceEnabled) }} cổng bật
                     </p>
                 </div>
             </div>
@@ -554,114 +616,163 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
         @endif
 
         @if($tab === 'invoice')
-            <div class="space-y-5">
-                <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-                    <div class="flex flex-col gap-3 border-b border-neutral-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                        <div class="flex min-w-0 items-start gap-3">
-                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-700">
-                                <flux:icon.receipt-percent class="size-5" />
-                            </span>
-                            <div class="min-w-0">
-                                <h2 class="text-base font-black tracking-normal text-neutral-950">Cổng hóa đơn điện tử</h2>
-                                <p class="mt-1 text-sm font-medium text-neutral-500">Cấu hình API hóa đơn điện tử SePay.</p>
-                            </div>
-                        </div>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked="{{ $einvoiceSepayEnabled ? 'true' : 'false' }}"
-                            wire:click="$toggle('einvoiceSepayEnabled')"
-                            class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $einvoiceSepayEnabled ? 'bg-emerald-500' : 'bg-neutral-300' }}">
-                            <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform {{ $einvoiceSepayEnabled ? 'translate-x-4' : 'translate-x-0.5' }}"></span>
-                        </button>
+            <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+                <div class="flex flex-col gap-3 border-b border-neutral-100 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+                    <div>
+                        <h2 class="text-base font-black tracking-normal text-neutral-950">Cổng hóa đơn điện tử</h2>
+                        <p class="mt-1 text-sm font-medium text-neutral-500">Kiểm soát các nhà cung cấp hóa đơn điện tử dùng để phát hành cho khách hàng.</p>
                     </div>
+                    <span class="inline-flex w-fit items-center rounded-md bg-neutral-100 px-3 py-1 text-xs font-bold text-neutral-700">
+                        {{ collect($einvoiceEnabled)->filter()->count() }} đang bật
+                    </span>
+                </div>
 
-                    @if($einvoiceSepayEnabled)
-                        <div class="overflow-hidden">
-                            <div class="flex flex-col gap-3 border-b border-neutral-100 bg-neutral-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-700">
-                                        <flux:icon.key class="size-5" />
-                                    </span>
-                                    <div class="min-w-0">
-                                        <p class="text-sm font-bold text-neutral-950">API SePay eInvoice</p>
-                                        <p class="mt-1 text-xs font-medium text-neutral-500">Client ID và Client Secret dùng để lấy token tạo hóa đơn.</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    @if($sensitiveConfigGateway === 'einvoice')
-                                        <button
-                                            type="button"
-                                            wire:click="lockSensitiveConfig('einvoice')"
-                                            class="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-bold text-neutral-600 transition-colors hover:bg-neutral-50">
-                                            <flux:icon.lock-closed class="size-3.5" />
-                                            Khóa lại
-                                        </button>
-                                    @else
-                                        <span class="inline-flex w-fit items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
-                                            <flux:icon.lock-closed class="size-3.5" />
-                                            Đang khóa
-                                        </span>
-                                    @endif
-                                </div>
+                <div class="space-y-3 p-5 sm:p-6">
+                    @foreach (\App\Services\EInvoices\EInvoiceProviderManager::configSchemas() as $providerKey => $p)
+                        @php
+                            $isEnabled = $einvoiceEnabled[$providerKey] ?? false;
+                            $hasSensitive = collect($p['fields'])->contains(fn ($f) => $f['sensitive'] ?? false);
+                            $unlockToken = 'einvoice:'.$providerKey;
+                            $isUnlocked = $sensitiveConfigGateway === $unlockToken;
+                            $fieldCount = count($p['fields']);
+                            $colsMd = $fieldCount <= 1 ? 'md:grid-cols-1' : ($fieldCount <= 2 ? 'md:grid-cols-2' : 'md:grid-cols-3');
+                            $colsLg = $fieldCount <= 1 ? 'lg:grid-cols-1' : ($fieldCount <= 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
+                        @endphp
+
+                        <div class="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-700">
+                                <flux:icon :icon="$p['icon']" class="size-5" />
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate text-sm font-bold leading-5 text-neutral-950">{{ $p['name'] }}</p>
+                                <p class="truncate text-xs font-medium leading-5 text-slate-400">{{ $p['description'] }}</p>
                             </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked="{{ $isEnabled ? 'true' : 'false' }}"
+                                wire:click="toggleEinvoice('{{ $providerKey }}')"
+                                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $isEnabled ? 'bg-emerald-500' : 'bg-neutral-300' }}">
+                                <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform {{ $isEnabled ? 'translate-x-4' : 'translate-x-0.5' }}"></span>
+                            </button>
+                        </div>
 
-                            @if($sensitiveConfigGateway === 'einvoice')
-                                <div class="grid grid-cols-1 gap-4 p-4 lg:grid-cols-3">
-                                    <flux:field>
-                                        <flux:label badge="Bắt buộc">Môi trường</flux:label>
-                                        <flux:select wire:model="einvoiceSepayEnvironment">
-                                            <flux:select.option value="sandbox">Sandbox</flux:select.option>
-                                            <flux:select.option value="production">Production</flux:select.option>
-                                        </flux:select>
-                                        @error('einvoiceSepayEnvironment') <flux:error>{{ $message }}</flux:error> @enderror
-                                    </flux:field>
-
-                                    <flux:field>
-                                        <flux:label badge="Bắt buộc">Client ID</flux:label>
-                                        <flux:input wire:model="einvoiceSepayClientId" placeholder="Client ID từ SePay" />
-                                        @error('einvoiceSepayClientId') <flux:error>{{ $message }}</flux:error> @enderror
-                                    </flux:field>
-
-                                    <flux:field>
-                                        <flux:label badge="Bắt buộc">Client Secret</flux:label>
-                                        <flux:input wire:model="einvoiceSepayClientSecret" type="password" placeholder="Client Secret từ SePay" />
-                                        @error('einvoiceSepayClientSecret') <flux:error>{{ $message }}</flux:error> @enderror
-                                    </flux:field>
-                                </div>
-                            @else
-                                <div class="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
-                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                        <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
-                                            <p class="text-xs font-bold text-neutral-500">Môi trường</p>
-                                            <p class="mt-1 text-sm font-bold tracking-normal text-neutral-700">{{ $einvoiceSepayEnvironment === 'production' ? 'Production' : 'Sandbox' }}</p>
-                                        </div>
-                                        @foreach (['Client ID', 'Client Secret'] as $label)
-                                            <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
-                                                <p class="text-xs font-bold text-neutral-500">{{ $label }}</p>
-                                                <p class="mt-1 font-mono text-sm font-bold tracking-normal text-neutral-400">••••••••••••</p>
+                        @if($isEnabled)
+                            @if(! $hasSensitive)
+                                {{-- Cổng KHÔNG có field nhạy cảm: form trực tiếp. --}}
+                                <div class="overflow-hidden rounded-lg border border-emerald-100 bg-white shadow-sm">
+                                    <div class="flex flex-col gap-3 border-b border-emerald-100 bg-emerald-50/60 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="flex min-w-0 items-start gap-3">
+                                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700 shadow-sm">
+                                                <flux:icon.receipt-percent class="size-5" />
+                                            </span>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-bold text-neutral-950">Cấu hình {{ $p['name'] }}</p>
+                                                <p class="mt-1 text-xs font-medium text-neutral-500">Thông tin này bắt buộc để cổng hoạt động.</p>
                                             </div>
+                                        </div>
+                                        <span class="inline-flex w-fit items-center rounded-md bg-white px-2.5 py-1 text-xs font-bold text-emerald-700 shadow-sm">
+                                            Bắt buộc
+                                        </span>
+                                    </div>
+
+                                    <div class="grid grid-cols-1 gap-4 p-4 {{ $colsMd }}">
+                                        @foreach ($p['fields'] as $field)
+                                            <flux:field>
+                                                <flux:label :badge="($field['required'] ?? false) ? 'Bắt buộc' : null">{{ $field['label'] }}</flux:label>
+                                                @if(($field['type'] ?? 'text') === 'select')
+                                                    <flux:select wire:model="einvoiceConfig.{{ $field['key'] }}">
+                                                        @foreach (($field['options'] ?? []) as $optValue => $optLabel)
+                                                            <flux:select.option value="{{ $optValue }}">{{ $optLabel }}</flux:select.option>
+                                                        @endforeach
+                                                    </flux:select>
+                                                @else
+                                                    <flux:input
+                                                        wire:model="einvoiceConfig.{{ $field['key'] }}"
+                                                        type="{{ $field['type'] ?? 'text' }}"
+                                                        placeholder="{{ $field['placeholder'] ?? '' }}" />
+                                                @endif
+                                                @error('einvoiceConfig.' . $field['key']) <flux:error>{{ $message }}</flux:error> @enderror
+                                            </flux:field>
                                         @endforeach
                                     </div>
-                                    <button
-                                        type="button"
-                                        wire:click="openSensitiveConfigAuth('einvoice')"
-                                        class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-                                        style="{{ $gradientStyle }}">
-                                        <flux:icon.eye class="size-4" />
-                                        Xem / chỉnh sửa
-                                    </button>
+                                </div>
+                            @else
+                                {{-- Cổng CÓ field nhạy cảm: gate sau xác thực Admin. --}}
+                                <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+                                    <div class="flex flex-col gap-3 border-b border-neutral-100 bg-neutral-50/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <div class="flex min-w-0 items-start gap-3">
+                                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600">
+                                                <flux:icon.key class="size-5" />
+                                            </span>
+                                            <div class="min-w-0">
+                                                <p class="text-sm font-bold text-neutral-950">Thông tin API {{ $p['name'] }}</p>
+                                                <p class="mt-1 text-xs font-medium text-neutral-500">Khóa kết nối được cấp từ {{ $p['name'] }}.</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            @if($isUnlocked)
+                                                <button
+                                                    type="button"
+                                                    wire:click="lockSensitiveConfig('{{ $unlockToken }}')"
+                                                    class="inline-flex items-center gap-1.5 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-bold text-neutral-600 transition-colors hover:bg-neutral-50">
+                                                    <flux:icon.lock-closed class="size-3.5" />
+                                                    Khóa lại
+                                                </button>
+                                            @else
+                                                <span class="inline-flex w-fit items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                                                    <flux:icon.lock-closed class="size-3.5" />
+                                                    Đang khóa
+                                                </span>
+                                            @endif
+                                        </div>
+                                    </div>
+
+                                    @if($isUnlocked)
+                                        <div class="grid grid-cols-1 gap-4 p-4 {{ $colsLg }}">
+                                            @foreach ($p['fields'] as $field)
+                                                <flux:field>
+                                                    <flux:label :badge="($field['required'] ?? false) ? 'Bắt buộc' : null">{{ $field['label'] }}</flux:label>
+                                                    @if(($field['type'] ?? 'text') === 'select')
+                                                        <flux:select wire:model="einvoiceConfig.{{ $field['key'] }}">
+                                                            @foreach (($field['options'] ?? []) as $optValue => $optLabel)
+                                                                <flux:select.option value="{{ $optValue }}">{{ $optLabel }}</flux:select.option>
+                                                            @endforeach
+                                                        </flux:select>
+                                                    @else
+                                                        <flux:input
+                                                            wire:model="einvoiceConfig.{{ $field['key'] }}"
+                                                            type="{{ $field['type'] ?? 'text' }}"
+                                                            placeholder="{{ $field['placeholder'] ?? '' }}" />
+                                                    @endif
+                                                    @error('einvoiceConfig.' . $field['key']) <flux:error>{{ $message }}</flux:error> @enderror
+                                                </flux:field>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div class="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
+                                            <div class="grid grid-cols-1 gap-3 {{ $colsMd }}">
+                                                @foreach ($p['fields'] as $field)
+                                                    <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
+                                                        <p class="text-xs font-bold text-neutral-500">{{ $field['label'] }}</p>
+                                                        <p class="mt-1 font-mono text-sm font-bold tracking-normal text-neutral-400">••••••••••••</p>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                            <button
+                                                type="button"
+                                                wire:click="openSensitiveConfigAuth('{{ $unlockToken }}')"
+                                                class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                                                style="{{ $gradientStyle }}">
+                                                <flux:icon.eye class="size-4" />
+                                                Xem / chỉnh sửa
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
                             @endif
-                        </div>
-                    @else
-                        <div class="p-5 sm:p-6">
-                            <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-                                <p class="text-sm font-bold text-neutral-900">Cổng hóa đơn đang tắt</p>
-                                <p class="mt-1 text-xs font-medium text-neutral-500">Bật cổng hóa đơn để cấu hình API SePay eInvoice.</p>
-                            </div>
-                        </div>
-                    @endif
+                        @endif
+                    @endforeach
                 </div>
             </div>
         @endif
@@ -758,13 +869,22 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
     </form>
 
     @php
-        // Lấy tên cổng động: payment lấy từ providerLabels(), e-invoice hardcode
-        // (vì einvoice không nằm trong PaymentProviderManager).
-        $authGatewayLabel = match (true) {
-            $sensitiveConfigAuthGateway === '' => '',
-            $sensitiveConfigAuthGateway === 'einvoice' => 'Hóa đơn SePay',
-            default => \App\Services\Payments\PaymentProviderManager::providerLabels()[$sensitiveConfigAuthGateway]['name'] ?? '',
-        };
+        // Lấy tên cổng động cho tiêu đề modal xác thực.
+        //   payment:      key trực tiếp  → PaymentProviderManager
+        //   e-invoice:    'einvoice:<key>' → EInvoiceProviderManager
+        $authGatewayLabel = (function (string $gateway): string {
+            if ($gateway === '') {
+                return '';
+            }
+
+            if (\Illuminate\Support\Str::startsWith($gateway, 'einvoice:')) {
+                $key = \Illuminate\Support\Str::after($gateway, 'einvoice:');
+
+                return \App\Services\EInvoices\EInvoiceProviderManager::providerLabels()[$key]['name'] ?? '';
+            }
+
+            return \App\Services\Payments\PaymentProviderManager::providerLabels()[$gateway]['name'] ?? '';
+        })($sensitiveConfigAuthGateway);
     @endphp
 
     <flux:modal name="payment-api-auth" class="w-full max-w-md" @close="$wire.closeSensitiveConfigAuth()">

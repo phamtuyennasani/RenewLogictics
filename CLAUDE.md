@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **RenewLogictics** (8244 symbols, 13955 relationships, 283 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **RenewLogictics** (5595 symbols, 10788 relationships, 269 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -12,23 +12,23 @@ This project is indexed by GitNexus as **RenewLogictics** (8244 symbols, 13955 r
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
 - When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
 - When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
-
 ## Work in Small Batches
 
-- **MUST split large tasks into small, verifiable batches** to avoid long-running operations, excessive token usage, and stream stall timeouts.
-- **MUST complete one logical batch, validate it, and report progress before continuing** when the task is complex or touches multiple areas.
-- Prefer modifying a small set of related files in each batch.
-- Prefer completing one execution flow, one bug fix, or one feature slice at a time.
-- If a task affects many modules or execution flows, create a phased plan and execute incrementally.
-- When estimated changes exceed 10 files or 2 execution flows, switch to phased execution and complete the work batch-by-batch.
-- For broad refactors, first create a concise implementation plan, then execute one batch at a time.
-- Avoid running broad or long commands when a narrower command can answer the question.
-- Prefer targeted searches over repository-wide scans.
-- Prefer symbol-level analysis over full-project analysis.
-- Avoid opening unnecessary files.
-- Avoid generating large outputs when a summary is sufficient.
+### Purpose
 
-### Batch Progress Report
+Large refactors and wide-scope analysis can cause long execution times, stream stall timeouts, excessive token usage, and difficult reviews. Work incrementally and validate frequently.
+
+### Rules
+
+- **MUST split large tasks into small, verifiable batches.**
+- **MUST avoid attempting large multi-module refactors in a single iteration.**
+- **MUST complete one batch, validate it, report progress, then continue with the next batch.**
+- Prefer changing **1–3 related files per batch** whenever practical.
+- Prefer modifying **one execution flow, one bug fix, or one feature slice at a time**.
+- For large features, first create a concise implementation plan, then execute step-by-step.
+- After each batch, provide a progress report before continuing.
+
+### Required Progress Report
 
 After each batch, report:
 
@@ -38,6 +38,32 @@ After each batch, report:
 - Risk level
 - Validation completed
 - Remaining work
+
+Example:
+
+```text
+Batch 1/4 Completed
+
+Files Changed:
+- OrderController.php
+- OrderService.php
+
+Symbols Changed:
+- OrderController::store()
+- OrderService::create()
+
+Affected Flows:
+- Create Order
+
+Validation:
+- Static analysis passed
+- Existing tests passed
+
+Remaining:
+- Tracking integration
+- Notification dispatch
+- Audit logging
+```
 
 ### Safe Stopping Points
 
@@ -55,15 +81,38 @@ Then:
 2. Report findings.
 3. Ask the user whether to continue.
 
+### Timeout Prevention
+
+- Prefer targeted searches over repository-wide scans.
+- Prefer symbol-level analysis over full-project analysis.
+- Avoid opening unnecessary files.
+- Avoid generating large outputs when a summary is sufficient.
+- Break investigations into stages:
+  - Discovery
+  - Analysis
+  - Implementation
+  - Validation
+
+### Refactoring Strategy
+
+For refactors:
+
+1. Impact Analysis
+2. Plan
+3. Batch 1
+4. Validate
+5. Batch 2
+6. Validate
+7. Batch N
+8. Final Verification
+
+Never perform a large refactor in one pass when it can be executed safely in multiple batches.
 ## Never Do
 
 - NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
 - NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
 - NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
 - NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
-- NEVER perform large cross-module changes in a single batch when the work can be split safely.
-- NEVER continue a refactor indefinitely without reporting progress.
-- NEVER modify unrelated execution flows in the same batch unless explicitly required.
 
 ## Resources
 
