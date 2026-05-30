@@ -39,7 +39,7 @@ class MoMoPaymentService implements PaymentProvider
             $this->partnerCode ??= $options['payment_momo_partner_code'] ?? null;
             $this->accessKey ??= $options['payment_momo_access_key'] ?? null;
             $this->secretKey ??= $options['payment_momo_secret_key'] ?? null;
-            $this->environment ??= $options['payment_momo_environment'] ?? 'sandbox';
+            $this->environment ??= $options['payment_momo_environment'] ?? null ?: 'sandbox';
         } catch (\Throwable) {
             // fallback to config file
             if (function_exists('app') && app()->bound('config')) {
@@ -73,6 +73,17 @@ class MoMoPaymentService implements PaymentProvider
     public static function configSchema(): array
     {
         return [
+            [
+                'key' => 'payment_momo_environment',
+                'label' => 'Môi trường',
+                'type' => 'select',
+                'required' => true,
+                'sensitive' => true,
+                'options' => [
+                    'sandbox' => 'Sandbox',
+                    'production' => 'Production',
+                ],
+            ],
             [
                 'key' => 'payment_momo_partner_code',
                 'label' => 'Partner Code',

@@ -152,6 +152,11 @@ class CongNo extends Model
         return $this->hasMany(CongNoPayment::class, 'id_congno');
     }
 
+    public function einvoices()
+    {
+        return $this->hasMany(CongNoEInvoice::class, 'id_congno');
+    }
+
     protected function remainingAmount(): Attribute
     {
         return Attribute::get(fn () => max(0, (float) $this->total_cuocban - (float) $this->paid_amount));
@@ -223,8 +228,9 @@ class CongNo extends Model
 
     public static function generateSoHoaDon(string $tungay, string $denngay): string
     {
+        $prefix = (string) config('invoice.code_prefix.debt', 'DEB');
         do {
-            $code = 'DEB'.$tungay.$denngay.self::generateRandomCode();
+            $code = $prefix.$tungay.$denngay.self::generateRandomCode();
         } while (self::where('sohoadon', $code)->exists());
 
         return $code;

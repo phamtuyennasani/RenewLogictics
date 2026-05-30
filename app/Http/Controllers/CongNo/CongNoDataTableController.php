@@ -26,6 +26,7 @@ class CongNoDataTableController extends Controller
         $response = DataTables::eloquent($this->query($request))
             ->addColumn('check', fn (CongNo $debt) => '<label class="debt-checkbox relative mx-auto flex w-fit cursor-pointer select-none items-center justify-center"><input type="checkbox" class="debt-check peer sr-only" value="'.$debt->id.'"><span class="flex h-[18px] w-[18px] items-center justify-center rounded-md border border-neutral-300 bg-white transition peer-checked:border-primary-600 peer-checked:bg-primary-600 peer-hover:border-primary-400"></span><svg class="pointer-events-none absolute hidden h-3 w-3 text-white peer-checked:block" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.5l5 5 10-11" /></svg></label>')
             ->addColumn('debt_code', fn (CongNo $debt) => '<a wire:navigate href="'.route('congno.show', $debt->uuid).'" class="font-bold text-primary-700 hover:text-primary-800">'.$debt->sohoadon.'</a><div class="mt-0.5 text-xs text-neutral-500">Tạo '.$debt->created_at?->format('d/m/Y H:i').'</div>')
+            ->addColumn('einvoice_info', fn (CongNo $debt) => $this->einvoiceInfoHtml($debt))
             ->addColumn('status_badge', fn (CongNo $debt) => '<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '.$debt->status->color().'">'.$debt->status->label().'</span>')
             ->addColumn('customer_info', fn (CongNo $debt) => '<div class="max-w-[300px] truncate font-semibold text-neutral-900 whitespace-pre-line">'.e($this->customerCompanyLabel($debt)).'</div>')
             ->addColumn('sale_info', fn (CongNo $debt) => '<div class="max-w-[200px] truncate font-semibold text-neutral-800">'.e($this->saleLabel($debt)).'</div>')
@@ -35,7 +36,7 @@ class CongNoDataTableController extends Controller
             ->addColumn('due_date', fn (CongNo $debt) => $debt->hanthanhtoan?->format('d/m/Y') ?: '-')
             ->addColumn('actions', fn (CongNo $debt) => '<p class="text-right"><a wire:navigate href="'.route('congno.show', $debt->uuid).'" class="inline-flex h-8 items-center justify-end gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">Chi tiết</a></p>')
             ->setRowId(fn (CongNo $debt) => 'debt-'.$debt->id)
-            ->rawColumns(['check', 'debt_code', 'status_badge', 'customer_info', 'sale_info', 'total_amount', 'paid_amount_html', 'remaining_amount_html', 'actions'])
+            ->rawColumns(['check', 'debt_code', 'einvoice_info', 'status_badge', 'customer_info', 'sale_info', 'total_amount', 'paid_amount_html', 'remaining_amount_html', 'actions'])
             ->toJson();
 
         $payload = $response->getData(true);
@@ -146,7 +147,7 @@ class CongNoDataTableController extends Controller
         $user = $request->user();
 
         return CongNo::query()
-            ->with(['sale:id,fullname,username,code', 'customer:id,fullname,username,code,options', 'ketoan:id,fullname,username,code'])
+            ->with(['sale:id,fullname,username,code', 'customer:id,fullname,username,code,options', 'ketoan:id,fullname,username,code', 'einvoices'])
             ->where('type', 'customer')
             ->when($user->hasRole('sale'), fn ($q) => $q->where('id_sale', $user->id))
             ->when($user->hasRole('ctv'), fn ($q) => $q->where('id_customer', $user->id))
@@ -165,6 +166,27 @@ class CongNoDataTableController extends Controller
                 });
             })
             ->latest('congno.id');
+    }
+
+    protected function einvoiceInfoHtml(CongNo $debt): string
+    {
+        $einvoice = $debt->einvoices
+            ->firstWhere('status', \App\Models\CongNoEInvoice::STATUS_SUCCESS);
+
+        if (! $einvoice || ! $einvoice->invoice_number) {
+            return '<span class="text-neutral-400">-</span>';
+        }
+
+        $html = '<p class="font-bold text-emerald-700">' . e($einvoice->invoice_number) . '</p>';
+
+        if ($einvoice->pdf_path) {
+            $url = \Illuminate\Support\Facades\Storage::disk('public')->url($einvoice->pdf_path);
+            $html .= '<a href="' . e($url) . '" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700">'
+                . '<svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>'
+                . 'PDF</a>';
+        }
+
+        return $html;
     }
 
     protected function customerCompanyLabel(CongNo $debt): string

@@ -162,6 +162,7 @@
                                     </label>
                                 </th>
                                 <th class="px-3 py-3">Mã công nợ</th>
+                                <th class="px-3 py-3">Số hóa đơn</th>
                                 <th class="px-3 py-3">Trạng thái</th>
                                 <th class="px-3 py-3">Khách hàng</th>
                                 <th class="px-3 py-3">Sale phụ trách</th>
@@ -351,12 +352,6 @@
                             @error('createToDate') <p class="text-xs font-medium text-red-600">{{ $message }}</p> @enderror
                         </div>
 
-                        <div class="debt-create-field md:col-span-2">
-                            <label class="debt-create-label">Hạn thanh toán sau khi chốt</label>
-                            <input type="number" min="0" value="{{ $paymentTermDays }}" data-debt-create-field="paymentTermDays" class="debt-create-control">
-                            @error('paymentTermDays') <p class="text-xs font-medium text-red-600">{{ $message }}</p> @enderror
-                        </div>
-
                         <div class="md:col-span-2">
                             <div class="debt-create-field">
                                 <label class="debt-create-label">Ghi chú</label>
@@ -523,6 +518,7 @@
                     columns: [
                         { data: 'check', orderable: false, searchable: false },
                         { data: 'debt_code', orderable: false, searchable: false },
+                        { data: 'einvoice_info', orderable: false, searchable: false },
                         { data: 'status_badge', orderable: false, searchable: false },
                         { data: 'customer_info', orderable: false, searchable: false },
                         { data: 'sale_info', orderable: false, searchable: false },
@@ -535,14 +531,15 @@
                     columnDefs: [
                         { targets: 0, width: '40px' },
                         { targets: 1, width: '100px' },
-                        { targets: 2, width: '150px' },
-                        { targets: 3, width: '300px' },
-                        { targets: 4, width: '200px' },
-                        { targets: 5, width: '150px' },
+                        { targets: 2, width: '120px' },
+                        { targets: 3, width: '150px' },
+                        { targets: 4, width: '300px' },
+                        { targets: 5, width: '200px' },
                         { targets: 6, width: '150px' },
                         { targets: 7, width: '150px' },
-                        { targets: 8, width: '100px' },
+                        { targets: 8, width: '150px' },
                         { targets: 9, width: '100px' },
+                        { targets: 10, width: '100px' },
                     ],
                     initComplete: markReady,
                 });

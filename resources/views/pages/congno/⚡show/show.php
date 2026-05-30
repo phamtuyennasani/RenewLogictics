@@ -4,9 +4,12 @@ use App\Enums\DebtStatusEnum;
 use App\Enums\InvoicePaymentStatusEnum;
 use App\Enums\InvoiceTypeEnum;
 use App\Models\CongNo;
+use App\Models\CongNoEInvoice;
 use App\Models\CongNoPayment;
 use App\Models\News;
 use App\Models\Order;
+use App\Services\EInvoices\Data\EInvoiceRequestData;
+use App\Services\EInvoices\EInvoiceProviderManager;
 use App\Services\Payments\InvoiceCodeGenerator;
 use App\Services\Payments\PaymentProviderManager;
 use App\Services\Payments\Data\PaymentRequestData;
@@ -36,6 +39,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public $cashInvoicePhoto = null;
     public bool $showPayModal = false;
 
+    // E-Invoice state
+    public bool $showEInvoiceModal = false;
+    public string $einvoiceProvider = '';
+    public string $einvoiceNotes = '';
+    public array $enabledEInvoiceProviders = [];
+
     public ?int $editingSaleChargeDetailId = null;
     public ?string $editingSaleChargeOrderCode = null;
     public ?string $editingSaleChargeTotal = null;
@@ -51,6 +60,16 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         $this->feeOptions = $this->loadFeeOptions();
         $this->expenseOptions = $this->loadExpenseOptions();
         $this->loadEnabledProviders();
+        $this->loadEnabledEInvoiceProviders();
+    }
+
+    protected function loadEnabledEInvoiceProviders(): void
+    {
+        $this->enabledEInvoiceProviders = EInvoiceProviderManager::enabledProviders();
+
+        if (!($this->enabledEInvoiceProviders[$this->einvoiceProvider] ?? false)) {
+            $this->einvoiceProvider = EInvoiceProviderManager::defaultProvider();
+        }
     }
 
     protected function loadEnabledProviders(): void
@@ -80,6 +99,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                 'payments.approver:id,fullname,username,code',
                 'payments.paymentConfirmer:id,fullname,username,code',
                 'payments.cancelledBy:id,fullname,username,code',
+                'einvoices.user:id,fullname,username,code',
             ])
             ->where(function ($query) use ($id) {
                 $query->where('uuid', $id);
@@ -573,6 +593,327 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
         $this->reloadDebt();
         Flux::toast(heading: 'Đã xác nhận thanh toán', text: 'Hóa đơn ' . $invoice->ma_hoa_don . ' đã được ghi nhận đã thanh toán.', variant: 'success');
+    }
+
+    // =========================================================================
+    // E-Invoice Methods
+    // =========================================================================
+
+    public function openEInvoiceModal(): void
+    {
+        abort_unless($this->canManage(), 403);
+
+        if ($this->debt->status !== DebtStatusEnum::DA_THANH_TOAN) {
+            Flux::toast(heading: 'Chưa thanh toán xong', text: 'Chỉ tạo hóa đơn điện tử khi công nợ đã thanh toán hết.', variant: 'warning');
+            return;
+        }
+
+        if (CongNoEInvoice::hasSuccessfulInvoice($this->debt->id)) {
+            Flux::toast(heading: 'Đã có hóa đơn', text: 'Công nợ này đã có hóa đơn điện tử thành công.', variant: 'warning');
+            return;
+        }
+
+        $this->einvoiceProvider = EInvoiceProviderManager::defaultProvider();
+        $this->einvoiceNotes = '';
+        $this->showEInvoiceModal = true;
+
+        Flux::modal('create-einvoice')->show();
+    }
+
+    public function closeEInvoiceModal(): void
+    {
+        $this->showEInvoiceModal = false;
+        $this->einvoiceProvider = '';
+        $this->einvoiceNotes = '';
+
+        Flux::modal('create-einvoice')->close();
+    }
+
+    public function submitEInvoice(): void
+    {
+        abort_unless($this->canManage(), 403);
+
+        if ($this->debt->status !== DebtStatusEnum::DA_THANH_TOAN) {
+            Flux::toast(heading: 'Chưa thanh toán xong', text: 'Chỉ tạo hóa đơn điện tử khi công nợ đã thanh toán hết.', variant: 'warning');
+            return;
+        }
+
+        if (CongNoEInvoice::hasSuccessfulInvoice($this->debt->id)) {
+            Flux::toast(heading: 'Đã có hóa đơn', text: 'Công nợ này đã có hóa đơn điện tử thành công.', variant: 'warning');
+            return;
+        }
+
+        $providerKey = in_array($this->einvoiceProvider, EInvoiceProviderManager::allProviders(), true)
+            ? $this->einvoiceProvider
+            : EInvoiceProviderManager::defaultProvider();
+
+        // Lấy config provider
+        $options = data_get(\App\Models\Setting::first(), 'options', []);
+        $providerAccountId = $options["einvoice_{$providerKey}_provider_account_id"] ?? '';
+        $templateCode = $options["einvoice_{$providerKey}_template_code"] ?? '';
+        $invoiceSeries = $options["einvoice_{$providerKey}_invoice_series"] ?? '';
+
+        if (! $providerAccountId || ! $templateCode || ! $invoiceSeries) {
+            Flux::toast(heading: 'Chưa cấu hình', text: 'Vui lòng cấu hình Provider Account ID, Template Code và Invoice Series trong Cấu hình hệ thống.', variant: 'warning');
+            return;
+        }
+
+        // Build buyer info (theo format SePay — bỏ field rỗng phía service)
+        $customer = $this->debt->customer;
+        $buyer = [
+            'name' => $customer?->fullname ?: ($customer?->username ?: 'Khách hàng'),
+            'email' => $customer?->email ?: null,
+            'phone' => $customer?->phone ?: null,
+            'address' => $customer?->address ?? null,
+        ];
+
+        // Build item: 1 dòng duy nhất "phí vận chuyển các mã vận đơn" (liệt kê mã đơn), không VAT.
+        $details = $this->debt->details()->with('order')->get();
+        $orderCodes = $details
+            ->map(fn ($detail) => $detail->order_code ?: $detail->order?->id_bill ?: ('#' . $detail->id_order))
+            ->filter()
+            ->values()
+            ->all();
+
+        $itemName = 'Thanh toán phí vận chuyển các mã vận đơn: ' . implode(', ', $orderCodes);
+        $totalAmount = (int) round((float) $this->debt->total_cuocban);
+
+        $items = [
+            [
+                'line_number' => 1,
+                'line_type' => 1,
+                'item_code' => $this->debt->sohoadon ?: ('CN-' . $this->debt->id),
+                'item_name' => $itemName,
+                'unit' => 'Đơn',
+                'quantity' => 1,
+                'unit_price' => $totalAmount,
+            ],
+        ];
+
+        $reference = CongNoEInvoice::generateReference($this->debt);
+
+        try {
+            $driver = app(EInvoiceProviderManager::class)->driver($providerKey);
+
+            $requestData = new EInvoiceRequestData(
+                reference: $reference,
+                templateCode: $templateCode,
+                invoiceSeries: $invoiceSeries,
+                issuedDate: now()->format('Y-m-d H:i:s'),
+                providerAccountId: $providerAccountId,
+                buyer: $buyer,
+                items: $items,
+                amount: (int) round((float) $this->debt->total_cuocban),
+                paymentMethod: 'CK',
+                isDraft: false, // tạo + phát hành luôn để có số hóa đơn
+                notes: $this->einvoiceNotes ?: null,
+            );
+
+            $result = $driver->create($requestData);
+
+            // Tạo record với trạng thái pending (SePay xử lý bất đồng bộ).
+            $einvoice = CongNoEInvoice::create([
+                'id_congno' => $this->debt->id,
+                'id_user' => auth()->id(),
+                'provider' => $providerKey,
+                'provider_account_id' => $providerAccountId,
+                'reference' => $reference,
+                'template_code' => $templateCode,
+                'invoice_series' => $invoiceSeries,
+                'issued_date' => now()->toDateString(),
+                'tracking_code' => $result->trackingCode,
+                'provider_reference_code' => $result->providerReferenceCode,
+                'tracking_url' => $result->trackingUrl,
+                'invoice_url' => $result->invoiceUrl,
+                'invoice_number' => $result->invoiceNumber,
+                'amount' => (float) $this->debt->total_cuocban,
+                'status' => $result->invoiceNumber ? CongNoEInvoice::STATUS_SUCCESS : CongNoEInvoice::STATUS_PENDING,
+                'buyer' => $buyer,
+                'items' => $items,
+                'provider_payload' => $result->raw,
+                'notes' => $this->einvoiceNotes ?: null,
+                'issued_at' => $result->invoiceNumber ? now() : null,
+            ]);
+
+            // Auto-poll ngay (SePay thường xử lý trong 1–3s) để lấy invoice_number.
+            // Nếu chưa kịp, user vẫn có thể bấm "Kiểm tra" sau.
+            if ($result->trackingCode && ! $result->invoiceNumber) {
+                $this->pollEInvoiceStatus($einvoice, $driver, attempts: 3, delayMs: 1500);
+            }
+        } catch (\Throwable $e) {
+            // Lưu record thất bại
+            CongNoEInvoice::create([
+                'id_congno' => $this->debt->id,
+                'id_user' => auth()->id(),
+                'provider' => $providerKey,
+                'provider_account_id' => $providerAccountId,
+                'reference' => $reference,
+                'template_code' => $templateCode,
+                'invoice_series' => $invoiceSeries,
+                'issued_date' => now()->toDateString(),
+                'amount' => (float) $this->debt->total_cuocban,
+                'status' => CongNoEInvoice::STATUS_FAILED,
+                'buyer' => $buyer,
+                'items' => $items,
+                'notes' => $this->einvoiceNotes ?: null,
+                'error_message' => $e->getMessage(),
+            ]);
+
+            Flux::toast(heading: 'Lỗi tạo hóa đơn', text: $e->getMessage(), variant: 'danger');
+            $this->closeEInvoiceModal();
+            $this->reloadDebt();
+            return;
+        }
+
+        $this->closeEInvoiceModal();
+        $this->reloadDebt();
+
+        // Lấy lại einvoice mới nhất để xem có số hóa đơn chưa.
+        $latestEInvoice = CongNoEInvoice::latestForCongNo($this->debt->id);
+
+        if ($latestEInvoice && $latestEInvoice->invoice_number) {
+            Flux::toast(
+                heading: 'Đã phát hành hóa đơn',
+                text: 'Số hóa đơn: ' . $latestEInvoice->invoice_number,
+                variant: 'success'
+            );
+        } else {
+            Flux::toast(
+                heading: 'Đã tạo hóa đơn',
+                text: 'Hóa đơn đang được ' . ucfirst($providerKey) . ' xử lý. Bấm "Kiểm tra" sau ít phút để lấy số hóa đơn.',
+                variant: 'success'
+            );
+        }
+    }
+
+    /**
+     * Poll SePay để lấy invoice_number ngay sau khi tạo.
+     * Thử tối đa $attempts lần, mỗi lần cách $delayMs ms.
+     */
+    protected function pollEInvoiceStatus(CongNoEInvoice $einvoice, $driver, int $attempts = 3, int $delayMs = 1500): void
+    {
+        for ($i = 0; $i < $attempts; $i++) {
+            usleep($delayMs * 1000);
+
+            try {
+                $statusData = $driver->status($einvoice->tracking_code);
+                $einvoice->updateFromStatusData($statusData);
+
+                if (! $einvoice->isPending()) {
+                    // Thành công → tải file PDF/XML về lưu local + ghi số HĐ lên công nợ
+                    if ($einvoice->isSuccess()) {
+                        $einvoice->downloadAndStoreFiles('public');
+                        $this->syncEInvoiceNumberToDebt($einvoice);
+                    }
+                    return; // Đã có kết quả (success hoặc failed)
+                }
+            } catch (\Throwable) {
+                // Bỏ qua lỗi poll, user có thể kiểm tra thủ công sau
+                continue;
+            }
+        }
+    }
+
+    /**
+     * Sync số hóa đơn điện tử lên cột tham chiếu của công nợ.
+     */
+    protected function syncEInvoiceNumberToDebt(CongNoEInvoice $einvoice): void
+    {
+        if (! $einvoice->invoice_number) {
+            return;
+        }
+
+        if ((string) $this->debt->sohoadon_thamchieu === (string) $einvoice->invoice_number) {
+            return;
+        }
+
+        $this->debt->forceFill([
+            'sohoadon_thamchieu' => $einvoice->invoice_number,
+        ])->save();
+    }
+
+    public function checkEInvoiceStatus(int $einvoiceId): void
+    {
+        $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->firstOrFail();
+
+        if (! $einvoice->isPending()) {
+            Flux::toast(heading: 'Không cần kiểm tra', text: 'Hóa đơn đã ở trạng thái cuối.', variant: 'warning');
+            return;
+        }
+
+        if (! $einvoice->tracking_code) {
+            Flux::toast(heading: 'Không có tracking code', text: 'Không thể kiểm tra trạng thái.', variant: 'warning');
+            return;
+        }
+
+        try {
+            $driver = app(EInvoiceProviderManager::class)->driver($einvoice->provider);
+            $statusData = $driver->status($einvoice->tracking_code);
+            $einvoice->updateFromStatusData($statusData);
+
+            // Nếu đã thành công và chưa có file local → tải xuống
+            if ($einvoice->fresh()->isSuccess() && ! $einvoice->fresh()->hasLocalPdf()) {
+                $einvoice->fresh()->downloadAndStoreFiles('public');
+            }
+
+            // Ghi số hóa đơn lên công nợ (tham chiếu)
+            if ($einvoice->fresh()->isSuccess()) {
+                $this->syncEInvoiceNumberToDebt($einvoice->fresh());
+            }
+        } catch (\Throwable $e) {
+            Flux::toast(heading: 'Lỗi kiểm tra', text: $e->getMessage(), variant: 'danger');
+            return;
+        }
+
+        $this->reloadDebt();
+
+        $fresh = $einvoice->fresh();
+        $label = $fresh->statusLabel();
+        $extraText = $fresh->invoice_number ? " (Số HĐ: {$fresh->invoice_number})" : '';
+        Flux::toast(heading: 'Đã cập nhật', text: "Trạng thái: {$label}{$extraText}", variant: 'success');
+    }
+
+    /**
+     * Action thủ công: tải lại file PDF/XML từ provider.
+     */
+    public function downloadEInvoiceFiles(int $einvoiceId): void
+    {
+        abort_unless($this->canManage(), 403);
+
+        $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->firstOrFail();
+
+        if (! $einvoice->isSuccess()) {
+            Flux::toast(heading: 'Không thể tải', text: 'Chỉ tải được file của hóa đơn đã phát hành thành công.', variant: 'warning');
+            return;
+        }
+
+        try {
+            $downloaded = $einvoice->downloadAndStoreFiles('public');
+        } catch (\Throwable $e) {
+            Flux::toast(heading: 'Lỗi tải file', text: $e->getMessage(), variant: 'danger');
+            return;
+        }
+
+        $this->reloadDebt();
+
+        if ($downloaded) {
+            Flux::toast(heading: 'Đã tải file', text: 'PDF/XML đã được lưu vào hệ thống.', variant: 'success');
+        } else {
+            Flux::toast(heading: 'Đã có sẵn', text: 'File đã được tải trước đó hoặc provider chưa sẵn sàng.', variant: 'warning');
+        }
+    }
+
+    #[Computed]
+    public function einvoiceProviderLabels(): array
+    {
+        return EInvoiceProviderManager::providerLabels();
+    }
+
+    #[Computed]
+    public function canCreateEInvoice(): bool
+    {
+        return $this->debt->status === DebtStatusEnum::DA_THANH_TOAN
+            && ! CongNoEInvoice::hasSuccessfulInvoice($this->debt->id);
     }
 
     public function openSaleChargeModal(int $detailId): void

@@ -40,7 +40,11 @@ class EInvoiceProviderManager
 
     public static function enabledProviders(): array
     {
-        $options = data_get(Setting::first(), 'options', []);
+        try {
+            $options = data_get(Setting::first(), 'options', []);
+        } catch (\Throwable) {
+            $options = [];
+        }
         $result = [];
 
         foreach (self::PROVIDERS as $provider) {

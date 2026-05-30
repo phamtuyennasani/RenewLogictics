@@ -464,12 +464,25 @@
                                 @endforeach
                             </div>
                             <div data-detail-momo-request class="hidden">
-                                <label class="text-sm font-bold text-neutral-800">requestType</label>
-                                <select data-detail-momo-request-type class="mt-2 h-11 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm font-medium text-neutral-700">
-                                    <option value="captureWallet">captureWallet</option>
-                                    <option value="payWithATM">payWithATM</option>
-                                    <option value="payWithCC">payWithCC</option>
-                                </select>
+                                <label class="text-sm font-bold text-neutral-800">Phương thức thanh toán</label>
+                                <input type="hidden" data-detail-momo-request-type value="captureWallet">
+                                <div class="mt-2 grid gap-3 sm:grid-cols-3" data-detail-momo-request-options>
+                                    <label class="cursor-pointer rounded-lg border border-primary-500 bg-white p-4 ring-2 ring-primary-100 transition hover:border-primary-300" data-detail-momo-request-card="captureWallet">
+                                        <input type="radio" name="detail_momo_request_type" value="captureWallet" class="sr-only" checked>
+                                        <span class="block text-sm font-black text-neutral-950">Ví MoMo</span>
+                                        <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Thanh toán bằng ví MoMo của khách hàng.</span>
+                                    </label>
+                                    <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-momo-request-card="payWithATM">
+                                        <input type="radio" name="detail_momo_request_type" value="payWithATM" class="sr-only">
+                                        <span class="block text-sm font-black text-neutral-950">Thẻ ATM Nội địa</span>
+                                        <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Thanh toán qua thẻ ATM nội địa có Internet Banking.</span>
+                                    </label>
+                                    <label class="cursor-pointer rounded-lg border border-neutral-200 bg-white p-4 transition hover:border-primary-300" data-detail-momo-request-card="payWithCC">
+                                        <input type="radio" name="detail_momo_request_type" value="payWithCC" class="sr-only">
+                                        <span class="block text-sm font-black text-neutral-950">Visa, Mastercard, JCB</span>
+                                        <span class="mt-1 block text-xs font-medium leading-5 text-neutral-500">Thanh toán bằng thẻ tín dụng/ghi nợ quốc tế.</span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -1038,6 +1051,12 @@
                     const providerCard = event.target.closest('[data-detail-provider-card]');
                     if (providerCard) {
                         setDetailProvider(providerCard.dataset.detailProviderCard || null);
+                        return;
+                    }
+
+                    const momoRequestCard = event.target.closest('[data-detail-momo-request-card]');
+                    if (momoRequestCard) {
+                        setDetailMomoRequestType(momoRequestCard.dataset.detailMomoRequestCard || 'captureWallet');
                         return;
                     }
 
@@ -1620,6 +1639,23 @@
                         el.querySelector('input[type="radio"]')?.toggleAttribute('checked', active);
                     });
                     detailModal.querySelector('[data-detail-momo-request]')?.classList.toggle('hidden', provider !== 'momo');
+                    if (provider !== 'momo') {
+                        setDetailMomoRequestType('captureWallet');
+                    }
+                }
+
+                function setDetailMomoRequestType(requestType) {
+                    const value = requestType || 'captureWallet';
+                    const hidden = detailModal.querySelector('[data-detail-momo-request-type]');
+                    if (hidden) hidden.value = value;
+                    detailModal.querySelectorAll('[data-detail-momo-request-card]').forEach((el) => {
+                        const active = el.dataset.detailMomoRequestCard === value;
+                        el.classList.toggle('border-primary-500', active);
+                        el.classList.toggle('ring-2', active);
+                        el.classList.toggle('ring-primary-100', active);
+                        el.classList.toggle('border-neutral-200', !active);
+                        el.querySelector('input[type="radio"]')?.toggleAttribute('checked', active);
+                    });
                 }
 
                 function handleDetailAction(action, button) {

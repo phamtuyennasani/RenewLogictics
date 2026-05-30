@@ -78,8 +78,8 @@ class PaymentProviderManagerTest extends TestCase
 
         // Giữ nguyên khóa cũ để không phải migrate dữ liệu.
         $this->assertSame(['bank_account_name', 'bank_account_number', 'bank_code'], $keysOf('sepay'));
-        $this->assertSame(['payment_momo_partner_code', 'payment_momo_access_key', 'payment_momo_secret_key'], $keysOf('momo'));
-        $this->assertSame(['payment_vnpay_tmn_code', 'payment_vnpay_hash_secret'], $keysOf('vnpay'));
+        $this->assertSame(['payment_momo_environment', 'payment_momo_partner_code', 'payment_momo_access_key', 'payment_momo_secret_key'], $keysOf('momo'));
+        $this->assertSame(['payment_vnpay_environment', 'payment_vnpay_tmn_code', 'payment_vnpay_hash_secret'], $keysOf('vnpay'));
 
         // SePay hiển thị công khai; MoMo/VNPay là field nhạy cảm (gate sau xác thực Admin).
         $this->assertFalse(collect($schemas['sepay']['fields'])->contains(fn ($f) => $f['sensitive'] ?? false));

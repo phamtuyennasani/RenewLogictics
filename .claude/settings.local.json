@@ -56,7 +56,11 @@
       "Bash(php -l \"resources/views/pages/invoice/⚡index/index.php\")",
       "Bash(php -l \"routes/web.php\")",
       "Bash(php -l resources/views/pages/congno/⚡show/show.blade.php)",
-      "Bash(php -l \"resources/views/pages/order/⚡payment.blade.php\")"
+      "Bash(php -l \"resources/views/pages/order/⚡payment.blade.php\")",
+      "mcp__plugin_ecc_sequential-thinking__sequentialthinking",
+      "Bash(php -r ' *)",
+      "Bash(php -l \"app/Models/CongNoEInvoice.php\")",
+      "Bash(php -l \"app/Models/CongNo.php\")"
     ]
   }
 }

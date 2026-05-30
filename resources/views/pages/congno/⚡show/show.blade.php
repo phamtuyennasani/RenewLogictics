@@ -12,8 +12,15 @@
     $availableForInvoice = $this->availableForNewInvoice;
     $sortedInvoices = $debt->payments->sortByDesc(fn ($p) => $p->created_at?->timestamp ?? 0);
     $payingInvoice = $this->payingInvoice;
-    $dueDate = $debt->hanthanhtoan;
-    $isOverdue = $dueDate && $dueDate->isPast() && $remainingAmount > 0;
+    $pendingAmount = (float) $this->pendingInvoicesTotal;
+    $pendingPercent = $totalAmount > 0 ? min(100, round(($pendingAmount / $totalAmount) * 100)) : 0;
+    $pendingInvoicesCount = $debt->payments
+        ->filter(fn ($p) => in_array(
+            $p->status instanceof InvoicePaymentStatusEnum ? $p->status->value : (string) $p->status,
+            InvoicePaymentStatusEnum::pendingValues(),
+            true
+        ))
+        ->count();
 @endphp
 
 <div class="space-y-5">
@@ -98,13 +105,13 @@
                     </div>
                 </div>
 
-                <div class="rounded-lg border {{ $isOverdue ? 'border-red-200' : 'border-neutral-200' }} bg-white p-4">
+                <div class="rounded-lg border {{ $pendingAmount > 0 ? 'border-blue-200' : 'border-neutral-200' }} bg-white p-4">
                     <div class="flex items-center justify-between gap-3">
-                        <p class="text-xs font-bold uppercase tracking-wide {{ $isOverdue ? 'text-red-700' : 'text-neutral-500' }}">Hạn thanh toán</p>
-                        <flux:icon.calendar-days class="size-5 {{ $isOverdue ? 'text-red-600' : 'text-neutral-500' }}" />
+                        <p class="text-xs font-bold uppercase tracking-wide {{ $pendingAmount > 0 ? 'text-blue-700' : 'text-neutral-500' }}">Chờ thanh toán</p>
+                        <flux:icon.clock class="size-5 {{ $pendingAmount > 0 ? 'text-blue-600' : 'text-neutral-500' }}" />
                     </div>
-                    <p class="mt-3 text-2xl font-bold {{ $isOverdue ? 'text-red-700' : 'text-neutral-950' }}">{{ $dueDate?->format('d/m/Y') ?: '-' }}</p>
-                    <p class="mt-1 text-xs font-medium {{ $isOverdue ? 'text-red-600' : 'text-neutral-500' }}">{{ $debt->ngaychothoadon ? 'Chốt '.$debt->ngaychothoadon->format('d/m/Y H:i') : 'Chưa chốt công nợ' }}</p>
+                    <p class="mt-3 truncate text-2xl font-bold {{ $pendingAmount > 0 ? 'text-blue-700' : 'text-neutral-950' }}">{{ $this->money($pendingAmount) }}</p>
+                    <p class="mt-1 text-xs font-medium {{ $pendingAmount > 0 ? 'text-blue-600' : 'text-neutral-500' }}">{{ $pendingInvoicesCount }} hóa đơn đang chờ</p>
                 </div>
             </div>
         </div>
@@ -259,7 +266,16 @@
                     </div>
                     <div class="flex justify-between gap-4 py-3">
                         <dt class="text-neutral-500">Tham chiếu</dt>
-                        <dd class="text-right font-semibold text-neutral-900">{{ $debt->sohoadon_thamchieu ?: '-' }}</dd>
+                        <dd class="text-right font-semibold text-neutral-900">
+                            @php
+                                $successfulEInvoice = $debt->einvoices->firstWhere('status', \App\Models\CongNoEInvoice::STATUS_SUCCESS);
+                            @endphp
+                            @if ($successfulEInvoice && $successfulEInvoice->invoice_number)
+                                <span class="text-emerald-700">{{ $successfulEInvoice->invoice_number }}</span>
+                            @else
+                                {{ $debt->sohoadon_thamchieu ?: '-' }}
+                            @endif
+                        </dd>
                     </div>
                 </dl>
             </section>
@@ -274,7 +290,20 @@
                     <div class="mt-4 space-y-3">
                         <label class="block">
                             <span class="text-sm font-semibold text-neutral-700">Số tiền</span>
-                            <input type="text" wire:model="invoiceAmount" placeholder="0" class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm font-semibold outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100">
+                            <input
+                                type="text"
+                                inputmode="numeric"
+                                placeholder="0"
+                                class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm font-semibold outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                                x-data="{ raw: $wire.invoiceAmount }"
+                                x-init="raw = $wire.invoiceAmount; $el.value = raw ? Number(String(raw).replace(/[^0-9]/g, '')).toLocaleString('vi-VN') : ''"
+                                x-on:input="
+                                    let digits = $el.value.replace(/[^0-9]/g, '');
+                                    raw = digits;
+                                    $el.value = digits ? Number(digits).toLocaleString('vi-VN') : '';
+                                    $wire.invoiceAmount = digits;
+                                "
+                            >
                             <span class="mt-1 block text-xs text-neutral-500">Tối đa có thể tạo: <span class="font-semibold text-primary-700">{{ $this->money($availableForInvoice) }}</span></span>
                             @error('invoiceAmount') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                         </label>
@@ -431,6 +460,163 @@
                     </tbody>
                 </table>
             </div>
+        </section>
+    @endif
+
+    {{-- E-Invoice Section --}}
+    @php
+        $einvoices = $debt->einvoices->sortByDesc(fn ($e) => $e->created_at?->timestamp ?? 0);
+        $hasSuccessfulEInvoice = $einvoices->contains(fn ($e) => $e->isSuccess());
+        $latestEInvoice = $einvoices->first();
+    @endphp
+
+    @if ($this->canManage() && ($debt->status === \App\Enums\DebtStatusEnum::DA_THANH_TOAN || $einvoices->isNotEmpty()))
+        <section class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-neutral-950">Hóa đơn điện tử</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Tạo và quản lý hóa đơn điện tử cho công nợ đã thanh toán.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    @if ($this->canCreateEInvoice)
+                        <button
+                            type="button"
+                            wire:click="openEInvoiceModal"
+                            class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+                        >
+                            <flux:icon.receipt-percent class="size-4" />
+                            Tạo hóa đơn điện tử
+                        </button>
+                    @elseif ($hasSuccessfulEInvoice)
+                        <span class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                            <flux:icon.check-circle class="size-4" />
+                            Đã có hóa đơn điện tử
+                        </span>
+                    @endif
+                </div>
+            </div>
+
+            @if ($einvoices->isNotEmpty())
+                <div class="overflow-x-auto">
+                    <table class="min-w-[800px] w-full divide-y divide-neutral-100 text-sm">
+                        <thead class="bg-neutral-50 text-xs uppercase tracking-wide text-neutral-500">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold">Mã tham chiếu</th>
+                                <th class="px-4 py-3 text-left font-semibold">Provider</th>
+                                <th class="px-4 py-3 text-right font-semibold">Số tiền</th>
+                                <th class="px-4 py-3 text-left font-semibold">Trạng thái</th>
+                                <th class="px-4 py-3 text-left font-semibold">Số hóa đơn</th>
+                                <th class="px-4 py-3 text-left font-semibold">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-neutral-100 bg-white">
+                            @foreach ($einvoices as $einvoice)
+                                <tr wire:key="einvoice-{{ $einvoice->id }}" class="transition hover:bg-neutral-50/80">
+                                    <td class="px-4 py-4 align-top">
+                                        <p class="font-bold text-primary-700">{{ $einvoice->reference }}</p>
+                                        <p class="mt-1 text-xs text-neutral-500">{{ $einvoice->created_at?->format('H:i d/m/Y') ?: '-' }}</p>
+                                        @if ($einvoice->tracking_code)
+                                            <p class="mt-0.5 text-xs text-neutral-500" title="{{ $einvoice->tracking_code }}">Tracking: {{ Str::limit($einvoice->tracking_code, 20) }}</p>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-4 align-top">
+                                        <p class="font-semibold text-neutral-900">{{ ucfirst($einvoice->provider) }}</p>
+                                        @if ($einvoice->template_code)
+                                            <p class="mt-1 text-xs text-neutral-500">Mẫu: {{ $einvoice->template_code }}</p>
+                                        @endif
+                                        @if ($einvoice->invoice_series)
+                                            <p class="mt-0.5 text-xs text-neutral-500">Ký hiệu: {{ $einvoice->invoice_series }}</p>
+                                        @endif
+                                    </td>
+                                    <td class="whitespace-nowrap px-4 py-4 text-right align-top font-bold text-neutral-950">
+                                        {{ $this->money($einvoice->amount) }}
+                                    </td>
+                                    <td class="px-4 py-4 align-top">
+                                        <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold {{ $einvoice->statusColor() }}">
+                                            {{ $einvoice->statusLabel() }}
+                                        </span>
+                                        @if ($einvoice->issued_at)
+                                            <p class="mt-1 text-xs text-emerald-700">Phát hành: {{ $einvoice->issued_at->format('H:i d/m/Y') }}</p>
+                                        @endif
+                                        @if ($einvoice->error_message)
+                                            <p class="mt-1 max-w-[200px] truncate text-xs text-red-600" title="{{ $einvoice->error_message }}">{{ $einvoice->error_message }}</p>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-4 align-top">
+                                        @if ($einvoice->invoice_number)
+                                            <p class="font-bold text-emerald-700">{{ $einvoice->invoice_number }}</p>
+                                        @else
+                                            <p class="text-neutral-500">-</p>
+                                        @endif
+                                        @if ($einvoice->invoice_url)
+                                            <a href="{{ $einvoice->invoice_url }}" target="_blank" rel="noopener" class="mt-1 inline-flex text-xs font-semibold text-primary-700 hover:text-primary-800">
+                                                Xem online
+                                            </a>
+                                        @endif
+                                        <div class="mt-1 flex flex-wrap items-center gap-2">
+                                            @if ($einvoice->pdf_path)
+                                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($einvoice->pdf_path) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700">
+                                                    <flux:icon.document class="size-3.5" /> PDF
+                                                </a>
+                                            @endif
+                                            @if ($einvoice->xml_path)
+                                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($einvoice->xml_path) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700">
+                                                    <flux:icon.code-bracket class="size-3.5" /> XML
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-4 align-top">
+                                        @if ($einvoice->isPending() && $einvoice->tracking_code)
+                                            <button
+                                                type="button"
+                                                wire:click="checkEInvoiceStatus({{ $einvoice->id }})"
+                                                wire:loading.attr="disabled"
+                                                class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                            >
+                                                <flux:icon.arrow-path class="size-3.5" wire:loading.class="animate-spin" wire:target="checkEInvoiceStatus({{ $einvoice->id }})" />
+                                                Kiểm tra
+                                            </button>
+                                        @elseif ($einvoice->isSuccess())
+                                            <div class="flex flex-col items-start gap-1.5">
+                                                <span class="text-xs text-emerald-600">✓ Hoàn tất</span>
+                                                @if (! $einvoice->pdf_path || ! $einvoice->xml_path)
+                                                    <button
+                                                        type="button"
+                                                        wire:click="downloadEInvoiceFiles({{ $einvoice->id }})"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="downloadEInvoiceFiles({{ $einvoice->id }})"
+                                                        class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                                                    >
+                                                        <flux:icon.arrow-down-tray class="size-3.5" wire:loading.class="animate-spin" wire:target="downloadEInvoiceFiles({{ $einvoice->id }})" />
+                                                        Tải file
+                                                    </button>
+                                                @else
+                                                    <span class="text-xs text-neutral-400">Đã lưu file</span>
+                                                @endif
+                                            </div>
+                                        @elseif ($einvoice->isFailed())
+                                            <span class="text-xs text-red-600">Thất bại</span>
+                                        @else
+                                            <span class="text-xs text-neutral-500">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <div class="px-4 py-10 text-center">
+                    <div class="mx-auto flex max-w-sm flex-col items-center">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-neutral-100 text-neutral-500">
+                            <flux:icon.receipt-percent class="size-5" />
+                        </div>
+                        <p class="mt-3 font-semibold text-neutral-900">Chưa có hóa đơn điện tử</p>
+                        <p class="mt-1 text-sm text-neutral-500">Tạo hóa đơn điện tử sau khi công nợ đã thanh toán hết.</p>
+                    </div>
+                </div>
+            @endif
         </section>
     @endif
 
@@ -738,5 +924,87 @@
                 @endif
             @endif
         </div>
+    </flux:modal>
+
+    {{-- E-Invoice Modal --}}
+    <flux:modal name="create-einvoice" class="w-full max-w-lg">
+        <form wire:submit="submitEInvoice" class="space-y-5">
+            <div>
+                <h2 class="text-lg font-bold text-neutral-950">Tạo hóa đơn điện tử</h2>
+                <p class="mt-1 text-sm text-neutral-500">
+                    Tạo hóa đơn điện tử cho công nợ <span class="font-semibold text-primary-700">{{ $debt->sohoadon }}</span>
+                </p>
+            </div>
+
+            <div class="space-y-4">
+                {{-- Provider --}}
+                <label class="block">
+                    <span class="text-sm font-semibold text-neutral-700">Nhà cung cấp</span>
+                    <select
+                        wire:model="einvoiceProvider"
+                        class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    >
+                        @foreach ($this->einvoiceProviderLabels as $key => $label)
+                            <option value="{{ $key }}">{{ $label['name'] }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
+                {{-- Thông tin tóm tắt --}}
+                <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-4 space-y-2">
+                    <p class="text-xs font-bold uppercase tracking-wide text-neutral-500">Thông tin hóa đơn</p>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                            <p class="text-neutral-500">Khách hàng</p>
+                            <p class="font-semibold text-neutral-900">{{ $debt->customer?->fullname ?: $debt->customer?->username ?: '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-neutral-500">Tổng tiền</p>
+                            <p class="font-bold text-neutral-950">{{ $this->money($debt->total_cuocban) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-neutral-500">Số order</p>
+                            <p class="font-semibold text-neutral-900">{{ $debt->total_orders }}</p>
+                        </div>
+                        <div>
+                            <p class="text-neutral-500">Mã công nợ</p>
+                            <p class="font-semibold text-neutral-900">{{ $debt->sohoadon }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Ghi chú --}}
+                <label class="block">
+                    <span class="text-sm font-semibold text-neutral-700">Ghi chú</span>
+                    <textarea
+                        wire:model="einvoiceNotes"
+                        rows="2"
+                        placeholder="Ghi chú trên hóa đơn (tùy chọn)"
+                        class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                    ></textarea>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 border-t border-neutral-100 pt-4">
+                <button
+                    type="button"
+                    wire:click="closeEInvoiceModal"
+                    class="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                >
+                    Hủy
+                </button>
+                <button
+                    type="submit"
+                    wire:loading.attr="disabled"
+                    class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+                >
+                    <span wire:loading.remove wire:target="submitEInvoice">
+                        <flux:icon.receipt-percent class="size-4" />
+                    </span>
+                    <span wire:loading wire:target="submitEInvoice" class="size-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                    Tạo hóa đơn
+                </button>
+            </div>
+        </form>
     </flux:modal>
 </div>

@@ -298,6 +298,23 @@ class SepayEInvoiceService implements EInvoiceProvider
         $errorCode = $payload['error']['code'] ?? null;
         $message = $payload['error']['message'] ?? $payload['message'] ?? 'Unknown SePay eInvoice error.';
 
+        // SePay thường trả chi tiết field-level errors trong error.details / error.errors / errors
+        $details = $payload['error']['details']
+            ?? $payload['error']['errors']
+            ?? $payload['errors']
+            ?? null;
+
+        if (is_array($details) && $details !== []) {
+            $detailLines = [];
+            foreach ($details as $field => $info) {
+                if (is_array($info)) {
+                    $info = implode(', ', array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v, JSON_UNESCAPED_UNICODE), $info));
+                }
+                $detailLines[] = is_int($field) ? (string) $info : "{$field}: {$info}";
+            }
+            $message .= ' | ' . implode(' | ', $detailLines);
+        }
+
         if ($errorCode) {
             return sprintf('SePay eInvoice API error [%s] (HTTP %d): %s', $errorCode, $status, $message);
         }
@@ -348,6 +365,30 @@ class SepayEInvoiceService implements EInvoiceProvider
                 'required' => true,
                 'sensitive' => true,
                 'placeholder' => 'Client Secret từ SePay',
+            ],
+            [
+                'key' => 'einvoice_sepay_provider_account_id',
+                'label' => 'Provider Account ID',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => false,
+                'placeholder' => 'ID tài khoản nhà cung cấp hóa đơn',
+            ],
+            [
+                'key' => 'einvoice_sepay_template_code',
+                'label' => 'Template Code',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => false,
+                'placeholder' => 'Mã mẫu hóa đơn (vd: 01GTKT0/001)',
+            ],
+            [
+                'key' => 'einvoice_sepay_invoice_series',
+                'label' => 'Invoice Series',
+                'type' => 'text',
+                'required' => true,
+                'sensitive' => false,
+                'placeholder' => 'Ký hiệu hóa đơn (vd: C26TSE)',
             ],
         ];
     }
@@ -408,12 +449,12 @@ class SepayEInvoiceService implements EInvoiceProvider
 
     public function status(string $trackingOrReferenceCode): EInvoiceStatusData
     {
-        // Thử check issue status trước (tracking_code từ issue)
+        // Thử check create status trước (tracking_code từ createInvoice)
         try {
-            $response = $this->checkIssueInvoiceStatus($trackingOrReferenceCode);
-        } catch (RuntimeException) {
-            // Fallback: check create status
             $response = $this->checkCreateInvoiceStatus($trackingOrReferenceCode);
+        } catch (RuntimeException) {
+            // Fallback: check issue status
+            $response = $this->checkIssueInvoiceStatus($trackingOrReferenceCode);
         }
 
         $rawStatus = strtolower($response['status'] ?? '');
@@ -423,14 +464,28 @@ class SepayEInvoiceService implements EInvoiceProvider
             default => EInvoiceStatusData::STATUS_PENDING,
         };
 
+        // invoice_number có thể ở top-level hoặc bên trong response.invoice
+        $invoiceNumber = $response['invoice_number']
+            ?? $response['invoice']['invoice_number']
+            ?? null;
+
+        $referenceCode = $response['reference_code']
+            ?? $response['invoice']['reference_code']
+            ?? null;
+
+        // Lấy thêm pdf_url / xml_url nếu có
+        $pdfUrl = $response['pdf_url']
+            ?? $response['invoice']['pdf_url']
+            ?? null;
+
         return new EInvoiceStatusData(
             provider: $this->key(),
             trackingCode: $trackingOrReferenceCode,
             status: $status,
-            invoiceNumber: $response['invoice_number'] ?? null,
-            providerReferenceCode: $response['reference_code'] ?? null,
+            invoiceNumber: $invoiceNumber,
+            providerReferenceCode: $referenceCode,
             message: $response['message'] ?? null,
-            raw: $response,
+            raw: array_merge($response, $pdfUrl ? ['pdf_url' => $pdfUrl] : []),
         );
     }
 

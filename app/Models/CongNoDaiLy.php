@@ -212,8 +212,9 @@ class CongNoDaiLy extends Model
 
     public static function generateSoHoaDon(string $tungay, string $denngay): string
     {
+        $prefix = (string) config('invoice.code_prefix.debt', 'DEB');
         do {
-            $code = 'DEB'.$tungay.$denngay.self::generateRandomCode();
+            $code = $prefix.$tungay.$denngay.self::generateRandomCode();
         } while (self::where('sohoadon', $code)->exists());
 
         return $code;

@@ -42,8 +42,8 @@ enum InvoiceTypeEnum: string
     public function codePrefix(): string
     {
         return match ($this) {
-            self::THU => 'HD-TH',
-            self::CHI => 'HD-CH',
+            self::THU => (string) config('invoice.code_prefix.thu', 'HDTH'),
+            self::CHI => (string) config('invoice.code_prefix.chi', 'HDCH'),
         };
     }
 

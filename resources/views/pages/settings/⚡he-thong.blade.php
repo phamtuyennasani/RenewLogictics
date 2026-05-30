@@ -74,7 +74,12 @@ new class extends Component
             $this->paymentEnabled[$key] = (bool) ($options["payment_{$key}_enabled"] ?? false);
 
             foreach ($schema['fields'] as $field) {
-                $this->paymentConfig[$field['key']] = (string) ($options[$field['key']] ?? '');
+                $value = (string) ($options[$field['key']] ?? '');
+                // Select field: nếu chưa có giá trị, dùng option đầu tiên làm default.
+                if ($value === '' && ($field['type'] ?? 'text') === 'select' && ! empty($field['options'])) {
+                    $value = (string) array_key_first($field['options']);
+                }
+                $this->paymentConfig[$field['key']] = $value;
             }
         }
 
@@ -83,7 +88,12 @@ new class extends Component
             $this->einvoiceEnabled[$key] = (bool) ($options["einvoice_{$key}_enabled"] ?? false);
 
             foreach ($schema['fields'] as $field) {
-                $this->einvoiceConfig[$field['key']] = (string) ($options[$field['key']] ?? '');
+                $value = (string) ($options[$field['key']] ?? '');
+                // Select field: nếu chưa có giá trị, dùng option đầu tiên làm default.
+                if ($value === '' && ($field['type'] ?? 'text') === 'select' && ! empty($field['options'])) {
+                    $value = (string) array_key_first($field['options']);
+                }
+                $this->einvoiceConfig[$field['key']] = $value;
             }
         }
 
@@ -110,6 +120,11 @@ new class extends Component
 
             foreach ($schema['fields'] as $field) {
                 if (! ($field['required'] ?? false)) {
+                    continue;
+                }
+
+                // Select field không cần validate — chỉ có options cố định.
+                if (($field['type'] ?? 'text') === 'select') {
                     continue;
                 }
 
@@ -142,18 +157,19 @@ new class extends Component
                     continue;
                 }
 
+                // Select field không cần validate — chỉ có options cố định.
+                if (($field['type'] ?? 'text') === 'select') {
+                    continue;
+                }
+
                 // Field nhạy cảm chỉ validate được khi form đang mở khóa.
                 if (($field['sensitive'] ?? false) && $this->sensitiveConfigGateway !== 'einvoice:'.$key) {
                     continue;
                 }
 
                 $stateKey = "einvoiceConfig.{$field['key']}";
-                $rule = ($field['type'] ?? 'text') === 'select' && ! empty($field['options'])
-                    ? 'required|in:'.implode(',', array_keys($field['options']))
-                    : 'required|string|max:255';
-                $rules[$stateKey] = $rule;
+                $rules[$stateKey] = 'required|string|max:255';
                 $messages["{$stateKey}.required"] = "Vui lòng nhập {$field['label']} ({$schema['name']}).";
-                $messages["{$stateKey}.in"] = "Giá trị {$field['label']} ({$schema['name']}) không hợp lệ.";
             }
 
             if ($rules !== []) {
@@ -473,8 +489,18 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                             $hasSensitive = collect($p['fields'])->contains(fn ($f) => $f['sensitive'] ?? false);
                             $isUnlocked = $sensitiveConfigGateway === $providerKey;
                             $fieldCount = count($p['fields']);
-                            $colsMd = $fieldCount <= 1 ? 'md:grid-cols-1' : ($fieldCount <= 2 ? 'md:grid-cols-2' : 'md:grid-cols-3');
-                            $colsLg = $fieldCount <= 1 ? 'lg:grid-cols-1' : ($fieldCount <= 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
+                            $colsMd = match(true) {
+                                $fieldCount <= 1 => 'md:grid-cols-1',
+                                $fieldCount == 2 => 'md:grid-cols-2',
+                                $fieldCount == 3 => 'md:grid-cols-3',
+                                default => 'md:grid-cols-2 lg:grid-cols-4',
+                            };
+                            $colsLg = match(true) {
+                                $fieldCount <= 1 => 'lg:grid-cols-1',
+                                $fieldCount == 2 => 'lg:grid-cols-2',
+                                $fieldCount == 3 => 'lg:grid-cols-3',
+                                default => 'lg:grid-cols-4',
+                            };
                         @endphp
 
                         <div class="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm">
@@ -588,7 +614,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                             @endforeach
                                         </div>
                                     @else
-                                        <div class="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
+                                        <div class="flex flex-col gap-3 p-4">
                                             <div class="grid grid-cols-1 gap-3 {{ $colsMd }}">
                                                 @foreach ($p['fields'] as $field)
                                                     <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
@@ -597,14 +623,16 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                                     </div>
                                                 @endforeach
                                             </div>
-                                            <button
-                                                type="button"
-                                                wire:click="openSensitiveConfigAuth('{{ $providerKey }}')"
-                                                class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-                                                style="{{ $gradientStyle }}">
-                                                <flux:icon.eye class="size-4" />
-                                                Xem / chỉnh sửa
-                                            </button>
+                                            <div class="flex justify-end">
+                                                <button
+                                                    type="button"
+                                                    wire:click="openSensitiveConfigAuth('{{ $providerKey }}')"
+                                                    class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                                                    style="{{ $gradientStyle }}">
+                                                    <flux:icon.eye class="size-4" />
+                                                    Xem / chỉnh sửa
+                                                </button>
+                                            </div>
                                         </div>
                                     @endif
                                 </div>
@@ -635,8 +663,18 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                             $unlockToken = 'einvoice:'.$providerKey;
                             $isUnlocked = $sensitiveConfigGateway === $unlockToken;
                             $fieldCount = count($p['fields']);
-                            $colsMd = $fieldCount <= 1 ? 'md:grid-cols-1' : ($fieldCount <= 2 ? 'md:grid-cols-2' : 'md:grid-cols-3');
-                            $colsLg = $fieldCount <= 1 ? 'lg:grid-cols-1' : ($fieldCount <= 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
+                            $colsMd = match(true) {
+                                $fieldCount <= 1 => 'md:grid-cols-1',
+                                $fieldCount == 2 => 'md:grid-cols-2',
+                                $fieldCount == 3 => 'md:grid-cols-3',
+                                default => 'md:grid-cols-2 lg:grid-cols-4',
+                            };
+                            $colsLg = match(true) {
+                                $fieldCount <= 1 => 'lg:grid-cols-1',
+                                $fieldCount == 2 => 'lg:grid-cols-2',
+                                $fieldCount == 3 => 'lg:grid-cols-3',
+                                default => 'lg:grid-cols-4',
+                            };
                         @endphp
 
                         <div class="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-4 py-3 shadow-sm">
@@ -750,7 +788,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                             @endforeach
                                         </div>
                                     @else
-                                        <div class="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
+                                        <div class="flex flex-col gap-3 p-4">
                                             <div class="grid grid-cols-1 gap-3 {{ $colsMd }}">
                                                 @foreach ($p['fields'] as $field)
                                                     <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5">
@@ -759,14 +797,16 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                                     </div>
                                                 @endforeach
                                             </div>
-                                            <button
-                                                type="button"
-                                                wire:click="openSensitiveConfigAuth('{{ $unlockToken }}')"
-                                                class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-                                                style="{{ $gradientStyle }}">
-                                                <flux:icon.eye class="size-4" />
-                                                Xem / chỉnh sửa
-                                            </button>
+                                            <div class="flex justify-end">
+                                                <button
+                                                    type="button"
+                                                    wire:click="openSensitiveConfigAuth('{{ $unlockToken }}')"
+                                                    class="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                                                    style="{{ $gradientStyle }}">
+                                                    <flux:icon.eye class="size-4" />
+                                                    Xem / chỉnh sửa
+                                                </button>
+                                            </div>
                                         </div>
                                     @endif
                                 </div>

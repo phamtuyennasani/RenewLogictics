@@ -35,6 +35,7 @@ class VNPayPaymentService implements PaymentProvider
         try {
             $options = data_get(Setting::first(), 'options', []);
 
+            $this->environment ??= $options['payment_vnpay_environment'] ?? null ?: null;
             $this->tmnCode ??= $options['payment_vnpay_tmn_code'] ?? null;
             $this->hashSecret ??= $options['payment_vnpay_hash_secret'] ?? null;
         } catch (\Throwable) {
@@ -70,6 +71,17 @@ class VNPayPaymentService implements PaymentProvider
     public static function configSchema(): array
     {
         return [
+            [
+                'key' => 'payment_vnpay_environment',
+                'label' => 'Môi trường',
+                'type' => 'select',
+                'required' => true,
+                'sensitive' => true,
+                'options' => [
+                    'sandbox' => 'Sandbox',
+                    'production' => 'Production',
+                ],
+            ],
             [
                 'key' => 'payment_vnpay_tmn_code',
                 'label' => 'TMN Code',

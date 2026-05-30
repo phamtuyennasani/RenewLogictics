@@ -16,14 +16,14 @@ class InvoiceCodeGenerator
         $prefix = $type->codePrefix();
 
         for ($attempt = 0; $attempt < 8; $attempt++) {
-            $candidate = sprintf('%s-%s-%04d', $prefix, $datePart, random_int(0, 9999));
+            $candidate = sprintf('%s%s%04d', $prefix, $datePart, random_int(0, 9999));
 
             if (! $this->codeExists($type, $candidate)) {
                 return $candidate;
             }
         }
 
-        return sprintf('%s-%s-%s', $prefix, $datePart, strtoupper(Str::random(6)));
+        return sprintf('%s%s%s', $prefix, $datePart, strtoupper(Str::random(6)));
     }
 
     public function generatePaymentCode(string $invoiceCode): string

@@ -111,6 +111,32 @@ class SettingsHeThongPageTest extends TestCase
         $this->assertTrue((bool) $options['payment_momo_enabled']);
     }
 
+    public function test_select_fields_default_to_first_option_when_db_value_is_missing(): void
+    {
+        // DB chưa có payment_momo_environment / payment_vnpay_environment.
+        Livewire::test('pages::settings.he-thong')
+            ->assertSet('paymentConfig.payment_momo_environment', 'sandbox')
+            ->assertSet('paymentConfig.payment_vnpay_environment', 'sandbox')
+            ->assertSet('einvoiceConfig.einvoice_sepay_environment', 'sandbox');
+    }
+
+    public function test_select_fields_preserve_existing_db_value(): void
+    {
+        Setting::create([
+            'namevi' => 'Cấu hình hệ thống',
+            'options' => [
+                'payment_momo_environment' => 'production',
+                'payment_vnpay_environment' => 'production',
+                'einvoice_sepay_environment' => 'production',
+            ],
+        ]);
+
+        Livewire::test('pages::settings.he-thong')
+            ->assertSet('paymentConfig.payment_momo_environment', 'production')
+            ->assertSet('paymentConfig.payment_vnpay_environment', 'production')
+            ->assertSet('einvoiceConfig.einvoice_sepay_environment', 'production');
+    }
+
     public function test_it_renders_a_provider_block_for_every_registered_einvoice_gateway(): void
     {
         $component = Livewire::test('pages::settings.he-thong')->set('tab', 'invoice');
@@ -143,6 +169,9 @@ class SettingsHeThongPageTest extends TestCase
 
         Livewire::test('pages::settings.he-thong')
             ->set('einvoiceEnabled.sepay', true)
+            ->set('einvoiceConfig.einvoice_sepay_provider_account_id', 'ACC_123')
+            ->set('einvoiceConfig.einvoice_sepay_template_code', '01GTKT0/001')
+            ->set('einvoiceConfig.einvoice_sepay_invoice_series', 'C26TSE')
             ->set('einvoiceConfig.einvoice_sepay_client_id', 'NEW_CLIENT_ID')
             ->set('einvoiceConfig.einvoice_sepay_client_secret', 'NEW_SECRET')
             ->call('save')
@@ -155,6 +184,10 @@ class SettingsHeThongPageTest extends TestCase
         $this->assertSame('OLD_CLIENT_SECRET', $options['einvoice_sepay_client_secret']);
         $this->assertSame('sandbox', $options['einvoice_sepay_environment']);
         $this->assertTrue((bool) $options['einvoice_sepay_enabled']);
+        // Field không nhạy cảm vẫn được ghi bình thường.
+        $this->assertSame('ACC_123', $options['einvoice_sepay_provider_account_id']);
+        $this->assertSame('01GTKT0/001', $options['einvoice_sepay_template_code']);
+        $this->assertSame('C26TSE', $options['einvoice_sepay_invoice_series']);
     }
 }
 

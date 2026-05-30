@@ -97,7 +97,6 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
             $this->createCustomerId = filled($payload['createCustomerId'] ?? null) ? (int) $payload['createCustomerId'] : null;
             $this->createFromDate = filled($payload['createFromDate'] ?? null) ? (string) $payload['createFromDate'] : null;
             $this->createToDate = filled($payload['createToDate'] ?? null) ? (string) $payload['createToDate'] : null;
-            $this->paymentTermDays = (int) ($payload['paymentTermDays'] ?? $this->paymentTermDays);
             $this->note = filled($payload['note'] ?? null) ? (string) $payload['note'] : null;
         }
 
@@ -106,14 +105,12 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
             'createCustomerId' => ['required', 'integer', 'exists:user,id'],
             'createFromDate' => ['required', 'date'],
             'createToDate' => ['required', 'date', 'after_or_equal:createFromDate'],
-            'paymentTermDays' => ['required', 'integer', 'min:0', 'max:365'],
             'note' => ['nullable', 'string', 'max:1000'],
         ], [], [
             'createSaleId' => 'Sale phụ trách',
             'createCustomerId' => 'Khách hàng / CTV',
             'createFromDate' => 'Từ ngày',
             'createToDate' => 'Đến ngày',
-            'paymentTermDays' => 'Hạn thanh toán',
         ]);
 
         $from = Carbon::parse($data['createFromDate'])->startOfDay();
@@ -139,7 +136,7 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
                 'tungay' => $from,
                 'denngay' => $to,
                 'ngaytaohoadon' => now(),
-                'songaythanhtoan' => $data['paymentTermDays'],
+                'songaythanhtoan' => $this->paymentTermDays,
                 'status' => DebtStatusEnum::MOI_TAO,
                 'type' => 'customer',
                 'ghichu' => $data['note'],
