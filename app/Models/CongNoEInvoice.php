@@ -236,22 +236,22 @@ class CongNoEInvoice extends Model
      * Tạo reference code cho hóa đơn điện tử.
      */
     /**
-     * Tải file PDF/XML từ provider, lưu vào storage local.
+     * Tải file PDF/XML từ provider, lưu vào public_html/uploads/einvoices.
      * Trả về true nếu tải được ít nhất 1 file.
      */
-    public function downloadAndStoreFiles(?string $disk = null): bool
+    public function downloadAndStoreFiles(): bool
     {
         if (! $this->isSuccess() || ! $this->tracking_code) {
             return false;
         }
 
-        $disk = $disk ?: config('filesystems.default', 'local');
-        $storage = \Illuminate\Support\Facades\Storage::disk($disk);
-
         $driver = app(\App\Services\EInvoices\EInvoiceProviderManager::class)
             ->driver($this->provider);
 
-        $folder = 'einvoices/' . now()->format('Y/m');
+        $folder = 'einvoices' . DIRECTORY_SEPARATOR . now()->format('Y/m');
+        $uploadDir = public_path('uploads' . DIRECTORY_SEPARATOR . $folder);
+        \Illuminate\Support\Facades\File::ensureDirectoryExists($uploadDir);
+
         $baseName = $this->invoice_number
             ? $this->provider . '-' . $this->invoice_number
             : $this->provider . '-' . substr($this->reference, 0, 40);
@@ -264,9 +264,9 @@ class CongNoEInvoice extends Model
         if (empty($this->pdf_path)) {
             try {
                 $pdfBinary = $driver->download($this->tracking_code, 'pdf');
-                $pdfPath = $folder . '/' . $baseName . '.pdf';
-                $storage->put($pdfPath, $pdfBinary);
-                $updates['pdf_path'] = $pdfPath;
+                $filename = $baseName . '.pdf';
+                file_put_contents($uploadDir . DIRECTORY_SEPARATOR . $filename, $pdfBinary);
+                $updates['pdf_path'] = 'uploads/' . $folder . '/' . $filename;
                 $downloaded = true;
             } catch (\Throwable) {
                 // Bỏ qua, sẽ thử lại sau
@@ -277,9 +277,9 @@ class CongNoEInvoice extends Model
         if (empty($this->xml_path)) {
             try {
                 $xmlBinary = $driver->download($this->tracking_code, 'xml');
-                $xmlPath = $folder . '/' . $baseName . '.xml';
-                $storage->put($xmlPath, $xmlBinary);
-                $updates['xml_path'] = $xmlPath;
+                $filename = $baseName . '.xml';
+                file_put_contents($uploadDir . DIRECTORY_SEPARATOR . $filename, $xmlBinary);
+                $updates['xml_path'] = 'uploads/' . $folder . '/' . $filename;
                 $downloaded = true;
             } catch (\Throwable) {
                 // Bỏ qua

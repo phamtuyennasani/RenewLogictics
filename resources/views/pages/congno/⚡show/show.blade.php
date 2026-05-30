@@ -555,12 +555,12 @@
                                         @endif
                                         <div class="mt-1 flex flex-wrap items-center gap-2">
                                             @if ($einvoice->pdf_path)
-                                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($einvoice->pdf_path) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700">
+                                                <a href="{{ asset($einvoice->pdf_path) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700">
                                                     <flux:icon.document class="size-3.5" /> PDF
                                                 </a>
                                             @endif
                                             @if ($einvoice->xml_path)
-                                                <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($einvoice->xml_path) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700">
+                                                <a href="{{ asset($einvoice->xml_path) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700">
                                                     <flux:icon.code-bracket class="size-3.5" /> XML
                                                 </a>
                                             @endif
@@ -927,8 +927,11 @@
     </flux:modal>
 
     {{-- E-Invoice Modal --}}
-    <flux:modal name="create-einvoice" class="w-full max-w-lg">
-        <form wire:submit="submitEInvoice" class="space-y-5">
+    <flux:modal name="create-einvoice" class="w-full max-w-lg" :dismissible="false">
+        <form wire:submit="submitEInvoice" class="relative space-y-5"
+            x-on:submit="window.onbeforeunload = () => 'Đang tạo hóa đơn, vui lòng đợi.';"
+            x-on:livewire:navigated.window="window.onbeforeunload = null;"
+        >
             <div>
                 <h2 class="text-lg font-bold text-neutral-950">Tạo hóa đơn điện tử</h2>
                 <p class="mt-1 text-sm text-neutral-500">
@@ -989,7 +992,9 @@
                 <button
                     type="button"
                     wire:click="closeEInvoiceModal"
-                    class="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50"
+                    wire:loading.attr="disabled"
+                    wire:target="submitEInvoice"
+                    class="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     Hủy
                 </button>
@@ -1007,4 +1012,30 @@
             </div>
         </form>
     </flux:modal>
+
+    {{-- Fullscreen loading overlay khi tạo hóa đơn --}}
+    <template x-teleport="body">
+        <div wire:loading wire:target="submitEInvoice" class="fixed inset-0 z-[9999] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm">
+            <div class="flex flex-col items-center gap-5 rounded-2xl bg-white px-10 py-8 shadow-2xl">
+                {{-- Animated icon --}}
+                <div class="relative flex size-16 items-center justify-center">
+                    <span class="absolute inline-flex size-16 animate-ping rounded-full bg-emerald-200 opacity-60"></span>
+                    <span class="absolute inline-flex size-16 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600"></span>
+                    <svg class="relative size-7 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                    </svg>
+                </div>
+                <div class="text-center">
+                    <p class="text-base font-bold text-neutral-900">Đang tạo hóa đơn điện tử</p>
+                    <p class="mt-1.5 text-sm text-neutral-500">Hệ thống đang xử lý, vui lòng không tắt trang...</p>
+                </div>
+                {{-- Progress dots --}}
+                <div class="flex items-center gap-1.5">
+                    <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 0ms"></span>
+                    <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 150ms"></span>
+                    <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 300ms"></span>
+                </div>
+            </div>
+        </div>
+    </template>
 </div>

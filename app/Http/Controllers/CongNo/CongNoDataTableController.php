@@ -180,7 +180,7 @@ class CongNoDataTableController extends Controller
         $html = '<p class="font-bold text-emerald-700">' . e($einvoice->invoice_number) . '</p>';
 
         if ($einvoice->pdf_path) {
-            $url = \Illuminate\Support\Facades\Storage::disk('public')->url($einvoice->pdf_path);
+            $url = asset($einvoice->pdf_path);
             $html .= '<a href="' . e($url) . '" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:text-red-700">'
                 . '<svg class="size-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>'
                 . 'PDF</a>';

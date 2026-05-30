@@ -660,11 +660,13 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
         // Build buyer info (theo format SePay — bỏ field rỗng phía service)
         $customer = $this->debt->customer;
+        $company = data_get($customer, 'options.company', []);
         $buyer = [
-            'name' => $customer?->fullname ?: ($customer?->username ?: 'Khách hàng'),
-            'email' => $customer?->email ?: null,
-            'phone' => $customer?->phone ?: null,
-            'address' => $customer?->address ?? null,
+            'name' => data_get($company, 'company_name') ?: $customer?->company_name ?: $customer?->fullname ?: ($customer?->username ?: 'Khách hàng'),
+            'tax_code' => data_get($company, 'tax_code') ?: null,
+            'email' => data_get($company, 'company_email') ?: $customer?->email ?: null,
+            'phone' => data_get($company, 'company_phone') ?: $customer?->phone ?: null,
+            'address' => data_get($company, 'address_detail') ?: $customer?->address ?: null,
         ];
 
         // Build item: 1 dòng duy nhất "phí vận chuyển các mã vận đơn" (liệt kê mã đơn), không VAT.

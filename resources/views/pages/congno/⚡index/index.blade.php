@@ -531,8 +531,8 @@
                     columnDefs: [
                         { targets: 0, width: '40px' },
                         { targets: 1, width: '100px' },
-                        { targets: 2, width: '120px' },
-                        { targets: 3, width: '150px' },
+                        { targets: 2, width: '100px' },
+                        { targets: 3, width: '200px' },
                         { targets: 4, width: '300px' },
                         { targets: 5, width: '200px' },
                         { targets: 6, width: '150px' },
