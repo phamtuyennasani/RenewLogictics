@@ -39,7 +39,7 @@ class RestoreDatabaseCommand extends Command
         File::ensureDirectoryExists($extractDir);
 
         try {
-            $sqlPath = $this->extractSql($zipPath, $extractDir);
+            $sqlPath = $this->prepareSqlForRestore($this->extractSql($zipPath, $extractDir), $extractDir);
 
             $this->runMysqlTool(
                 command: $this->mysqlCommand($database, $mysql),
@@ -134,6 +134,50 @@ class RestoreDatabaseCommand extends Command
         }
 
         return $sqlPath;
+    }
+
+    protected function prepareSqlForRestore(string $sqlPath, string $extractDir): string
+    {
+        $restorePath = $extractDir.DIRECTORY_SEPARATOR.'restore.sql';
+        $input = fopen($sqlPath, 'r');
+
+        if (! $input) {
+            throw new RuntimeException('Unable to read extracted SQL file.');
+        }
+
+        $output = fopen($restorePath, 'w');
+
+        if (! $output) {
+            fclose($input);
+            throw new RuntimeException('Unable to create restore SQL file.');
+        }
+
+        $skippingGtidPurged = false;
+
+        while (($line = fgets($input)) !== false) {
+            if ($skippingGtidPurged) {
+                if (str_contains($line, ';')) {
+                    $skippingGtidPurged = false;
+                }
+
+                continue;
+            }
+
+            if (preg_match('/^\s*SET\s+@@GLOBAL\.GTID_PURGED\s*=/i', $line)) {
+                if (! str_contains($line, ';')) {
+                    $skippingGtidPurged = true;
+                }
+
+                continue;
+            }
+
+            fwrite($output, $line);
+        }
+
+        fclose($input);
+        fclose($output);
+
+        return $restorePath;
     }
 
     protected function mysqlPasswordEnv(array $database): array
