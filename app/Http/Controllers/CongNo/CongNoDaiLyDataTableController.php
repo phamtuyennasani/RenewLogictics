@@ -4,6 +4,7 @@ namespace App\Http\Controllers\CongNo;
 
 use App\Enums\DebtStatusEnum;
 use App\Enums\InvoicePaymentStatusEnum;
+use App\Enums\OrderStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Models\CongNoDaiLy;
 use App\Models\News;
@@ -183,10 +184,16 @@ class CongNoDaiLyDataTableController extends Controller
 
     protected function summary(Request $request): array
     {
-        $items = $this->query($request, includeStatus: false)->get();
-        $total = (float) $items->sum('total_cuocvon');
+        $items = $this->query($request, includeStatus: false)
+            ->where('status', '!=', DebtStatusEnum::DA_HUY->value)
+            ->withSum([
+                'details as active_total_cuocvon' => fn ($query) => $query
+                    ->whereHas('order', fn ($order) => $order->where('bill_status', '!=', OrderStatusEnum::HUY->value)),
+            ], 'cuocvon')
+            ->get();
+        $total = (float) $items->sum('active_total_cuocvon');
         $paid = (float) $items->sum('paid_amount');
-        $remaining = (float) $items->sum(fn (CongNoDaiLy $debt) => $debt->remaining_amount);
+        $remaining = (float) $items->sum(fn (CongNoDaiLy $debt) => max(0, (float) $debt->active_total_cuocvon - (float) $debt->paid_amount));
         $unpaidCount = $items->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN)->count();
         $totalCount = $items->count();
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\OrderStatusEnum;
 use App\Enums\DebtStatusEnum;
 use App\Enums\InvoicePaymentStatusEnum;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -176,7 +177,9 @@ class CongNoDaiLy extends Model
 
     public function syncTotalsFromDetails(): void
     {
-        $details = $this->details()->get();
+        $details = $this->details()
+            ->whereHas('order', fn ($query) => $query->where('bill_status', '!=', OrderStatusEnum::HUY->value))
+            ->get();
 
         $this->forceFill([
             'total_orders' => $details->count(),

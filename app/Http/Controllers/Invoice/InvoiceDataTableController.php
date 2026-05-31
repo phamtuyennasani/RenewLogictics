@@ -353,10 +353,11 @@ class InvoiceDataTableController extends Controller
     protected function summary(Request $request): array
     {
         $items = $this->query($request, includeStatus: false)->get();
-        $total = (float) $items->sum('amount');
-        $paid = (float) $items->where('status', InvoicePaymentStatusEnum::DA_THANH_TOAN->value)->sum('amount');
-        $pending = (float) $items->filter(fn ($inv) => $inv->status?->isOpen())->sum('amount');
-        $awaiting = (float) $items->where('status', InvoicePaymentStatusEnum::CHO_DUYET->value)->sum('amount');
+        $activeItems = $items->filter(fn ($inv) => ! $inv->status?->isCancelled());
+        $total = (float) $activeItems->sum('amount');
+        $paid = (float) $activeItems->where('status', InvoicePaymentStatusEnum::DA_THANH_TOAN->value)->sum('amount');
+        $pending = (float) $activeItems->filter(fn ($inv) => $inv->status?->isOpen())->sum('amount');
+        $awaiting = (float) $activeItems->where('status', InvoicePaymentStatusEnum::CHO_DUYET->value)->sum('amount');
 
         return [
             'total' => $total,
