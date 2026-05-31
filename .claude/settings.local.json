@@ -64,7 +64,11 @@
       "Bash(php -l app/Mail/EInvoiceMail.php)",
       "Bash(php -l app/Models/CongNoEInvoice.php)",
       "Bash(xargs tail -60)",
-      "Bash(php -l app/Services/Payments/PaymentProviderManager.php)"
+      "Bash(php -l app/Services/Payments/PaymentProviderManager.php)",
+      "Bash(php database/seed-demo-accounts.php)",
+      "Bash(composer dump-autoload *)",
+      "Bash(LICENSE_KEY=INVALID php artisan route:list)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }

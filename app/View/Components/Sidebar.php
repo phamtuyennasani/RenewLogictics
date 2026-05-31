@@ -103,7 +103,7 @@ class Sidebar extends Component
                     'route'  => 'congno.index',
                     'icon'   => 'congno',
                     'label'  => 'Công nợ khách hàng',
-                    'roles'  => ['admin', 'manager', 'ketoan', 'ctv'],
+                    'roles'  => ['admin', 'manager', 'ketoan', 'sale', 'ctv'],
                 ],
                 [
                     'route'  => 'congno.daily.index',

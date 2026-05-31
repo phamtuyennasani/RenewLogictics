@@ -90,7 +90,7 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
 
     public function createDebt(array $payload = []): void
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canCreateDebt(), 403);
 
         if ($payload !== []) {
             $this->createSaleId = filled($payload['createSaleId'] ?? null) ? (int) $payload['createSaleId'] : null;
@@ -98,6 +98,12 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
             $this->createFromDate = filled($payload['createFromDate'] ?? null) ? (string) $payload['createFromDate'] : null;
             $this->createToDate = filled($payload['createToDate'] ?? null) ? (string) $payload['createToDate'] : null;
             $this->note = filled($payload['note'] ?? null) ? (string) $payload['note'] : null;
+        }
+
+        $user = auth()->user();
+        if ($user->hasRole('sale') && ! $user->hasAnyRole(['admin', 'manager', 'ketoan'])) {
+            // Sale chỉ được tạo công nợ với chính họ là người phụ trách.
+            $this->createSaleId = (int) $user->id;
         }
 
         $data = $this->validate([
@@ -209,7 +215,7 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
 
     public function deleteSelected(): void
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canDeleteDebt(), 403);
 
         $ids = collect($this->selectedIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
 
@@ -218,11 +224,23 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
             return;
         }
 
+        $user = auth()->user();
         $debts = CongNo::query()
             ->whereIn('id', $ids)
             ->where('type', 'customer')
             ->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
+            ->when(
+                $user->hasRole('ketoan') && ! $user->hasAnyRole(['admin', 'manager']),
+                fn ($q) => $q->where(function ($w) use ($user) {
+                    $w->whereNull('id_ketoan')->orWhere('id_ketoan', $user->id);
+                })
+            )
             ->get();
+
+        if ($debts->isEmpty()) {
+            Flux::toast(heading: 'Không thể xóa', text: 'Bạn chỉ được xóa công nợ chưa có kế toán phụ trách hoặc do bạn phụ trách.', variant: 'warning');
+            return;
+        }
 
         $blockedCount = $debts->filter(fn (CongNo $debt) => $debt->payments()
             ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
@@ -321,7 +339,10 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
     {
         return array_values(array_filter(
             DebtStatusEnum::cases(),
-            fn (DebtStatusEnum $status) => $status !== DebtStatusEnum::QUA_HAN
+            fn (DebtStatusEnum $status) => ! in_array($status, [
+                DebtStatusEnum::QUA_HAN,
+                DebtStatusEnum::DA_HUY,
+            ], true)
         ));
     }
 
@@ -454,9 +475,19 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
         return (float) preg_replace('/[^\d.-]/', '', (string) ($value ?? 0));
     }
 
-    public function canManage(): bool
+    public function canCreateDebt(): bool
+    {
+        return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan', 'sale']);
+    }
+
+    public function canDeleteDebt(): bool
     {
         return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan']);
+    }
+
+    public function canManage(): bool
+    {
+        return $this->canCreateDebt();
     }
 
     public function money(mixed $value): string

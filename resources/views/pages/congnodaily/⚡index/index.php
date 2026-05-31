@@ -200,10 +200,22 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
             return;
         }
 
+        $user = auth()->user();
         $debts = CongNoDaiLy::query()
             ->whereIn('id', $ids)
-            ->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
+            ->whereNotIn('status', [DebtStatusEnum::DA_THANH_TOAN->value, DebtStatusEnum::DA_HUY->value])
+            ->when(
+                $user->hasRole('ketoan') && ! $user->hasAnyRole(['admin', 'manager']),
+                fn ($q) => $q->where(function ($w) use ($user) {
+                    $w->whereNull('id_ketoan')->orWhere('id_ketoan', $user->id);
+                })
+            )
             ->get();
+
+        if ($debts->isEmpty()) {
+            Flux::toast(heading: 'Không thể xóa', text: 'Bạn chỉ được xóa công nợ đại lý chưa có kế toán phụ trách hoặc do bạn phụ trách.', variant: 'warning');
+            return;
+        }
 
         $blockedCount = $debts->filter(fn (CongNoDaiLy $debt) => $debt->payments()
             ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
@@ -220,7 +232,19 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
                     'agency_payment_status' => null,
                     'agency_paid_at' => null,
                 ]);
-                $debt->delete();
+                $debt->writeActivityLog(
+                    action: 'cancelled',
+                    title: 'Hủy công nợ đại lý',
+                    fromStatus: $debt->status,
+                    toStatus: DebtStatusEnum::DA_HUY,
+                    metadata: array_filter([
+                        'total_orders' => (int) $debt->total_orders,
+                        'total_amount' => (float) $debt->total_cuocvon,
+                    ], fn ($v) => $v !== null),
+                );
+                $debt->forceFill([
+                    'status' => DebtStatusEnum::DA_HUY,
+                ])->save();
             }
         });
 
@@ -319,7 +343,7 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
         $total = (float) $items->sum('total_cuocvon');
         $paid = (float) $items->sum('paid_amount');
         $remaining = (float) $items->sum(fn (CongNoDaiLy $debt) => $debt->remaining_amount);
-        $unpaidCount = $items->where('status', DebtStatusEnum::MOI_TAO)->count();
+        $unpaidCount = $items->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN)->count();
         $totalCount = $items->count();
 
         return [
@@ -336,15 +360,17 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
 
     public function statusOptions(): array
     {
-        return [
-            DebtStatusEnum::MOI_TAO->value,
-            DebtStatusEnum::DA_THANH_TOAN->value,
-        ];
+        return array_map(fn (DebtStatusEnum $status) => $status->value, $this->activeStatuses());
     }
 
     public function activeStatuses(): array
     {
-        return [DebtStatusEnum::MOI_TAO, DebtStatusEnum::DA_THANH_TOAN];
+        return [
+            DebtStatusEnum::MOI_TAO,
+            DebtStatusEnum::DA_CHOT_CUOC,
+            DebtStatusEnum::DA_THANH_TOAN,
+            DebtStatusEnum::DA_HUY,
+        ];
     }
 
     #[Computed]
@@ -389,7 +415,10 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
             })
             ->whereDoesntHave(
                 'congNoDaiLyDetails.congNoDaiLy',
-                fn ($q) => $q->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
+                fn ($q) => $q->whereNotIn('status', [
+                    DebtStatusEnum::DA_THANH_TOAN->value,
+                    DebtStatusEnum::DA_HUY->value,
+                ])
             );
     }
 

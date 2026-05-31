@@ -1,4 +1,11 @@
-<div id="congnodaily-index-page" class="space-y-4" data-routes='@json($this->routes())'>
+<div
+    id="congnodaily-index-page"
+    class="space-y-4"
+    data-component-cloak
+    data-ready="false"
+    data-routes='@json($this->routes())'
+>
+<div class="component-cloak-content space-y-4">
 <section class="space-y-4">
         <div class="flex flex-col gap-4 border-b border-neutral-200 pb-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -29,7 +36,7 @@
             </div>
         </div>
     </section>
-    <div class="grid gap-3 lg:grid-cols-4">
+    <div class="grid gap-3">
         <div class="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
             <div class="flex items-start justify-between gap-4">
                 <div class="min-w-0 pl-2">
@@ -49,65 +56,6 @@
             </div>
         </div>
 
-        <div class="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <div class="absolute inset-y-4 left-0 w-1 rounded-r-full bg-emerald-500"></div>
-            <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0 pl-2">
-                    <div class="flex items-center gap-2">
-                        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                        <p class="text-[11px] font-bold uppercase tracking-wide text-emerald-700">Đã thanh toán</p>
-                    </div>
-                    <p class="mt-3 truncate text-3xl font-black leading-none tracking-normal text-neutral-950" data-daily-summary-money="paid">{{ $this->money($this->summary['paid']) }}</p>
-                    <p class="mt-2 text-xs font-medium text-neutral-500">Đã trả cho đại lý</p>
-                </div>
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                    <flux:icon.check-circle class="size-5" />
-                </div>
-            </div>
-            <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-emerald-100">
-                <div class="h-full rounded-full bg-emerald-500" data-daily-summary-bar="paid" style="width: {{ $this->summary['paid_percent'] }}%"></div>
-            </div>
-        </div>
-
-        <div class="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <div class="absolute inset-y-4 left-0 w-1 rounded-r-full bg-amber-500"></div>
-            <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0 pl-2">
-                    <div class="flex items-center gap-2">
-                        <span class="h-2 w-2 rounded-full bg-amber-500"></span>
-                        <p class="text-[11px] font-bold uppercase tracking-wide text-amber-700">Còn lại</p>
-                    </div>
-                    <p class="mt-3 truncate text-3xl font-black leading-none tracking-normal text-neutral-950" data-daily-summary-money="remaining">{{ $this->money($this->summary['remaining']) }}</p>
-                    <p class="mt-2 text-xs font-medium text-neutral-500">Còn phải trả đại lý</p>
-                </div>
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                    <flux:icon.clock class="size-5" />
-                </div>
-            </div>
-            <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-amber-100">
-                <div class="h-full rounded-full bg-amber-500" data-daily-summary-bar="remaining" style="width: {{ $this->summary['remaining_percent'] }}%"></div>
-            </div>
-        </div>
-
-        <div class="relative overflow-hidden rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
-            <div class="absolute inset-y-4 left-0 w-1 rounded-r-full bg-red-500"></div>
-            <div class="flex items-start justify-between gap-4">
-                <div class="min-w-0 pl-2">
-                    <div class="flex items-center gap-2">
-                        <span class="h-2 w-2 rounded-full bg-red-500"></span>
-                        <p class="text-[11px] font-bold uppercase tracking-wide text-red-700">Chưa thanh toán</p>
-                    </div>
-                    <p class="mt-3 truncate text-3xl font-black leading-none tracking-normal text-neutral-950" data-daily-summary-count="unpaid">{{ $this->summary['unpaid_count'] }}</p>
-                    <p class="mt-2 text-xs font-medium text-neutral-500">Phiếu công nợ chưa trả</p>
-                </div>
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600">
-                    <flux:icon.exclamation-triangle class="size-5" />
-                </div>
-            </div>
-            <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-red-100">
-                <div class="h-full rounded-full bg-red-500" data-daily-summary-bar="unpaid" style="width: {{ $this->summary['unpaid_percent'] }}%"></div>
-            </div>
-        </div>
     </div>
     <section class="debt-status-nav">
         <div class="debt-status-nav-header">
@@ -160,7 +108,6 @@
         </div>
 
         <div class="debt-table-frame debt-table-card overflow-hidden">
-            <div class="overflow-x-auto">
                 <table id="daily-debts-table" class="w-full min-w-[1180px] text-left text-sm">
                     <thead class="bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                         <tr>
@@ -176,15 +123,15 @@
                             <th class="px-3 py-3">Mã công nợ</th>
                             <th class="px-3 py-3">Trạng thái</th>
                             <th class="px-3 py-3">Đại lý</th>
+                            <th class="px-3 py-3">Kỳ công nợ</th>
+                            <th class="px-3 py-3">Quy mô</th>
                             <th class="px-3 py-3 text-right">Tổng cước vốn</th>
-                            <th class="px-3 py-3 text-right">Đã trả</th>
-                            <th class="px-3 py-3 text-right">Còn lại</th>
+                            <th class="px-3 py-3">Hạn thanh toán</th>
                             <th class="px-3 py-3 text-right">Thao tác</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-neutral-100 bg-white"></tbody>
                 </table>
-            </div>
         </div>
     </div>
     <flux:modal name="congnodaily-filter" class="w-full max-w-5xl !overflow-visible">
@@ -335,6 +282,7 @@
         </div>
     @endif
 </div>
+</div>
 
 @push('styles')
     <link rel="stylesheet" href="{{ asset('assets/datatables/dataTables.tailwindcss.css') }}">
@@ -352,6 +300,11 @@
             const defaultDates = { fromDate: formatDate(thirtyDaysAgo), toDate: formatDate(today) };
             const field = (name) => document.querySelector(`[data-daily-debt-filter="${name}"]`);
             let datePickerRetryCount = 0;
+            const markReady = () => {
+                const root = document.getElementById('congnodaily-index-page');
+                if (!root) return;
+                requestAnimationFrame(() => requestAnimationFrame(() => root.dataset.ready = 'true'));
+            };
 
             function setFilterDate(name, value) {
                 const input = field(name);
@@ -402,8 +355,23 @@
                 initDatePickers();
                 if (root) window.TomSelectHelper?.init(root);
                 bindDailyCreateModalControls(root);
-                if (!root || !tableEl || !window.jQuery || !jQuery.fn.DataTable || tableEl.dataset.ready === 'true') return;
+                if (!root || !tableEl || !window.jQuery || !jQuery.fn.DataTable || tableEl.dataset.ready === 'true') {
+                    markReady();
+                    return;
+                }
                 tableEl.dataset.ready = 'true';
+                jQuery.extend(true, jQuery.fn.dataTable.ext.classes, {
+                    table: 'dataTable w-full text-left text-sm align-middle',
+                    paging: {
+                        active: 'border-primary-600 bg-primary-600 text-white',
+                        notActive: 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50',
+                        button: 'inline-flex h-8 min-w-8 items-center justify-center rounded-md border px-2.5 text-sm font-medium leading-none no-underline transition',
+                        first: '',
+                        last: '',
+                        enabled: '',
+                        notEnabled: 'pointer-events-none border-transparent bg-transparent text-neutral-300',
+                    },
+                });
 
                 const routes = JSON.parse(root.dataset.routes || '{}');
                 const selected = new Set();
@@ -431,6 +399,7 @@
                             search: { value: document.getElementById('daily-debts-search')?.value || '' },
                         }),
                     },
+                    order: [],
                     language: {
                         url: '{{ asset('assets/datatables/vi.json') }}',
                         processing: 'Đang tải dữ liệu',
@@ -442,11 +411,24 @@
                         { data: 'debt_code', orderable: false, searchable: false },
                         { data: 'status_badge', orderable: false, searchable: false },
                         { data: 'daily_info', orderable: false, searchable: false },
+                        { data: 'period_info', orderable: false, searchable: false },
+                        { data: 'volume_info', orderable: false, searchable: false },
                         { data: 'total_amount', orderable: false, searchable: false },
-                        { data: 'paid_amount_html', orderable: false, searchable: false },
-                        { data: 'remaining_amount_html', orderable: false, searchable: false },
+                        { data: 'due_date', orderable: false, searchable: false },
                         { data: 'actions', orderable: false, searchable: false },
                     ],
+                    columnDefs: [
+                        { targets: 0, width: '40px' },
+                        { targets: 1, width: '150px' },
+                        { targets: 2, width: '130px' },
+                        { targets: 3, width: '180px' },
+                        { targets: 4, width: '220px' },
+                        { targets: 5, width: '150px' },
+                        { targets: 6, width: '150px' },
+                        { targets: 7, width: '130px' },
+                        { targets: 8, width: '100px' },
+                    ],
+                    initComplete: markReady,
                 });
 
                 const reload = () => {
@@ -541,13 +523,7 @@
                 }
                 function updateSummary(summary) {
                     document.querySelector('[data-daily-summary-money="total"]')?.replaceChildren(document.createTextNode(money(summary.total || 0)));
-                    document.querySelector('[data-daily-summary-money="paid"]')?.replaceChildren(document.createTextNode(money(summary.paid || 0)));
-                    document.querySelector('[data-daily-summary-money="remaining"]')?.replaceChildren(document.createTextNode(money(summary.remaining || 0)));
-                    document.querySelector('[data-daily-summary-count="unpaid"]')?.replaceChildren(document.createTextNode(summary.unpaid_count || 0));
                     setBar('total', summary.total_percent || 0);
-                    setBar('paid', summary.paid_percent || 0);
-                    setBar('remaining', summary.remaining_percent || 0);
-                    setBar('unpaid', summary.unpaid_percent || 0);
                 }
                 function setBar(name, value) {
                     const bar = document.querySelector(`[data-daily-summary-bar="${name}"]`);

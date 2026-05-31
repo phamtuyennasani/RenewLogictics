@@ -75,10 +75,23 @@ class CongNoDataTableController extends Controller
             'ids.*' => ['integer'],
         ]);
 
+        $user = $request->user();
         $debts = $this->query($request)
             ->whereIn('congno.id', $data['ids'])
             ->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
+            ->when(
+                $user->hasRole('ketoan') && ! $user->hasAnyRole(['admin', 'manager']),
+                fn ($q) => $q->where(function ($w) use ($user) {
+                    $w->whereNull('id_ketoan')->orWhere('id_ketoan', $user->id);
+                })
+            )
             ->get();
+
+        if ($debts->isEmpty()) {
+            return response()->json([
+                'message' => 'Bạn chỉ được xóa công nợ chưa có kế toán phụ trách hoặc do bạn phụ trách.',
+            ], 403);
+        }
 
         $blockedCount = $debts->filter(fn (CongNo $debt) => $debt->payments()
             ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())

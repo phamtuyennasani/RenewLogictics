@@ -28,12 +28,13 @@ class CongNoDaiLyDataTableController extends Controller
             ->addColumn('debt_code', fn (CongNoDaiLy $debt) => '<a href="'.route('congno.daily.show', $debt->uuid).'" class="font-bold text-primary-700 hover:text-primary-800">'.$debt->sohoadon.'</a><div class="mt-0.5 text-xs text-neutral-500">Tạo '.$debt->created_at?->format('d/m/Y H:i').'</div>')
             ->addColumn('status_badge', fn (CongNoDaiLy $debt) => '<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '.$debt->status->color().'">'.$debt->status->label().'</span>')
             ->addColumn('daily_info', fn (CongNoDaiLy $debt) => '<div class="max-w-[220px] truncate font-semibold text-neutral-900">'.e($debt->daily?->namevi ?: $debt->daily?->nameen ?: 'Chưa rõ đại lý').'</div><div class="mt-0.5 max-w-[220px] truncate text-xs text-neutral-500">Kế toán: '.e($debt->ketoan?->fullname ?: $debt->ketoan?->username ?: '-').'</div>')
+            ->addColumn('period_info', fn (CongNoDaiLy $debt) => '<div class="font-semibold text-neutral-900">'.$debt->tungay?->format('d/m/Y').' - '.$debt->denngay?->format('d/m/Y').'</div>')
+            ->addColumn('volume_info', fn (CongNoDaiLy $debt) => '<div class="font-semibold text-neutral-900">'.number_format((int) $debt->total_orders).' đơn</div><div class="mt-0.5 text-xs text-neutral-500">'.number_format((float) $debt->total_weight, 3, ',', '.').' kg</div>')
             ->addColumn('total_amount', fn (CongNoDaiLy $debt) => '<span class="font-semibold text-neutral-950">'.$this->money($debt->total_cuocvon).'</span>')
-            ->addColumn('paid_amount_html', fn (CongNoDaiLy $debt) => '<span class="font-semibold text-emerald-700">'.$this->money($debt->paid_amount).'</span>')
-            ->addColumn('remaining_amount_html', fn (CongNoDaiLy $debt) => '<span class="font-semibold text-amber-700">'.$this->money($debt->remaining_amount).'</span>')
+            ->addColumn('due_date', fn (CongNoDaiLy $debt) => $debt->hanthanhtoan?->format('d/m/Y') ?: '-')
             ->addColumn('actions', fn (CongNoDaiLy $debt) => '<a href="'.route('congno.daily.show', $debt->uuid).'" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">Chi tiết</a>')
             ->setRowId(fn (CongNoDaiLy $debt) => 'daily-debt-'.$debt->id)
-            ->rawColumns(['check', 'debt_code', 'status_badge', 'daily_info', 'total_amount', 'paid_amount_html', 'remaining_amount_html', 'actions'])
+            ->rawColumns(['check', 'debt_code', 'status_badge', 'daily_info', 'period_info', 'volume_info', 'total_amount', 'actions'])
             ->toJson();
 
         $payload = $response->getData(true);
@@ -52,10 +53,23 @@ class CongNoDaiLyDataTableController extends Controller
             'ids.*' => ['integer'],
         ]);
 
+        $user = $request->user();
         $debts = $this->query($request)
             ->whereIn('congno_daily.id', $data['ids'])
-            ->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
+            ->whereNotIn('status', [DebtStatusEnum::DA_THANH_TOAN->value, DebtStatusEnum::DA_HUY->value])
+            ->when(
+                $user->hasRole('ketoan') && ! $user->hasAnyRole(['admin', 'manager']),
+                fn ($q) => $q->where(function ($w) use ($user) {
+                    $w->whereNull('id_ketoan')->orWhere('id_ketoan', $user->id);
+                })
+            )
             ->get();
+
+        if ($debts->isEmpty()) {
+            return response()->json([
+                'message' => 'Bạn chỉ được xóa công nợ đại lý chưa có kế toán phụ trách hoặc do bạn phụ trách.',
+            ], 403);
+        }
 
         $blockedCount = $debts->filter(fn (CongNoDaiLy $debt) => $debt->payments()
             ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
@@ -73,11 +87,23 @@ class CongNoDaiLyDataTableController extends Controller
                     'agency_payment_status' => null,
                     'agency_paid_at' => null,
                 ]);
-                $debt->delete();
+                $debt->writeActivityLog(
+                    action: 'cancelled',
+                    title: 'Hủy công nợ đại lý',
+                    fromStatus: $debt->status,
+                    toStatus: DebtStatusEnum::DA_HUY,
+                    metadata: array_filter([
+                        'total_orders' => (int) $debt->total_orders,
+                        'total_amount' => (float) $debt->total_cuocvon,
+                    ], fn ($v) => $v !== null),
+                );
+                $debt->forceFill([
+                    'status' => DebtStatusEnum::DA_HUY,
+                ])->save();
             }
         });
 
-        return response()->json(['message' => "Đã hủy {$debts->count()} công nợ đại lý chưa thanh toán và giữ lại lịch sử hóa đơn."]);
+        return response()->json(['message' => "Đã hủy {$debts->count()} công nợ đại lý và giữ lại lịch sử hóa đơn."]);
     }
 
     public function export(Request $request): BinaryFileResponse
@@ -138,7 +164,7 @@ class CongNoDaiLyDataTableController extends Controller
 
     protected function statusCounts(Request $request): array
     {
-        $counts = array_fill_keys([DebtStatusEnum::MOI_TAO->value, DebtStatusEnum::DA_THANH_TOAN->value], 0);
+        $counts = array_fill_keys(DebtStatusEnum::values(), 0);
 
         $this->query($request, includeStatus: false)
             ->reorder()
@@ -161,7 +187,7 @@ class CongNoDaiLyDataTableController extends Controller
         $total = (float) $items->sum('total_cuocvon');
         $paid = (float) $items->sum('paid_amount');
         $remaining = (float) $items->sum(fn (CongNoDaiLy $debt) => $debt->remaining_amount);
-        $unpaidCount = $items->where('status', DebtStatusEnum::MOI_TAO)->count();
+        $unpaidCount = $items->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN)->count();
         $totalCount = $items->count();
 
         return [
@@ -188,4 +214,5 @@ class CongNoDaiLyDataTableController extends Controller
     {
         return number_format((float) $value, 0, ',', '.').' đ';
     }
+
 }

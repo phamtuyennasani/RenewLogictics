@@ -64,6 +64,11 @@
             @if ($this->canManage())
                 <div class="flex flex-wrap items-center gap-2 lg:justify-end">
                     @if ($debt->status === \App\Enums\DebtStatusEnum::MOI_TAO)
+                        <flux:modal.trigger name="refresh-orders">
+                            <flux:button type="button" variant="filled" icon="arrow-path">
+                                Làm mới
+                            </flux:button>
+                        </flux:modal.trigger>
                         <flux:button type="button" wire:click="confirmDebt" variant="primary" icon="check-circle">
                             Chốt cước
                         </flux:button>
@@ -254,7 +259,14 @@
                     </div>
                     <div class="flex justify-between gap-4 py-3">
                         <dt class="text-neutral-500">Kế toán</dt>
-                        <dd class="text-right font-semibold text-neutral-900">{{ $debt->ketoan?->fullname ?: $debt->ketoan?->username ?: '-' }}</dd>
+                        <dd class="text-right font-semibold text-neutral-900">
+                            {{ $debt->ketoan?->fullname ?: $debt->ketoan?->username ?: '-' }}
+                            @if ($this->hasDebtAdminPower())
+                                <flux:modal.trigger name="reassign-accountant">
+                                    <button type="button" class="ml-1 text-xs font-semibold text-primary-700 hover:text-primary-800">Đổi</button>
+                                </flux:modal.trigger>
+                            @endif
+                        </dd>
                     </div>
                     <div class="flex justify-between gap-4 py-3">
                         <dt class="text-neutral-500">Người tạo</dt>
@@ -1116,6 +1128,64 @@
                     <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 150ms"></span>
                     <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 300ms"></span>
                 </div>
+            </div>
+        </div>
+    </flux:modal>
+
+    @if ($this->hasDebtAdminPower())
+        <flux:modal name="reassign-accountant" class="w-full max-w-lg">
+            <form wire:submit="reassignAccountant" class="space-y-5">
+                <div>
+                    <h2 class="text-lg font-bold text-neutral-950">Đổi kế toán phụ trách</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Chọn kế toán mới cho công nợ {{ $debt->sohoadon }}.</p>
+                </div>
+
+                <label class="block">
+                    <span class="text-sm font-semibold text-neutral-700">Kế toán phụ trách</span>
+                    <select wire:model="reassignAccountantId" class="mt-1 h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-primary-500">
+                        <option value="">-- Chọn kế toán --</option>
+                        @foreach ($this->accountants as $accountant)
+                            <option value="{{ $accountant->id }}">
+                                {{ $accountant->fullname ?: $accountant->username }}{{ $accountant->code ? ' - '.$accountant->code : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('reassignAccountantId') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                </label>
+
+                <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="outline">Đóng</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="check">Cập nhật</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+    @endif
+
+    <flux:modal name="refresh-orders" class="w-full max-w-lg">
+        <div class="space-y-5">
+            <div class="flex items-start gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+                    <flux:icon.arrow-path class="size-5" />
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-neutral-950">Làm mới danh sách order</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Quét và bổ sung các đơn hàng thỏa điều kiện (cùng sale, cùng khách hàng, cùng khoảng ngày, chưa thuộc công nợ đang mở) vào công nợ này.</p>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-neutral-100 bg-neutral-50 p-4 text-sm text-neutral-600">
+                <div class="flex justify-between gap-3"><span class="text-neutral-500">Khách hàng</span><span class="font-semibold text-neutral-900">{{ $customerName }}</span></div>
+                <div class="mt-2 flex justify-between gap-3"><span class="text-neutral-500">Sale</span><span class="font-semibold text-neutral-900">{{ $debt->sale?->fullname ?: $debt->sale?->username ?: '-' }}</span></div>
+                <div class="mt-2 flex justify-between gap-3"><span class="text-neutral-500">Khoảng ngày</span><span class="font-semibold text-neutral-900">{{ $debt->tungay?->format('d/m/Y') }} - {{ $debt->denngay?->format('d/m/Y') }}</span></div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+                <flux:modal.close>
+                    <flux:button type="button" variant="outline">Đóng</flux:button>
+                </flux:modal.close>
+                <flux:button type="button" variant="primary" icon="arrow-path" wire:click="refreshOrders">Quét &amp; bổ sung</flux:button>
             </div>
         </div>
     </flux:modal>

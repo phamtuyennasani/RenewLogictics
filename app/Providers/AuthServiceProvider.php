@@ -62,7 +62,7 @@ class AuthServiceProvider extends ServiceProvider
 
         // Gate for congno
         Gate::define('congno.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'ketoan', 'manager']);
+            return $user->hasAnyRole(['admin', 'ketoan', 'manager', 'sale']);
         });
 
         Gate::define('invoice.index', function ($user) {
@@ -70,7 +70,12 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         Gate::define('congno.daily', function ($user) {
-            return $user->hasAnyRole(['admin', 'ketoan']);
+            return $user->hasAnyRole(['admin', 'ketoan', 'manager']);
+        });
+
+        // Route công nợ đại lý dùng `can:congno_daily.view`; sale không được cấp.
+        Gate::define('congno_daily.view', function ($user) {
+            return $user->hasAnyRole(['admin', 'ketoan', 'manager']);
         });
 
         // Gate for thongke

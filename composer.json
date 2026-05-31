@@ -9,6 +9,7 @@
         "php": "^8.3",
         "barryvdh/laravel-debugbar": "^4.2",
         "barryvdh/laravel-dompdf": "^3.1",
+        "bee/license-guard": "^1.2.0",
         "guzzlehttp/guzzle": "^7.10",
         "intervention/image": "^4.0",
         "laravel/framework": "^13.0",
@@ -86,6 +87,12 @@
             "dont-discover": []
         }
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/phamtuyennasani/bee-license-guard.git"
+        }
+    ],
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",

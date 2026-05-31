@@ -59,6 +59,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
     public function updatePaymentInfo(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if (! $this->canEditPaymentInfo()) {
             Flux::toast(heading: 'Không thể cập nhật', text: 'Chỉ công nợ đã chốt cước và chưa thanh toán mới có thể cập nhật.', variant: 'warning');
@@ -107,6 +108,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
     public function confirmPaid(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if (! $this->canEditPaymentInfo()) {
             Flux::toast(heading: 'Không thể xác nhận', text: 'Chỉ công nợ đã chốt cước và chưa thanh toán mới có thể xác nhận thanh toán.', variant: 'warning');
@@ -183,6 +185,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
     public function removeOrder(int $detailId): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->canCreatePaymentInvoice()) {
             Flux::toast(heading: 'Không thể xóa', text: 'Công nợ đã chốt cước, không thể gỡ order.', variant: 'warning');
@@ -212,6 +215,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
     public function confirmDebt(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->status !== DebtStatusEnum::MOI_TAO) {
             Flux::toast(heading: 'Không hợp lệ', text: 'Chỉ công nợ mới tạo mới có thể chốt cước.', variant: 'warning');
@@ -255,6 +259,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
     public function refreshOrders(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->status !== DebtStatusEnum::MOI_TAO) {
             Flux::toast(heading: 'Không thể làm mới', text: 'Chỉ công nợ chưa chốt cước mới có thể bổ sung order.', variant: 'warning');
@@ -327,7 +332,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
             })
             ->whereDoesntHave(
                 'congNoDaiLyDetails.congNoDaiLy',
-                fn ($q) => $q->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
+                fn ($q) => $q->whereNotIn('status', [
+                    DebtStatusEnum::DA_THANH_TOAN->value,
+                    DebtStatusEnum::DA_HUY->value,
+                ])
             );
     }
 
@@ -362,9 +370,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
     public function cancelDebt(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
-        if ($this->debt->status === DebtStatusEnum::DA_THANH_TOAN) {
-            Flux::toast(heading: 'Không thể hủy', text: 'Công nợ đã thanh toán không thể hủy.', variant: 'warning');
+        if (in_array($this->debt->status, [DebtStatusEnum::DA_THANH_TOAN, DebtStatusEnum::DA_HUY], true)) {
+            Flux::toast(heading: 'Không thể hủy', text: 'Công nợ đã thanh toán hoặc đã hủy không thể hủy.', variant: 'warning');
             return;
         }
 
@@ -380,7 +389,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                 action: 'cancelled',
                 title: 'Hủy công nợ đại lý',
                 fromStatus: $this->debt->status,
-                toStatus: null,
+                toStatus: DebtStatusEnum::DA_HUY,
                 metadata: array_filter([
                     'total_orders' => (int) $this->debt->total_orders,
                     'total_amount' => (float) $this->debt->total_cuocvon,
@@ -392,10 +401,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                 'agency_paid_at' => null,
             ]);
 
-            $this->debt->delete();
+            $this->debt->forceFill([
+                'status' => DebtStatusEnum::DA_HUY,
+            ])->save();
         });
 
-        Flux::toast(heading: 'Đã hủy công nợ', text: 'Công nợ đại lý đã được hủy và các order được giải phóng.', variant: 'success');
+        Flux::toast(heading: 'Đã hủy công nợ', text: 'Công nợ đại lý đã chuyển sang trạng thái đã hủy và các order được giải phóng.', variant: 'success');
         $this->redirectRoute('congno.daily.index', navigate: true);
     }
 
@@ -410,9 +421,113 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
         return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan']);
     }
 
+    public function hasDebtAdminPower(): bool
+    {
+        return auth()->user()->hasAnyRole(['admin', 'manager']);
+    }
+
+    public function isAssignedAccountant(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasRole('ketoan')
+            && (int) $this->debt->id_ketoan === (int) $user->id;
+    }
+
+    public function isUnassignedAccountant(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasRole('ketoan') && empty($this->debt->id_ketoan);
+    }
+
     public function canManage(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan']);
+        return $this->hasDebtAdminPower()
+            || $this->isAssignedAccountant()
+            || $this->isUnassignedAccountant();
+    }
+
+    public ?int $reassignAccountantId = null;
+
+    public function reassignAccountant(): void
+    {
+        abort_unless($this->hasDebtAdminPower(), 403);
+
+        $data = $this->validate([
+            'reassignAccountantId' => ['required', 'integer', 'exists:user,id'],
+        ], [], [
+            'reassignAccountantId' => 'Kế toán phụ trách',
+        ]);
+
+        $accountant = \App\Models\User::role('ketoan')->whereKey((int) $data['reassignAccountantId'])->first();
+
+        if (! $accountant) {
+            Flux::toast(heading: 'Không hợp lệ', text: 'User được chọn không phải kế toán.', variant: 'warning');
+            return;
+        }
+
+        $oldAccountantId = $this->debt->id_ketoan;
+
+        $this->debt->forceFill(['id_ketoan' => $accountant->id])->save();
+        $this->debt->writeActivityLog(
+            action: 'accountant_reassigned',
+            title: 'Đổi kế toán phụ trách',
+            metadata: [
+                'ketoan_from' => $oldAccountantId,
+                'ketoan_to' => $accountant->id,
+            ],
+        );
+
+        $this->reloadDebt();
+        Flux::modal('reassign-accountant')->close();
+        Flux::toast(heading: 'Đã cập nhật', text: 'Đã đổi kế toán phụ trách công nợ đại lý.', variant: 'success');
+    }
+
+    public function accountants()
+    {
+        return \App\Models\User::role('ketoan')->orderBy('fullname')->get(['id', 'fullname', 'username', 'code']);
+    }
+
+    protected function canClaimAsAccountant(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasRole('ketoan')
+            && ! $user->hasAnyRole(['admin', 'manager'])
+            && empty($this->debt->id_ketoan);
+    }
+
+    /**
+     * Gán kế toán đầu tiên thao tác cho công nợ đại lý chưa có người phụ trách.
+     */
+    protected function claimAccountantIfNeeded(): void
+    {
+        if (! $this->canClaimAsAccountant()) {
+            return;
+        }
+
+        $assigned = DB::transaction(function () {
+            $debt = CongNoDaiLy::query()->whereKey($this->debt->id)->lockForUpdate()->firstOrFail();
+
+            if (! empty($debt->id_ketoan)) {
+                return false;
+            }
+
+            $debt->forceFill(['id_ketoan' => auth()->id()])->save();
+
+            $debt->writeActivityLog(
+                action: 'accountant_assigned',
+                title: 'Nhận phụ trách công nợ',
+                metadata: ['ketoan_id' => auth()->id()],
+            );
+
+            return true;
+        });
+
+        if ($assigned) {
+            $this->reloadDebt();
+        }
     }
 
     protected function number(mixed $value): float
@@ -489,7 +604,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                         Chốt cước
                     </flux:button>
                 @endif
-                @if ($debt->status !== DebtStatusEnum::DA_THANH_TOAN)
+                @if (! in_array($debt->status, [DebtStatusEnum::DA_THANH_TOAN, DebtStatusEnum::DA_HUY], true))
                     <button type="button" wire:click="cancelDebt" wire:confirm="Hủy công nợ này? Các order sẽ được giải phóng để tạo công nợ mới." class="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100">Hủy công nợ</button>
                 @endif
             </div>
@@ -615,7 +730,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                 <dl class="mt-4 space-y-3 text-sm">
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Đại lý</dt><dd class="font-semibold text-neutral-900">{{ $debt->daily?->namevi ?: $debt->daily?->nameen ?: '-' }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Người tạo</dt><dd class="font-semibold text-neutral-900">{{ $debt->creator?->fullname ?: $debt->creator?->username ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Kế toán</dt><dd class="font-semibold text-neutral-900">{{ $debt->ketoan?->fullname ?: '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Kế toán</dt><dd class="text-right font-semibold text-neutral-900">{{ $debt->ketoan?->fullname ?: '-' }} @if ($this->hasDebtAdminPower()) <flux:modal.trigger name="reassign-accountant"><button type="button" class="ml-1 text-xs font-semibold text-primary-700 hover:text-primary-800">Đổi</button></flux:modal.trigger> @endif</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Tổng tiền</dt><dd class="font-semibold text-neutral-900">{{ $this->money($debt->total_cuocvon) }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Ngày tạo</dt><dd class="font-semibold text-neutral-900">{{ $debt->ngaytaohoadon?->format('d/m/Y H:i') ?: '-' }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Ngày chốt cước</dt><dd class="font-semibold text-neutral-900">{{ $debt->ngaychothoadon?->format('d/m/Y H:i') ?: '-' }}</dd></div>
@@ -629,6 +744,37 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
             <livewire:debt.activity-history :debt="$debt" wire:key="agency-debt-activity-{{ $debt->id }}" />
         </div>
     </div>
+
+    @if ($this->hasDebtAdminPower())
+        <flux:modal name="reassign-accountant" class="w-full max-w-lg">
+            <form wire:submit="reassignAccountant" class="space-y-5">
+                <div>
+                    <h2 class="text-lg font-bold text-neutral-950">Đổi kế toán phụ trách</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Chọn kế toán mới cho công nợ đại lý {{ $debt->sohoadon }}.</p>
+                </div>
+
+                <label class="block">
+                    <span class="text-sm font-semibold text-neutral-700">Kế toán phụ trách</span>
+                    <select wire:model="reassignAccountantId" class="mt-1 h-10 w-full rounded-xl border border-neutral-200 bg-white px-3 text-sm outline-none focus:border-primary-500">
+                        <option value="">-- Chọn kế toán --</option>
+                        @foreach ($this->accountants() as $accountant)
+                            <option value="{{ $accountant->id }}">
+                                {{ $accountant->fullname ?: $accountant->username }}{{ $accountant->code ? ' - '.$accountant->code : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('reassignAccountantId') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                </label>
+
+                <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="outline">Đóng</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary" icon="check">Cập nhật</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+    @endif
 
     <flux:modal name="refresh-orders" class="w-full max-w-lg">
         <div class="space-y-5">

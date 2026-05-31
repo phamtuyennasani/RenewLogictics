@@ -24,11 +24,13 @@
                             Xuất Excel
                         </flux:button>
 
-                    @if ($this->canManage())
+                    @if ($this->canDeleteDebt())
                         <flux:button type="button" id="debts-delete-selected" variant="danger" icon="trash">
                             Xóa
                         </flux:button>
+                    @endif
 
+                    @if ($this->canCreateDebt())
                         <flux:button type="button" data-congno-create-open variant="primary" icon="plus">
                             Tạo công nợ
                         </flux:button>

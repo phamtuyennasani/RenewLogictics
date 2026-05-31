@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "411059029e583a560ea8b473ab5f71c5",
+    "content-hash": "0159a1a156e3d999a615cbab1872e9ee",
     "packages": [
         {
             "name": "barryvdh/laravel-debugbar",
@@ -181,6 +181,47 @@
                 }
             ],
             "time": "2026-02-21T08:51:10+00:00"
+        },
+        {
+            "name": "bee/license-guard",
+            "version": "1.2.0",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:phamtuyennasani/bee-license-guard.git",
+                "reference": "c1e51cb16e680bfde422536f7088bb7d0d3d4a23"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/phamtuyennasani/bee-license-guard/zipball/c1e51cb16e680bfde422536f7088bb7d0d3d4a23",
+                "reference": "c1e51cb16e680bfde422536f7088bb7d0d3d4a23",
+                "shasum": ""
+            },
+            "require": {
+                "ext-sodium": "*",
+                "php": "^8.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Bee\\LicenseGuard\\LicenseGuardServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Bee\\LicenseGuard\\": "src/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Domain-lock license guard for Laravel (Ed25519 signed)",
+            "support": {
+                "source": "https://github.com/phamtuyennasani/bee-license-guard/tree/v1.2.0",
+                "issues": "https://github.com/phamtuyennasani/bee-license-guard/issues"
+            },
+            "time": "2026-05-31T18:24:56+00:00"
         },
         {
             "name": "brick/math",
@@ -10290,12 +10331,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.3"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.2.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }

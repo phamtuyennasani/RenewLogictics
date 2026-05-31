@@ -33,12 +33,24 @@
                 {{$slot}}
             </main>
             @persist('footer')
+            @php
+                $footerDieuKhoan = \Illuminate\Support\Facades\Cache::remember('static_dieu-khoan', 3600, function () {
+                    return optional(\Illuminate\Support\Facades\DB::table('static')->where('type', 'dieu-khoan')->first())->contentvi ?? '';
+                });
+                $footerBaoMat = \Illuminate\Support\Facades\Cache::remember('static_bao-mat', 3600, function () {
+                    return optional(\Illuminate\Support\Facades\DB::table('static')->where('type', 'bao-mat')->first())->contentvi ?? '';
+                });
+            @endphp
             <footer class="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-6 shrink-0 z-10">
-                <p class="text-sm text-neutral-500 mb-0 flex items-center">
-                    <a href="javascript:void(0)" class="hover:text-primary-700">Chính sách điều khoản</a>
+                <div class="text-sm text-neutral-500 mb-0 flex items-center">
+                    <flux:modal.trigger name="footer-dieu-khoan">
+                    <a href="javascript:void(0)" class="hover:text-primary-700">Điều khoản sử dụng</a>
+                    </flux:modal.trigger>
                     <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-neutral-300 mx-3"></span>
-                    <a href="javascript:void(0)" class="hover:text-primary-700">Bảo mật thông tin</a>
-                </p>
+                    <flux:modal.trigger name="footer-bao-mat">
+                        <a href="javascript:void(0)" class="hover:text-primary-700">Chính sách bảo mật</a>
+                    </flux:modal.trigger>
+                </div>
                 <p class="text-sm text-neutral-500 mb-0 flex items-center gap-1">
                     &copy; {{ date('Y') }} {{ config('system.name') }}. All rights reserved
                     <span>
@@ -50,6 +62,46 @@
                     </span>
                 </p>
             </footer>
+            <flux:modal name="footer-dieu-khoan" class="max-w-[80rem] w-[80rem]" scroll="body">
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-neutral-900">Điều khoản sử dụng</h2>
+                    </div>
+                    <div class="prose prose-neutral max-w-none text-neutral-700 show-content">
+                        @if(!empty($footerDieuKhoan))
+                            {!! $footerDieuKhoan !!}
+                        @else
+                            <p class="text-neutral-500">Chưa có nội dung.</p>
+                        @endif
+                    </div>
+                    <div class="flex">
+                        <flux:spacer />
+                        <flux:modal.close>
+                            <flux:button type="button" variant="primary">Đóng</flux:button>
+                        </flux:modal.close>
+                    </div>
+                </div>
+            </flux:modal>
+            <flux:modal name="footer-bao-mat" class="max-w-[80rem] w-[80rem]" scroll="body">
+                <div class="space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-neutral-900">Chính sách bảo mật</h2>
+                    </div>
+                    <div class="prose prose-neutral max-w-none text-neutral-700 show-content">
+                        @if(!empty($footerBaoMat))
+                            {!! $footerBaoMat !!}
+                        @else
+                            <p class="text-neutral-500">Chưa có nội dung.</p>
+                        @endif
+                    </div>
+                    <div class="flex">
+                        <flux:spacer />
+                        <flux:modal.close>
+                            <flux:button type="button" variant="primary">Đóng</flux:button>
+                        </flux:modal.close>
+                    </div>
+                </div>
+            </flux:modal>
             @endpersist
         </div>
     </div>

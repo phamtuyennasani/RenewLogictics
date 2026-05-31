@@ -3,7 +3,9 @@ use App\Actions\Order\RecordOrderEditHistoryAction;
 use App\Enums\DebtStatusEnum;
 use App\Enums\InvoicePaymentStatusEnum;
 use App\Enums\InvoiceTypeEnum;
+use App\Enums\OrderStatusEnum;
 use App\Models\CongNo;
+use App\Models\CongNoDetail;
 use App\Models\CongNoEInvoice;
 use App\Models\CongNoPayment;
 use App\Models\News;
@@ -178,6 +180,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function confirmDebt(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->status !== DebtStatusEnum::MOI_TAO) {
             Flux::toast(heading: 'Không hợp lệ', text: 'Chỉ công nợ mới tạo mới có thể chốt cước.', variant: 'warning');
@@ -216,6 +219,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function createPaymentInvoice(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if (! $this->debt->canCreatePaymentInvoice()) {
             Flux::toast(heading: 'Chưa chốt cước', text: 'Cần chốt cước công nợ trước khi tạo hóa đơn thu.', variant: 'warning');
@@ -281,7 +285,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $invoice = CongNoPayment::query()->whereKey($invoiceId)->firstOrFail();
 
+        abort_unless($this->canManage(), 403);
         abort_unless($invoice->canApprove(auth()->user()), 403);
+        $this->assertAccountantOwnership();
+        $this->claimAccountantIfNeeded();
 
         $fromStatus = $invoice->status;
 
@@ -314,7 +321,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $invoice = CongNoPayment::query()->whereKey($invoiceId)->firstOrFail();
 
+        abort_unless($this->canManage(), 403);
         abort_unless($invoice->canCancel(auth()->user()), 403);
+        $this->assertAccountantOwnership();
+        $this->claimAccountantIfNeeded();
 
         $this->cancellingInvoiceId = $invoice->id;
         $this->cancelReason = '';
@@ -342,7 +352,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             return;
         }
 
+        abort_unless($this->canManage(), 403);
         abort_unless($invoice->canCancel(auth()->user()), 403);
+        $this->assertAccountantOwnership();
+        $this->claimAccountantIfNeeded();
 
         $this->validate([
             'cancelReason' => ['required', 'string', 'max:500'],
@@ -390,7 +403,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $invoice = CongNoPayment::query()->whereKey($invoiceId)->firstOrFail();
 
+        abort_unless($this->canManage(), 403);
         abort_unless($invoice->canPay(auth()->user()), 403);
+        $this->assertAccountantOwnership();
+        $this->claimAccountantIfNeeded();
 
         $this->payingInvoiceId = $invoice->id;
         $this->selectedMethod = null;
@@ -423,7 +439,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             return;
         }
 
+        abort_unless($this->canManage(), 403);
         abort_unless($invoice->canPay(auth()->user()), 403);
+        $this->assertAccountantOwnership();
+        $this->claimAccountantIfNeeded();
 
         $this->validate([
             'cashInvoicePhoto' => ['required', 'image', 'max:8192'],
@@ -484,7 +503,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             return;
         }
 
+        abort_unless($this->canManage(), 403);
         abort_unless($invoice->canPay(auth()->user()), 403);
+        $this->assertAccountantOwnership();
+        $this->claimAccountantIfNeeded();
 
         $providerKey = in_array($this->selectedProvider, PaymentProviderManager::allProviders(), true)
             ? $this->selectedProvider
@@ -561,7 +583,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $invoice = CongNoPayment::query()->whereKey($invoiceId)->firstOrFail();
 
+        abort_unless($this->canManage(), 403);
         abort_unless($invoice->canPay(auth()->user()) || $invoice->canManageQr(auth()->user()), 403);
+        $this->assertAccountantOwnership();
+        $this->claimAccountantIfNeeded();
 
         if (! $invoice->canRegenerateQr()) {
             $nextAt = $invoice->nextQrAvailableAt();
@@ -647,7 +672,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $invoice = CongNoPayment::query()->whereKey($invoiceId)->firstOrFail();
 
+        abort_unless($this->canManage(), 403);
         abort_unless($invoice->canConfirmCashPayment(auth()->user()), 403);
+        $this->assertAccountantOwnership();
+        $this->claimAccountantIfNeeded();
 
         DB::transaction(function () use ($invoice) {
             $debt = CongNo::query()->whereKey($invoice->id_congno)->lockForUpdate()->firstOrFail();
@@ -698,6 +726,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function openEInvoiceModal(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->status !== DebtStatusEnum::DA_THANH_TOAN) {
             Flux::toast(heading: 'Chưa thanh toán xong', text: 'Chỉ tạo hóa đơn điện tử khi công nợ đã thanh toán hết.', variant: 'warning');
@@ -728,6 +757,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function submitEInvoice(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->status !== DebtStatusEnum::DA_THANH_TOAN) {
             Flux::toast(heading: 'Chưa thanh toán xong', text: 'Chỉ tạo hóa đơn điện tử khi công nợ đã thanh toán hết.', variant: 'warning');
@@ -1023,6 +1053,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function downloadEInvoiceFiles(int $einvoiceId): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->firstOrFail();
 
@@ -1060,6 +1091,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function confirmSendEInvoiceEmail(int $einvoiceId): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->firstOrFail();
 
@@ -1182,6 +1214,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function openSaleChargeModal(int $detailId): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->canCreatePaymentInvoice()) {
             Flux::toast(heading: 'Không thể sửa', text: 'Công nợ đã chốt cước, không thể sửa cước bán.', variant: 'warning');
@@ -1211,6 +1244,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function saveSaleCharge(): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->status === DebtStatusEnum::DA_THANH_TOAN) {
             Flux::toast(heading: 'Không thể sửa', text: 'Công nợ đã thanh toán không thể sửa cước bán.', variant: 'warning');
@@ -1307,6 +1341,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function removeOrder(int $detailId): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if ($this->debt->canCreatePaymentInvoice()) {
             Flux::toast(heading: 'Không thể xóa', text: 'Công nợ đã chốt cước, không thể gỡ order.', variant: 'warning');
@@ -1344,6 +1379,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function addEditingSaleChargeFee(string $bucket): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if (! in_array($bucket, ['phuphi', 'hh_khachhang'], true)) {
             return;
@@ -1371,6 +1407,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public function removeEditingSaleChargeFee(string $bucket, int $index): void
     {
         abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
 
         if (! in_array($bucket, ['phuphi', 'hh_khachhang'], true)) {
             return;
@@ -1406,9 +1443,269 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         return false;
     }
 
+    /**
+     * Admin/manager luôn có toàn quyền thao tác công nợ.
+     */
+    public function hasDebtAdminPower(): bool
+    {
+        return auth()->user()->hasAnyRole(['admin', 'manager']);
+    }
+
+    /**
+     * Kế toán đang được gán cho công nợ này.
+     */
+    public function isAssignedAccountant(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasRole('ketoan')
+            && (int) $this->debt->id_ketoan === (int) $user->id;
+    }
+
+    /**
+     * Kế toán nhưng công nợ chưa có kế toán phụ trách → được phép nhận.
+     */
+    public function isUnassignedAccountant(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasRole('ketoan') && empty($this->debt->id_ketoan);
+    }
+
+    /**
+     * Sale phụ trách công nợ và công nợ chưa chốt cước.
+     */
+    public function isOwnerSaleEditable(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasRole('sale')
+            && (int) $this->debt->id_sale === (int) $user->id
+            && $this->debt->status === DebtStatusEnum::MOI_TAO;
+    }
+
     public function canManage(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan']);
+        return $this->hasDebtAdminPower()
+            || $this->isAssignedAccountant()
+            || $this->isUnassignedAccountant()
+            || $this->isOwnerSaleEditable();
+    }
+
+    /**
+     * Kế toán hiện tại được phép nhận công nợ chưa có người phụ trách.
+     */
+    protected function canClaimAsAccountant(): bool
+    {
+        $user = auth()->user();
+
+        return $user->hasRole('ketoan')
+            && ! $user->hasAnyRole(['admin', 'manager'])
+            && empty($this->debt->id_ketoan);
+    }
+
+    /**
+     * Chặn kế toán khác khi công nợ đã có kế toán phụ trách.
+     */
+    protected function assertAccountantOwnership(): void
+    {
+        $user = auth()->user();
+
+        if ($user->hasAnyRole(['admin', 'manager'])) {
+            return;
+        }
+
+        if (! empty($this->debt->id_ketoan)
+            && $user->hasRole('ketoan')
+            && (int) $this->debt->id_ketoan !== (int) $user->id) {
+            abort(403, 'Công nợ này đã có kế toán phụ trách.');
+        }
+    }
+
+    /**
+     * Gán kế toán đầu tiên thao tác (edit/tạo hóa đơn...) cho công nợ chưa có kế toán.
+     * Chỉ áp dụng cho user role ketoan; admin/manager/sale không bao giờ tự nhận.
+     */
+    protected function claimAccountantIfNeeded(): void
+    {
+        if (! $this->canClaimAsAccountant()) {
+            return;
+        }
+
+        $assigned = DB::transaction(function () {
+            $debt = CongNo::query()->whereKey($this->debt->id)->lockForUpdate()->firstOrFail();
+
+            if (! empty($debt->id_ketoan)) {
+                return false;
+            }
+
+            $debt->forceFill(['id_ketoan' => auth()->id()])->save();
+
+            $debt->writeActivityLog(
+                action: 'accountant_assigned',
+                title: 'Nhận phụ trách công nợ',
+                metadata: ['ketoan_id' => auth()->id()],
+            );
+
+            return true;
+        });
+
+        if ($assigned) {
+            $this->reloadDebt();
+        }
+    }
+
+    /**
+     * Quét lại các đơn hàng thỏa điều kiện (cùng khách hàng, cùng sale, cùng khoảng
+     * ngày, chưa thuộc công nợ đang mở) và bổ sung vào công nợ này. Chỉ áp dụng khi
+     * công nợ chưa chốt cước.
+     */
+    public function refreshOrders(): void
+    {
+        abort_unless($this->canManage(), 403);
+        $this->claimAccountantIfNeeded();
+
+        if ($this->debt->status !== DebtStatusEnum::MOI_TAO) {
+            Flux::toast(heading: 'Không thể làm mới', text: 'Chỉ công nợ chưa chốt cước mới có thể bổ sung order.', variant: 'warning');
+            return;
+        }
+
+        $from = $this->debt->tungay ? Carbon::parse($this->debt->tungay)->startOfDay() : null;
+        $to = $this->debt->denngay ? Carbon::parse($this->debt->denngay)->endOfDay() : null;
+        $saleId = (int) $this->debt->id_sale;
+        $customerId = (int) $this->debt->id_customer;
+
+        if (! $from || ! $to || $saleId <= 0 || $customerId <= 0) {
+            Flux::toast(heading: 'Thiếu thông tin', text: 'Công nợ thiếu khoảng ngày, sale hoặc khách hàng để quét.', variant: 'warning');
+            return;
+        }
+
+        $existingOrderIds = $this->debt->details()->pluck('id_order')->all();
+
+        $newOrders = $this->eligibleOrdersQuery($from, $to, $saleId, $customerId)
+            ->whereNotIn('id', $existingOrderIds)
+            ->with(['packages'])
+            ->get();
+
+        if ($newOrders->isEmpty()) {
+            Flux::toast(heading: 'Không có đơn mới', text: 'Không tìm thấy order mới thỏa điều kiện để bổ sung.', variant: 'info');
+            return;
+        }
+
+        DB::transaction(function () use ($newOrders) {
+            $rows = $newOrders->map(fn (Order $order) => [
+                'id_congno' => $this->debt->id,
+                'id_order' => $order->id,
+                ...$this->snapshotForOrder($order),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ])->all();
+
+            CongNoDetail::insert($rows);
+            $this->debt->syncTotalsFromDetails();
+            $this->debt->writeActivityLog(
+                action: 'orders_refreshed',
+                title: 'Bổ sung order vào công nợ',
+                metadata: [
+                    'added_count' => $newOrders->count(),
+                    'order_ids' => $newOrders->pluck('id')->values()->all(),
+                    'order_codes' => $newOrders->pluck('id_bill')->filter()->values()->all(),
+                ],
+            );
+        });
+
+        $this->reloadDebt();
+        Flux::toast(heading: 'Đã làm mới', text: "Đã bổ sung {$newOrders->count()} order vào công nợ.", variant: 'success');
+        Flux::modal('refresh-orders')->close();
+    }
+
+    protected function eligibleOrdersQuery(Carbon $from, Carbon $to, int $saleId, int $customerId)
+    {
+        return Order::query()
+            ->whereBetween('created_at', [$from, $to])
+            ->where('id_sale', $saleId)
+            ->where('id_customer', $customerId)
+            ->where('bill_status', '!=', OrderStatusEnum::HUY->value)
+            ->whereNotNull('sale_price_locked_at')
+            ->where(function ($q) {
+                $q->whereNull('customer_payment_status')
+                    ->orWhereNotIn('customer_payment_status', [
+                        DebtStatusEnum::DA_CHOT_CUOC->value,
+                        DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value,
+                        DebtStatusEnum::DA_THANH_TOAN->value,
+                    ]);
+            })
+            ->whereDoesntHave('congNoDetails.congNo', fn ($q) => $q->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value));
+    }
+
+    protected function snapshotForOrder(Order $order): array
+    {
+        $weight = (float) $order->packages->sum(fn ($package) => (float) ($package->row_c_weight ?: $package->c_weight ?: 0));
+        $snapshot = [
+            'order_code' => $order->id_bill,
+            'sale_total' => $this->number(data_get($order->payment_cuocban, 'total_tongcuoc', 0)),
+            'cost_total' => $this->number(data_get($order->payment_cuocvon, 'total_tongcuoc', 0)),
+            'base_total' => $this->number(data_get($order->payment_cuocgoc, 'total_tongcuoc', 0)),
+            'vat' => $this->number(data_get($order->payment_cuocban, 'total_vat', 0)),
+            'ppxd' => $this->number(data_get($order->payment_cuocban, 'ppxd_amount', 0)),
+            'fee' => $this->number(data_get($order->payment_cuocban, 'total_phuphi', 0)),
+            'commission' => $this->number(data_get($order->payment_cuocvon, 'bonus_sale_amount', 0)),
+            'weight' => $weight,
+        ];
+
+        return [
+            'weight' => $weight,
+            'cuocban' => $snapshot['sale_total'],
+            'cuocvon' => $snapshot['cost_total'],
+            'cuocgoc' => $snapshot['base_total'],
+            'vat' => $snapshot['vat'],
+            'ppxd' => $snapshot['ppxd'],
+            'phuphi' => $snapshot['fee'],
+            'hoahong' => $snapshot['commission'],
+            'snapshot' => json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        ];
+    }
+
+    public ?int $reassignAccountantId = null;
+
+    public function reassignAccountant(): void
+    {
+        abort_unless($this->hasDebtAdminPower(), 403);
+
+        $data = $this->validate([
+            'reassignAccountantId' => ['required', 'integer', 'exists:user,id'],
+        ], [], [
+            'reassignAccountantId' => 'Kế toán phụ trách',
+        ]);
+
+        $accountant = \App\Models\User::role('ketoan')->whereKey((int) $data['reassignAccountantId'])->first();
+
+        if (! $accountant) {
+            Flux::toast(heading: 'Không hợp lệ', text: 'User được chọn không phải kế toán.', variant: 'warning');
+            return;
+        }
+
+        $oldAccountantId = $this->debt->id_ketoan;
+
+        $this->debt->forceFill(['id_ketoan' => $accountant->id])->save();
+        $this->debt->writeActivityLog(
+            action: 'accountant_reassigned',
+            title: 'Đổi kế toán phụ trách',
+            metadata: [
+                'ketoan_from' => $oldAccountantId,
+                'ketoan_to' => $accountant->id,
+            ],
+        );
+
+        $this->reloadDebt();
+        Flux::modal('reassign-accountant')->close();
+        Flux::toast(heading: 'Đã cập nhật', text: 'Đã đổi kế toán phụ trách công nợ.', variant: 'success');
+    }
+
+    #[Computed]
+    public function accountants()
+    {
+        return \App\Models\User::role('ketoan')->orderBy('fullname')->get(['id', 'fullname', 'username', 'code']);
     }
 
     #[Computed]
