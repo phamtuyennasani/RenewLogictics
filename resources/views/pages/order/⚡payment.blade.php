@@ -2,9 +2,14 @@
 
 use App\Actions\Order\RecordOrderEditHistoryAction;
 use App\Enums\InvoicePaymentStatusEnum;
+use App\Mail\OrderEInvoiceMail;
+use App\Models\CongNoEInvoice;
 use App\Models\CongNoPayment;
 use App\Models\News;
 use App\Models\Order;
+use App\Models\Setting;
+use App\Services\EInvoices\Data\EInvoiceRequestData;
+use App\Services\EInvoices\EInvoiceProviderManager;
 use App\Services\OrderInvoiceService;
 use App\Services\Payments\InvoiceCodeGenerator;
 use App\Services\Payments\PaymentProviderManager;
@@ -12,10 +17,13 @@ use App\Services\Payments\Data\PaymentRequestData;
 use App\Support\OrderAccess;
 use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -37,6 +45,18 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     public $cashPhoto = null;
     public string $cancelInvoiceReason = '';
     public string $rejectPaymentReason = '';
+
+    // E-invoice (hóa đơn điện tử) cho đơn lẻ
+    public ?CongNoEInvoice $eInvoice = null;
+    public bool $showEInvoiceModal = false;
+    public string $einvoiceProvider = '';
+    public string $einvoiceNotes = '';
+    public array $enabledEInvoiceProviders = [];
+
+    // Gửi email hóa đơn
+    public bool $showEmailModal = false;
+    public string $emailRecipient = '';
+    public ?int $pendingEmailEInvoiceId = null;
 
     public function mount(string $uuid): void
     {
@@ -61,6 +81,8 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         $this->enforceEditableChargeScope();
         $this->loadInvoice();
         $this->loadEnabledProviders();
+        $this->loadEInvoice();
+        $this->loadEnabledEInvoiceProviders();
     }
 
     protected function loadEnabledProviders(): void
@@ -69,6 +91,20 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
         if (!($this->enabledProviders[$this->selectedProvider] ?? false)) {
             $this->selectedProvider = PaymentProviderManager::defaultProvider();
+        }
+    }
+
+    protected function loadEInvoice(): void
+    {
+        $this->eInvoice = CongNoEInvoice::latestForOrder($this->order->id);
+    }
+
+    protected function loadEnabledEInvoiceProviders(): void
+    {
+        $this->enabledEInvoiceProviders = EInvoiceProviderManager::enabledProviders();
+
+        if (!($this->enabledEInvoiceProviders[$this->einvoiceProvider] ?? false)) {
+            $this->einvoiceProvider = EInvoiceProviderManager::defaultProvider();
         }
     }
 
@@ -1033,6 +1069,386 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         Flux::toast(heading: 'Đã từ chối', text: 'Chứng từ không được chấp nhận.', variant: 'warning');
     }
 
+    // =========================================================================
+    // E-INVOICE (HÓA ĐƠN ĐIỆN TỬ) — đơn khách lẻ
+    // =========================================================================
+
+    #[Computed]
+    public function eInvoiceEnabled(): bool
+    {
+        return EInvoiceProviderManager::hasAnyEnabled();
+    }
+
+    #[Computed]
+    public function onlinePaymentEnabled(): bool
+    {
+        return PaymentProviderManager::hasAnyEnabled();
+    }
+
+    #[Computed]
+    public function canCreateEInvoice(): bool
+    {
+        if (! $this->invoice || ! $this->order->isWalkIn()) {
+            return false;
+        }
+
+        if (! EInvoiceProviderManager::hasAnyEnabled()) {
+            return false;
+        }
+
+        if ($this->invoice->status !== InvoicePaymentStatusEnum::DA_THANH_TOAN) {
+            return false;
+        }
+
+        if (CongNoEInvoice::hasSuccessfulInvoiceForOrder($this->order->id)) {
+            return false;
+        }
+
+        $user = auth()->user();
+        return $user && $user->hasAnyRole(['admin', 'manager', 'ketoan', 'sale']);
+    }
+
+    #[Computed]
+    public function einvoiceProviderLabels(): array
+    {
+        return EInvoiceProviderManager::providerLabels();
+    }
+
+    public function openEInvoiceModal(): void
+    {
+        abort_unless($this->canCreateEInvoice, 403);
+
+        if (CongNoEInvoice::hasSuccessfulInvoiceForOrder($this->order->id)) {
+            Flux::toast(heading: 'Đã có hóa đơn', text: 'Đơn hàng này đã có hóa đơn điện tử thành công.', variant: 'warning');
+            return;
+        }
+
+        $this->einvoiceProvider = EInvoiceProviderManager::defaultProvider();
+        $this->einvoiceNotes = '';
+        $this->showEInvoiceModal = true;
+
+        Flux::modal('create-order-einvoice')->show();
+    }
+
+    public function closeEInvoiceModal(): void
+    {
+        $this->showEInvoiceModal = false;
+        $this->einvoiceProvider = '';
+        $this->einvoiceNotes = '';
+
+        Flux::modal('create-order-einvoice')->close();
+    }
+
+    public function submitEInvoice(): void
+    {
+        abort_unless($this->canCreateEInvoice, 403);
+
+        if (CongNoEInvoice::hasSuccessfulInvoiceForOrder($this->order->id)) {
+            Flux::toast(heading: 'Đã có hóa đơn', text: 'Đơn hàng này đã có hóa đơn điện tử.', variant: 'warning');
+            return;
+        }
+
+        $providerKey = in_array($this->einvoiceProvider, EInvoiceProviderManager::allProviders(), true)
+            ? $this->einvoiceProvider
+            : EInvoiceProviderManager::defaultProvider();
+
+        $options = Setting::query()->first()?->options ?? [];
+        $providerAccountId = $options["einvoice_{$providerKey}_provider_account_id"] ?? '';
+        $templateCode = $options["einvoice_{$providerKey}_template_code"] ?? '';
+        $invoiceSeries = $options["einvoice_{$providerKey}_invoice_series"] ?? '';
+
+        if (! $providerAccountId || ! $templateCode || ! $invoiceSeries) {
+            Flux::toast(heading: 'Chưa cấu hình', text: 'Vui lòng cấu hình Provider Account ID, Template Code và Invoice Series trong Cấu hình hệ thống.', variant: 'warning');
+            return;
+        }
+
+        // Build buyer info từ sender
+        $sender = $this->order->sender ?? [];
+        $buyer = [
+            'name' => $sender['company'] ?: ($sender['fullname'] ?? 'Khách hàng'),
+            'tax_code' => $sender['tax_code'] ?? null,
+            'email' => $sender['email'] ?? null,
+            'phone' => $sender['phone'] ?? null,
+            'address' => $sender['address'] ?? null,
+        ];
+
+        // Build item
+        $orderCode = $this->order->id_bill ?: ('ORDER-' . $this->order->id);
+        $totalAmount = (int) round((float) $this->invoice->amount);
+        $itemName = 'Thanh toán phí vận chuyển đơn hàng: ' . $orderCode;
+
+        $items = [[
+            'line_number' => 1,
+            'line_type' => 1,
+            'item_code' => $orderCode,
+            'item_name' => $itemName,
+            'unit' => 'Đơn',
+            'quantity' => 1,
+            'unit_price' => $totalAmount,
+        ]];
+
+        $reference = CongNoEInvoice::generateReferenceForOrder($this->order);
+
+        try {
+            $driver = app(EInvoiceProviderManager::class)->driver($providerKey);
+
+            $requestData = new EInvoiceRequestData(
+                reference: $reference,
+                templateCode: $templateCode,
+                invoiceSeries: $invoiceSeries,
+                issuedDate: now()->format('Y-m-d H:i:s'),
+                providerAccountId: $providerAccountId,
+                buyer: $buyer,
+                items: $items,
+                amount: $totalAmount,
+                paymentMethod: $this->invoice->method === 'cash' ? 'TM' : 'CK',
+                isDraft: false,
+                notes: $this->einvoiceNotes ?: null,
+            );
+
+            $result = $driver->create($requestData);
+
+            $einvoice = CongNoEInvoice::create([
+                'id_order' => $this->order->id,
+                'id_congno' => null,
+                'id_user' => auth()->id(),
+                'provider' => $providerKey,
+                'provider_account_id' => $providerAccountId,
+                'reference' => $reference,
+                'template_code' => $templateCode,
+                'invoice_series' => $invoiceSeries,
+                'issued_date' => now()->toDateString(),
+                'tracking_code' => $result->trackingCode,
+                'provider_reference_code' => $result->providerReferenceCode,
+                'tracking_url' => $result->trackingUrl,
+                'invoice_url' => $result->invoiceUrl,
+                'invoice_number' => $result->invoiceNumber,
+                'amount' => (float) $this->invoice->amount,
+                'status' => $result->invoiceNumber ? CongNoEInvoice::STATUS_SUCCESS : CongNoEInvoice::STATUS_PENDING,
+                'buyer' => $buyer,
+                'items' => $items,
+                'provider_payload' => $result->raw,
+                'notes' => $this->einvoiceNotes ?: null,
+                'issued_at' => $result->invoiceNumber ? now() : null,
+            ]);
+
+            // Auto-poll
+            if ($result->trackingCode && ! $result->invoiceNumber) {
+                $this->pollOrderEInvoiceStatus($einvoice, $driver, attempts: 3, delayMs: 1500);
+            }
+        } catch (\Throwable $e) {
+            CongNoEInvoice::create([
+                'id_order' => $this->order->id,
+                'id_congno' => null,
+                'id_user' => auth()->id(),
+                'provider' => $providerKey,
+                'provider_account_id' => $providerAccountId,
+                'reference' => $reference,
+                'template_code' => $templateCode,
+                'invoice_series' => $invoiceSeries,
+                'issued_date' => now()->toDateString(),
+                'amount' => (float) $this->invoice->amount,
+                'status' => CongNoEInvoice::STATUS_FAILED,
+                'buyer' => $buyer,
+                'items' => $items,
+                'error_message' => $e->getMessage(),
+                'notes' => $this->einvoiceNotes ?: null,
+            ]);
+
+            $this->closeEInvoiceModal();
+            $this->loadEInvoice();
+            Flux::toast(heading: 'Lỗi tạo hóa đơn', text: $e->getMessage(), variant: 'danger');
+            return;
+        }
+
+        $this->closeEInvoiceModal();
+        $this->loadEInvoice();
+
+        $latestEInvoice = CongNoEInvoice::latestForOrder($this->order->id);
+        if ($latestEInvoice && $latestEInvoice->invoice_number) {
+            Flux::toast(heading: 'Tạo hóa đơn thành công', text: 'Số hóa đơn: ' . $latestEInvoice->invoice_number, variant: 'success');
+        } else {
+            Flux::toast(heading: 'Đã gửi yêu cầu', text: 'Hóa đơn đang được xử lý. Bấm "Kiểm tra" để cập nhật.', variant: 'success');
+        }
+    }
+
+    protected function pollOrderEInvoiceStatus(CongNoEInvoice $einvoice, $driver, int $attempts = 3, int $delayMs = 1500): void
+    {
+        for ($i = 0; $i < $attempts; $i++) {
+            usleep($delayMs * 1000);
+            try {
+                $statusData = $driver->status($einvoice->tracking_code);
+                $einvoice->updateFromStatusData($statusData);
+
+                if (! $einvoice->isPending()) {
+                    if ($einvoice->isSuccess()) {
+                        $einvoice->downloadAndStoreFiles();
+                    }
+                    break;
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+    }
+
+    public function checkOrderEInvoiceStatus(int $einvoiceId): void
+    {
+        $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->firstOrFail();
+
+        if (! $einvoice->isPending()) {
+            Flux::toast(heading: 'Không cần kiểm tra', text: 'Hóa đơn đã ở trạng thái cuối.', variant: 'warning');
+            return;
+        }
+
+        if (! $einvoice->tracking_code) {
+            Flux::toast(heading: 'Không có tracking code', text: 'Không thể kiểm tra trạng thái.', variant: 'warning');
+            return;
+        }
+
+        try {
+            $driver = app(EInvoiceProviderManager::class)->driver($einvoice->provider);
+            $statusData = $driver->status($einvoice->tracking_code);
+            $einvoice->updateFromStatusData($statusData);
+
+            if ($einvoice->fresh()->isSuccess() && ! $einvoice->fresh()->hasLocalPdf()) {
+                $einvoice->fresh()->downloadAndStoreFiles();
+            }
+        } catch (\Throwable $e) {
+            Flux::toast(heading: 'Lỗi kiểm tra', text: $e->getMessage(), variant: 'danger');
+            return;
+        }
+
+        $this->loadEInvoice();
+
+        $fresh = $einvoice->fresh();
+        $label = $fresh->statusLabel();
+        $extraText = $fresh->invoice_number ? " (Số HĐ: {$fresh->invoice_number})" : '';
+        Flux::toast(heading: 'Đã cập nhật', text: "Trạng thái: {$label}{$extraText}", variant: 'success');
+    }
+
+    public function downloadOrderEInvoiceFiles(int $einvoiceId): void
+    {
+        $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->firstOrFail();
+
+        if (! $einvoice->isSuccess()) {
+            Flux::toast(heading: 'Không thể tải', text: 'Chỉ tải được file của hóa đơn đã phát hành thành công.', variant: 'warning');
+            return;
+        }
+
+        try {
+            $downloaded = $einvoice->downloadAndStoreFiles();
+        } catch (\Throwable $e) {
+            Flux::toast(heading: 'Lỗi tải file', text: $e->getMessage(), variant: 'danger');
+            return;
+        }
+
+        $this->loadEInvoice();
+
+        if ($downloaded) {
+            Flux::toast(heading: 'Đã tải file', text: 'PDF/XML đã được lưu vào hệ thống.', variant: 'success');
+        } else {
+            Flux::toast(heading: 'Đã có sẵn', text: 'File đã được tải trước đó hoặc provider chưa sẵn sàng.', variant: 'warning');
+        }
+    }
+
+    // =========================================================================
+    // GỬI EMAIL HÓA ĐƠN ĐIỆN TỬ — đơn khách lẻ
+    // =========================================================================
+
+    public function openSendEInvoiceEmailModal(int $einvoiceId): void
+    {
+        $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->firstOrFail();
+
+        if ((int) $einvoice->id_order !== (int) $this->order->id) {
+            abort(403);
+        }
+
+        if (! $einvoice->isSuccess() || ! $einvoice->pdf_path) {
+            Flux::toast(heading: 'Không thể gửi', text: 'Hóa đơn chưa có file PDF để gửi.', variant: 'warning');
+            return;
+        }
+
+        $this->pendingEmailEInvoiceId = $einvoiceId;
+
+        $sender = $this->order->sender ?? [];
+        $this->emailRecipient = $sender['email'] ?? '';
+
+        $this->showEmailModal = true;
+        Flux::modal('send-order-einvoice-email')->show();
+    }
+
+    public function closeSendEInvoiceEmailModal(): void
+    {
+        $this->showEmailModal = false;
+        $this->emailRecipient = '';
+        $this->pendingEmailEInvoiceId = null;
+        $this->resetErrorBag('emailRecipient');
+        Flux::modal('send-order-einvoice-email')->close();
+    }
+
+    public function submitSendEInvoiceEmail(): void
+    {
+        $this->validate([
+            'emailRecipient' => ['required', 'email', 'max:255'],
+        ], [
+            'emailRecipient.required' => 'Vui lòng nhập email người nhận.',
+            'emailRecipient.email' => 'Email không hợp lệ.',
+        ]);
+
+        if (! $this->pendingEmailEInvoiceId) {
+            return;
+        }
+
+        $einvoice = CongNoEInvoice::query()->whereKey($this->pendingEmailEInvoiceId)->first();
+
+        if (! $einvoice || (int) $einvoice->id_order !== (int) $this->order->id) {
+            $this->closeSendEInvoiceEmailModal();
+            return;
+        }
+
+        if (! $einvoice->isSuccess() || ! $einvoice->pdf_path) {
+            Flux::toast(heading: 'Không thể gửi', text: 'Hóa đơn chưa có file PDF.', variant: 'warning');
+            $this->closeSendEInvoiceEmailModal();
+            return;
+        }
+
+        // Apply SMTP từ Setting
+        $options = Setting::query()->first()?->options ?? [];
+        $smtpHost = $options['smtp_host'] ?? null;
+        $smtpUsername = $options['smtp_username'] ?? null;
+        $smtpPassword = $options['smtp_password'] ?? null;
+
+        if (! $smtpHost || ! $smtpUsername || ! $smtpPassword) {
+            Flux::toast(heading: 'Chưa cấu hình SMTP', text: 'Vui lòng cấu hình SMTP trong Cài đặt hệ thống trước khi gửi email.', variant: 'danger');
+            return;
+        }
+
+        Config::set('mail.mailers.smtp.host', $smtpHost);
+        Config::set('mail.mailers.smtp.port', (int) ($options['smtp_port'] ?? 587));
+        Config::set('mail.mailers.smtp.username', $smtpUsername);
+        Config::set('mail.mailers.smtp.password', $smtpPassword);
+        Config::set('mail.mailers.smtp.encryption', 'tls');
+        Config::set('mail.from.address', $options['smtp_from_email'] ?? $smtpUsername);
+        Config::set('mail.from.name', $options['smtp_from_name'] ?? ($options['company_short_name'] ?? ($options['company_name'] ?? config('app.name'))));
+
+        app('mail.manager')->purge('smtp');
+
+        try {
+            Mail::mailer('smtp')->to($this->emailRecipient)->send(new OrderEInvoiceMail($einvoice, $this->order));
+
+            $einvoice->forceFill(['email_sent_at' => now()])->save();
+            $this->loadEInvoice();
+
+            $recipient = $this->emailRecipient;
+            $this->closeSendEInvoiceEmailModal();
+
+            Flux::toast(heading: 'Đã gửi email', text: "Hóa đơn đã được gửi đến {$recipient}", variant: 'success');
+        } catch (\Throwable $e) {
+            Flux::toast(heading: 'Gửi email thất bại', text: $e->getMessage(), variant: 'danger');
+        }
+    }
+
     public function routes(): array
     {
         return [
@@ -1188,48 +1604,83 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
                     {{-- Trạng thái DA_GUI_YEU_CAU_TT --}}
                     @elseif($this->invoice->status === \App\Enums\InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT)
-                        <div class="rounded-lg border border-purple-100 bg-purple-50 p-4 space-y-3">
-                            <p class="text-sm font-medium text-purple-800">Đã gửi yêu cầu thanh toán</p>
-                            @if($this->invoice->qr_url || $this->invoice->payment_url)
-                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
-                                    @if($this->invoice->qr_url && $this->invoice->payment_provider === 'sepay')
-                                        {{-- SePay trả về ảnh QR thực --}}
-                                        <div class="flex-shrink-0">
-                                            <img src="{{ $this->invoice->qr_url }}" alt="QR" class="h-32 w-32 rounded-lg border border-purple-200 bg-white">
-                                        </div>
-                                    @endif
-                                    <div class="flex-1 space-y-2">
-                                        <p class="text-xs text-purple-700">Link thanh toán:</p>
-                                        <a href="{{ $this->invoice->payment_url ?: $this->invoice->qr_url }}" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 break-all">
-                                            <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                                            {{ $this->invoice->payment_url ?: $this->invoice->qr_url }}
-                                        </a>
-                                        @if($this->invoice->payment_reference)
-                                            <p class="text-xs text-neutral-500">Mã tham chiếu: {{ $this->invoice->payment_reference }}</p>
-                                        @endif
+                        @if($this->invoice->isPaymentExpired())
+                            {{-- Link/QR đã hết hạn — cho chọn lại phương thức như tạo mới --}}
+                            <div class="rounded-lg border border-rose-100 bg-rose-50 p-4 space-y-3">
+                                <div class="flex items-start gap-2">
+                                    <svg class="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-semibold text-rose-800">Link/QR thanh toán đã hết hạn</p>
+                                        <p class="mt-0.5 text-xs text-rose-700">
+                                            @if($this->invoice->payment_provider)
+                                                Phương thức cũ: <span class="font-semibold">{{ ucfirst($this->invoice->payment_provider) }}</span>
+                                                @if($this->invoice->qr_expires_at)
+                                                    · Hết hạn lúc {{ $this->invoice->qr_expires_at->format('H:i d/m/Y') }}
+                                                @endif
+                                            @endif
+                                        </p>
+                                        <p class="mt-1 text-xs text-rose-600">Vui lòng chọn lại phương thức thanh toán để tiếp tục.</p>
                                     </div>
                                 </div>
-                            @endif
-                            @if($this->invoice->qr_generated_at)
-                                <p class="text-xs text-neutral-500">
-                                    @if($this->invoice->canRegenerateQr())
-                                        Có thể tạo lại QR
-                                    @else
-                                        Tạo lại QR sau: {{ $this->invoice->nextQrAvailableAt()?->diffForHumans() }}
+                                <div class="flex flex-wrap gap-2 pt-1">
+                                    @if($this->invoice->canPay(auth()->user()))
+                                        <flux:button type="button" wire:click="openPayModal" variant="primary" size="sm">
+                                            Chọn phương thức thanh toán
+                                        </flux:button>
                                     @endif
-                                </p>
-                            @endif
-                            <div class="flex flex-wrap gap-2 pt-1">
-                                @if($this->invoice->canPay(auth()->user()) || $this->invoice->canManageQr(auth()->user()))
-                                    @if($this->invoice->canRegenerateQr())
-                                        <flux:button type="button" wire:click="regenerateOrderQr" variant="outline" size="sm">Tạo lại QR</flux:button>
+                                    @if($this->invoice->canCancel(auth()->user()))
+                                        <flux:button type="button" wire:click="openCancelInvoice" variant="danger" size="sm">Hủy</flux:button>
                                     @endif
-                                @endif
-                                @if($this->invoice->canCancel(auth()->user()))
-                                    <flux:button type="button" wire:click="openCancelInvoice" variant="danger" size="sm">Hủy</flux:button>
-                                @endif
+                                </div>
                             </div>
-                        </div>
+                        @else
+                            {{-- Còn hạn — show link/QR cũ + cho tạo lại QR cùng provider --}}
+                            <div class="rounded-lg border border-purple-100 bg-purple-50 p-4 space-y-3">
+                                <p class="text-sm font-medium text-purple-800">Đã gửi yêu cầu thanh toán</p>
+                                @if($this->invoice->qr_url || $this->invoice->payment_url)
+                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+                                        @if($this->invoice->qr_url && $this->invoice->payment_provider === 'sepay')
+                                            {{-- SePay trả về ảnh QR thực --}}
+                                            <div class="flex-shrink-0">
+                                                <img src="{{ $this->invoice->qr_url }}" alt="QR" class="h-32 w-32 rounded-lg border border-purple-200 bg-white">
+                                            </div>
+                                        @endif
+                                        <div class="flex-1 space-y-2">
+                                            <p class="text-xs text-purple-700">Link thanh toán:</p>
+                                            <a href="{{ $this->invoice->payment_url ?: $this->invoice->qr_url }}" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800 break-all">
+                                                <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                                {{ $this->invoice->payment_url ?: $this->invoice->qr_url }}
+                                            </a>
+                                            @if($this->invoice->payment_reference)
+                                                <p class="text-xs text-neutral-500">Mã tham chiếu: {{ $this->invoice->payment_reference }}</p>
+                                            @endif
+                                            @if($this->invoice->qr_expires_at)
+                                                <p class="text-xs text-amber-700">⏱ Hết hạn lúc {{ $this->invoice->qr_expires_at->format('H:i d/m/Y') }}</p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endif
+                                @if($this->invoice->qr_generated_at)
+                                    <p class="text-xs text-neutral-500">
+                                        @if($this->invoice->canRegenerateQr())
+                                            Có thể tạo lại QR
+                                        @else
+                                            Tạo lại QR sau: {{ $this->invoice->nextQrAvailableAt()?->diffForHumans() }}
+                                        @endif
+                                    </p>
+                                @endif
+                                <div class="flex flex-wrap gap-2 pt-1">
+                                    @if($this->invoice->canPay(auth()->user()) || $this->invoice->canManageQr(auth()->user()))
+                                        @if($this->invoice->canRegenerateQr())
+                                            <flux:button type="button" wire:click="regenerateOrderQr" variant="outline" size="sm">Tạo lại QR</flux:button>
+                                        @endif
+                                    @endif
+                                    @if($this->invoice->canCancel(auth()->user()))
+                                        <flux:button type="button" wire:click="openCancelInvoice" variant="danger" size="sm">Hủy</flux:button>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
 
                     {{-- Trạng thái DA_GUI_HOA_DON_TT (chờ duyệt thanh toán tiền mặt) --}}
                     @elseif($this->invoice->status === \App\Enums\InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT)
@@ -1293,7 +1744,93 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                             @endif
                         </div>
 
-                    {{-- Trạng thái HUY --}}
+                        {{-- E-INVOICE cho đơn khách lẻ đã thanh toán --}}
+                        @if($this->order->isWalkIn() && $this->eInvoiceEnabled)
+                            <div class="mt-4 rounded-lg border border-blue-100 bg-blue-50/50 p-4">
+                                <p class="text-xs font-semibold text-blue-800 uppercase tracking-wide mb-2">Hóa đơn điện tử</p>
+
+                                @if($this->eInvoice && $this->eInvoice->isSuccess())
+                                    {{-- Đã có hóa đơn thành công --}}
+                                    <div class="space-y-2">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="h-4 w-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                            <span class="text-sm font-medium text-emerald-700">
+                                                Số HĐ: {{ $this->eInvoice->invoice_number ?: $this->eInvoice->reference }}
+                                            </span>
+                                        </div>
+                                        @if($this->eInvoice->issued_at)
+                                            <p class="text-xs text-neutral-500">Ngày phát hành: {{ $this->eInvoice->issued_at->format('d/m/Y H:i') }}</p>
+                                        @endif
+
+                                        <div class="flex flex-wrap gap-2 mt-2">
+                                            @if($this->eInvoice->pdf_path)
+                                                <a href="{{ asset($this->eInvoice->pdf_path) }}" target="_blank" class="inline-flex items-center gap-1 rounded bg-white px-2 py-1 text-xs font-medium text-blue-700 border border-blue-200 hover:bg-blue-50">
+                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                    PDF
+                                                </a>
+                                            @else
+                                                <flux:button type="button" wire:click="downloadOrderEInvoiceFiles({{ $this->eInvoice->id }})" size="xs" variant="outline">
+                                                    Tải file PDF
+                                                </flux:button>
+                                            @endif
+
+                                            @if($this->eInvoice->invoice_url)
+                                                <a href="{{ $this->eInvoice->invoice_url }}" target="_blank" class="inline-flex items-center gap-1 rounded bg-white px-2 py-1 text-xs font-medium text-indigo-700 border border-indigo-200 hover:bg-indigo-50">
+                                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                                                    Xem online
+                                                </a>
+                                            @endif
+
+                                            {{-- Nút gửi email --}}
+                                            @if($this->eInvoice->pdf_path)
+                                                <flux:button type="button" wire:click="openSendEInvoiceEmailModal({{ $this->eInvoice->id }})" size="xs" variant="outline" icon="envelope">
+                                                    {{ $this->eInvoice->email_sent_at ? 'Gửi lại email' : 'Gửi email' }}
+                                                </flux:button>
+                                            @endif
+                                        </div>
+
+                                        @if($this->eInvoice->email_sent_at)
+                                            <p class="text-xs text-neutral-400 mt-1">Đã gửi email lúc {{ $this->eInvoice->email_sent_at->format('d/m/Y H:i') }}</p>
+                                        @endif
+                                    </div>
+
+                                @elseif($this->eInvoice && $this->eInvoice->isPending())
+                                    {{-- Đang xử lý --}}
+                                    <div class="flex items-center gap-2">
+                                        <svg class="h-4 w-4 animate-spin text-amber-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                        <span class="text-sm text-amber-700">Đang xử lý hóa đơn...</span>
+                                    </div>
+                                    <flux:button type="button" wire:click="checkOrderEInvoiceStatus({{ $this->eInvoice->id }})" size="xs" variant="outline" class="mt-2">
+                                        Kiểm tra trạng thái
+                                    </flux:button>
+
+                                @elseif($this->eInvoice && $this->eInvoice->isFailed())
+                                    {{-- Thất bại --}}
+                                    <div class="flex items-center gap-2">
+                                        <svg class="h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        <span class="text-sm text-red-700">Tạo hóa đơn thất bại</span>
+                                    </div>
+                                    @if($this->eInvoice->error_message)
+                                        <p class="text-xs text-red-500 mt-1">{{ $this->eInvoice->error_message }}</p>
+                                    @endif
+                                    @if($this->canCreateEInvoice)
+                                        <flux:button type="button" wire:click="openEInvoiceModal" size="xs" variant="primary" class="mt-2">
+                                            Thử lại
+                                        </flux:button>
+                                    @endif
+
+                                @else
+                                    {{-- Chưa có hóa đơn điện tử --}}
+                                    @if($this->canCreateEInvoice)
+                                        <flux:button type="button" wire:click="openEInvoiceModal" size="sm" variant="primary" icon="document-text">
+                                            Tạo hóa đơn điện tử
+                                        </flux:button>
+                                    @else
+                                        <p class="text-xs text-neutral-400">Chưa có hóa đơn điện tử</p>
+                                    @endif
+                                @endif
+                            </div>
+                        @endif
                     @elseif($this->invoice->status === \App\Enums\InvoicePaymentStatusEnum::HUY)
                         <div class="rounded-lg border border-neutral-200 bg-neutral-100 p-4">
                             <p class="text-sm font-medium text-neutral-600">Hóa đơn đã hủy</p>
@@ -1362,7 +1899,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             </div>
 
             @if ($this->invoice)
-                <div class="grid gap-3 sm:grid-cols-2">
+                <div class="grid gap-3 {{ $this->onlinePaymentEnabled ? 'sm:grid-cols-2' : '' }}">
                     <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedPaymentMethod === 'cash' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
                         <input type="radio" wire:model.live="selectedPaymentMethod" value="cash" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
                         <div class="min-w-0">
@@ -1370,16 +1907,18 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                             <p class="mt-0.5 text-xs text-neutral-500">Khách thanh toán trực tiếp. Cần upload ảnh hóa đơn đã thu tiền.</p>
                         </div>
                     </label>
-                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedPaymentMethod === 'online' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
-                        <input type="radio" wire:model.live="selectedPaymentMethod" value="online" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
-                        <div class="min-w-0">
-                            <p class="text-sm font-semibold text-neutral-900">Chuyển khoản online</p>
-                            <p class="mt-0.5 text-xs text-neutral-500">Tạo link thanh toán qua cổng. Hệ thống tự xác nhận khi nhận tiền.</p>
-                        </div>
-                    </label>
+                    @if ($this->onlinePaymentEnabled)
+                        <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedPaymentMethod === 'online' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
+                            <input type="radio" wire:model.live="selectedPaymentMethod" value="online" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-neutral-900">Chuyển khoản online</p>
+                                <p class="mt-0.5 text-xs text-neutral-500">Tạo link thanh toán qua cổng. Hệ thống tự xác nhận khi nhận tiền.</p>
+                            </div>
+                        </label>
+                    @endif
                 </div>
 
-                @if ($selectedPaymentMethod === 'online')
+                @if ($this->onlinePaymentEnabled && $selectedPaymentMethod === 'online')
                     <div class="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4" wire:key="pay-method-online">
                         <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">Chọn cổng thanh toán</p>
                         <div class="grid gap-2 sm:grid-cols-3">
@@ -1421,7 +1960,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                             </flux:button>
                         </div>
                     </form>
-                @elseif ($selectedPaymentMethod === 'online')
+                @elseif ($this->onlinePaymentEnabled && $selectedPaymentMethod === 'online')
                     <div class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
                         <div class="flex items-start gap-2 text-sm text-neutral-600">
                             <flux:icon.information-circle class="mt-0.5 size-4 text-rose-500" />
@@ -1481,6 +2020,156 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
                 <flux:button type="button" wire:click="closeRejectPayment" variant="outline">Đóng</flux:button>
                 <flux:button type="submit" variant="danger" icon="x-circle">Từ chối chứng từ</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    {{-- Modal: Tạo hóa đơn điện tử --}}
+    <flux:modal name="create-order-einvoice" class="relative w-full max-w-2xl overflow-hidden p-0" :dismissible="false">
+        <form wire:submit="submitEInvoice" class="relative"
+            x-on:submit="window.onbeforeunload = () => 'Đang tạo hóa đơn, vui lòng đợi.';"
+            x-on:livewire:navigated.window="window.onbeforeunload = null;"
+        >
+            <div class="border-b border-neutral-100 bg-white px-5 py-5 sm:px-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                        <flux:icon.receipt-percent class="size-5" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-xl font-bold text-neutral-950">Tạo hóa đơn điện tử</h2>
+                            <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                Đã thanh toán
+                            </span>
+                        </div>
+                        <p class="mt-1.5 text-sm text-neutral-500">
+                            Đơn hàng <span class="font-semibold text-primary-700">{{ $order->id_bill ?: 'ORDER-'.$order->id }}</span>
+                            sẽ được phát hành hóa đơn theo nhà cung cấp đã cấu hình.
+                            Số tiền: <span class="font-semibold text-rose-700">{{ number_format($this->invoice?->amount ?? 0, 0, ',', '.') }} đ</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-5 px-5 py-5 sm:px-6">
+                {{-- Thông tin người mua --}}
+                <div class="rounded-lg border border-blue-100 bg-blue-50 p-3 space-y-1 text-xs text-blue-800">
+                    <p><strong>Thông tin người mua (lấy từ Sender):</strong></p>
+                    @php $sender = $order->sender ?? []; @endphp
+                    <p>• Tên: {{ $sender['company'] ?: ($sender['fullname'] ?? '—') }}</p>
+                    @if(!empty($sender['email']))
+                        <p>• Email: {{ $sender['email'] }}</p>
+                    @endif
+                    @if(!empty($sender['phone']))
+                        <p>• Điện thoại: {{ $sender['phone'] }}</p>
+                    @endif
+                    @if(!empty($sender['address']))
+                        <p>• Địa chỉ: {{ $sender['address'] }}</p>
+                    @endif
+                </div>
+
+                {{-- Provider --}}
+                <div>
+                    <p class="mb-2 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+                        <flux:icon.building-office-2 class="size-4 text-neutral-400" />
+                        Nhà cung cấp hóa đơn
+                    </p>
+                    @php $enabledEInvoiceProvidersCount = collect($enabledEInvoiceProviders)->filter()->count(); @endphp
+                    <div class="grid gap-2 {{ $enabledEInvoiceProvidersCount > 1 ? 'sm:grid-cols-2' : '' }}">
+                        @foreach ($this->einvoiceProviderLabels as $key => $label)
+                            @if ($enabledEInvoiceProviders[$key] ?? false)
+                                <label class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition {{ $einvoiceProvider === $key ? 'border-emerald-400 bg-emerald-50/70 ring-2 ring-emerald-100' : 'border-neutral-200 bg-white hover:border-emerald-200' }}">
+                                    <input type="radio" wire:model.live="einvoiceProvider" value="{{ $key }}" class="mt-0.5 h-4 w-4 text-emerald-600 focus:ring-emerald-500">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-neutral-900">{{ $label['name'] }}</p>
+                                        <p class="mt-0.5 text-xs text-neutral-500">{{ $label['description'] }}</p>
+                                    </div>
+                                </label>
+                            @endif
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col-reverse gap-2 border-t border-neutral-100 bg-neutral-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
+                <button
+                    type="button"
+                    wire:click="closeEInvoiceModal"
+                    wire:loading.attr="disabled"
+                    wire:target="submitEInvoice"
+                    class="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    Hủy
+                </button>
+                <button
+                    type="submit"
+                    wire:loading.attr="disabled"
+                    class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <span wire:loading.remove wire:target="submitEInvoice">
+                        <flux:icon.receipt-percent class="size-4" />
+                    </span>
+                    <span wire:loading wire:target="submitEInvoice" class="size-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                    Tạo hóa đơn
+                </button>
+            </div>
+        </form>
+
+        {{-- Loading overlay --}}
+        <div
+            wire:loading.flex
+            wire:target="submitEInvoice"
+            style="display: none;"
+            class="absolute inset-0 z-50 items-center justify-center bg-white/95 px-5 backdrop-blur-sm"
+            role="status"
+            aria-live="polite"
+            aria-label="Đang tạo hóa đơn điện tử"
+        >
+            <div class="flex w-full max-w-sm flex-col items-center gap-5 rounded-xl border border-emerald-100 bg-white px-6 py-7 text-center shadow-xl">
+                <div class="relative flex size-16 items-center justify-center">
+                    <span class="absolute inline-flex size-16 animate-ping rounded-full bg-emerald-200 opacity-60"></span>
+                    <span class="absolute inline-flex size-16 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600"></span>
+                    <flux:icon.receipt-percent class="relative size-7 text-emerald-600" />
+                </div>
+                <div>
+                    <p class="text-base font-bold text-neutral-900">Đang tạo hóa đơn điện tử</p>
+                    <p class="mt-1.5 text-sm text-neutral-500">Hệ thống đang xử lý, vui lòng không tắt trang...</p>
+                </div>
+                <div class="flex items-center gap-1.5" aria-hidden="true">
+                    <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 0ms"></span>
+                    <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 150ms"></span>
+                    <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 300ms"></span>
+                </div>
+            </div>
+        </div>
+    </flux:modal>
+
+    {{-- Modal: Gửi email hóa đơn điện tử --}}
+    <flux:modal name="send-order-einvoice-email" class="w-full max-w-lg" @close="$wire.closeSendEInvoiceEmailModal()">
+        <form wire:submit="submitSendEInvoiceEmail" class="space-y-4">
+            <div>
+                <h2 class="text-lg font-bold text-neutral-950">Gửi hóa đơn qua email</h2>
+                <p class="mt-1 text-sm text-neutral-500">
+                    Gửi hóa đơn điện tử
+                    @if($this->eInvoice)
+                        <span class="font-semibold text-neutral-800">#{{ $this->eInvoice->invoice_number ?: $this->eInvoice->reference }}</span>
+                    @endif
+                    kèm file PDF đính kèm đến email người nhận.
+                </p>
+            </div>
+
+            <flux:field>
+                <flux:label>Email người nhận <span class="text-red-500">*</span></flux:label>
+                <flux:input type="email" wire:model="emailRecipient" placeholder="example@gmail.com"/>
+                <flux:description>Bạn có thể chỉnh sửa email trước khi gửi.</flux:description>
+                <flux:error name="emailRecipient"/>
+            </flux:field>
+
+            <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+                <flux:button type="button" wire:click="closeSendEInvoiceEmailModal" variant="outline">Đóng</flux:button>
+                <flux:button type="submit" variant="primary" icon="paper-airplane" wire:loading.attr="disabled" wire:target="submitSendEInvoiceEmail">
+                    Gửi email
+                </flux:button>
             </div>
         </form>
     </flux:modal>

@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Enums\PickupStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Pickup extends Model
 {
@@ -49,6 +49,7 @@ class Pickup extends Model
         'options' => 'array',
         'info_pickup' => 'array',
         'info_khachhang' => 'array',
+        'status' => PickupStatusEnum::class,
         'ngay_tao' => 'datetime',
         'ngay_nhanhang' => 'datetime',
         'ngay_xuatkho' => 'datetime',
@@ -109,7 +110,21 @@ class Pickup extends Model
 
     public function packages()
     {
-        return $this->hasMany(Package::class, 'id_pickup');
+        return $this->hasManyThrough(
+            OrderPackage::class,
+            PickupOrder::class,
+            'pickup_id',
+            'id_order',
+            'id',
+            'id_order'
+        );
+    }
+
+    public function orders()
+    {
+        return $this->belongsToMany(Order::class, 'pickup_orders', 'pickup_id', 'id_order')
+            ->withPivot(['added_by', 'created_at'])
+            ->withTimestamps();
     }
 
     // Static methods

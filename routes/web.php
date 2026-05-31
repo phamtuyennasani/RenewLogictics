@@ -99,8 +99,8 @@ Route::middleware('auth')->group(function () {
     })->middleware('can:orders.index');
     // --- Pickup ---
     Route::prefix('pickups')->name('pickups.')->group(function () {
-        Route::get('/', fn () => view('pickups.index'))->name('index');
-        Route::get('/create', fn () => view('pickups.create'))->name('create');
+        Route::livewire('/', 'pages::pickups.index')->name('index');
+        Route::get('/create', fn () => redirect()->route('orders.index'))->name('create');
     })->middleware('can:pickups.index');
 
     // --- Scan ---

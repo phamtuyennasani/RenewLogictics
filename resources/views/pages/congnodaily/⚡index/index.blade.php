@@ -179,7 +179,6 @@
                             <th class="px-3 py-3 text-right">Tổng cước vốn</th>
                             <th class="px-3 py-3 text-right">Đã trả</th>
                             <th class="px-3 py-3 text-right">Còn lại</th>
-                            <th class="px-3 py-3">Hạn thanh toán</th>
                             <th class="px-3 py-3 text-right">Thao tác</th>
                         </tr>
                     </thead>
@@ -321,12 +320,6 @@
                         @error('createToDate') <p class="text-xs font-medium text-red-600">{{ $message }}</p> @enderror
                     </div>
 
-                    <div class="debt-create-field md:col-span-2">
-                        <label class="debt-create-label">Hạn thanh toán sau khi chốt (ngày)</label>
-                        <input type="number" min="0" wire:model="paymentTermDays" class="debt-create-control">
-                        @error('paymentTermDays') <p class="text-xs font-medium text-red-600">{{ $message }}</p> @enderror
-                    </div>
-
                     <div class="md:col-span-2">
                         <div class="debt-create-field">
                             <label class="debt-create-label">Ghi chú</label>
@@ -452,7 +445,6 @@
                         { data: 'total_amount', orderable: false, searchable: false },
                         { data: 'paid_amount_html', orderable: false, searchable: false },
                         { data: 'remaining_amount_html', orderable: false, searchable: false },
-                        { data: 'due_date', orderable: false, searchable: false },
                         { data: 'actions', orderable: false, searchable: false },
                     ],
                 });

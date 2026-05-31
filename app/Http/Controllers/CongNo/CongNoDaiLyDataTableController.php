@@ -31,7 +31,6 @@ class CongNoDaiLyDataTableController extends Controller
             ->addColumn('total_amount', fn (CongNoDaiLy $debt) => '<span class="font-semibold text-neutral-950">'.$this->money($debt->total_cuocvon).'</span>')
             ->addColumn('paid_amount_html', fn (CongNoDaiLy $debt) => '<span class="font-semibold text-emerald-700">'.$this->money($debt->paid_amount).'</span>')
             ->addColumn('remaining_amount_html', fn (CongNoDaiLy $debt) => '<span class="font-semibold text-amber-700">'.$this->money($debt->remaining_amount).'</span>')
-            ->addColumn('due_date', fn (CongNoDaiLy $debt) => $debt->hanthanhtoan?->format('d/m/Y') ?: '-')
             ->addColumn('actions', fn (CongNoDaiLy $debt) => '<a href="'.route('congno.daily.show', $debt->uuid).'" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">Chi tiết</a>')
             ->setRowId(fn (CongNoDaiLy $debt) => 'daily-debt-'.$debt->id)
             ->rawColumns(['check', 'debt_code', 'status_badge', 'daily_info', 'total_amount', 'paid_amount_html', 'remaining_amount_html', 'actions'])
@@ -98,7 +97,7 @@ class CongNoDaiLyDataTableController extends Controller
 
             public function headings(): array
             {
-                return ['Mã công nợ', 'Đại lý', 'Từ ngày', 'Đến ngày', 'Số order', 'Tổng cước vốn', 'Đã thanh toán', 'Còn lại', 'Trạng thái', 'Hạn thanh toán'];
+                return ['Mã công nợ', 'Đại lý', 'Từ ngày', 'Đến ngày', 'Số order', 'Tổng cước vốn', 'Đã thanh toán', 'Còn lại', 'Trạng thái'];
             }
 
             public function map($debt): array
@@ -113,7 +112,6 @@ class CongNoDaiLyDataTableController extends Controller
                     (float) $debt->paid_amount,
                     (float) $debt->remaining_amount,
                     $debt->status?->label(),
-                    $debt->hanthanhtoan?->format('d/m/Y'),
                 ];
             }
         }, $fileName);

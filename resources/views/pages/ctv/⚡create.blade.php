@@ -1,6 +1,7 @@
 <?php
 
 use Livewire\Component;
+use App\Models\Setting;
 use App\Models\User;
 use Flux\Flux;
 use Illuminate\Support\Str;
@@ -28,10 +29,13 @@ new class extends Component {
     public array $cities = [];
     public array $wards = [];
     public array $sales = [];
+    public $dim = 6000;
 
     public function mount($id = null)
     {
         $this->itemId = $id;
+        $this->dim = Setting::selectRaw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.dim')) as dim")
+            ->value('dim') ?: 6000;
 
         // Load cities
         $this->cities = DB::table('province')
@@ -77,6 +81,7 @@ new class extends Component {
 
                 // Load company data from options
                 $options = $item->options ?? [];
+                $this->dim = $options['dim'] ?? $this->dim;
                 if (isset($options['company'])) {
                     $this->companyData = array_merge($this->companyData, $options['company']);
 
@@ -164,6 +169,7 @@ new class extends Component {
                 },
             ],
             'companyData.address_detail' => 'nullable|string|max:500',
+            'dim' => 'required|numeric|min:1',
         ];
 
         if (!$this->itemId) {
@@ -239,6 +245,10 @@ new class extends Component {
                 $updateData['password'] = bcrypt($this->formData['password']);
             }
             $user = User::findOrFail($this->itemId);
+            $updateData['options'] = array_merge($user->options ?? [], [
+                'company' => $this->companyData,
+                'dim' => $this->dim,
+            ]);
             $user->update($updateData);
             $user->syncRoles(['CTV']);
         } else {
@@ -251,7 +261,10 @@ new class extends Component {
                 'id_sale'  => $this->formData['id_sale'],
                 'password' => bcrypt($this->formData['password']),
                 'status'   => $this->isActive ? '1' : '0',
-                'options'  => ['company' => $this->companyData],
+                'options'  => [
+                    'company' => $this->companyData,
+                    'dim' => $this->dim,
+                ],
             ]);
             $user->assignRole('CTV');
         }
@@ -534,6 +547,20 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     :class:input="$inputClass"
                 />
                 @error('companyData.address_detail')<flux:error>{{ $message }}</flux:error>@enderror
+            </flux:field>
+
+            <flux:field>
+                <flux:label>DIM</flux:label>
+                <flux:input
+                    type="number"
+                    min="1"
+                    step="1"
+                    wire:model.defer="dim"
+                    :invalid="$errors->has('dim')"
+                    placeholder="VD: 6000"
+                    :class:input="$inputClass"
+                />
+                @error('dim')<flux:error>{{ $message }}</flux:error>@enderror
             </flux:field>
 
             {{-- Kích hoạt tài khoản --}}

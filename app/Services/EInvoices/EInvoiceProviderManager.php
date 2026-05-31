@@ -54,6 +54,21 @@ class EInvoiceProviderManager
         return $result;
     }
 
+    /**
+     * True nếu có ít nhất một provider e-invoice được bật trong cấu hình.
+     * Dùng để bật/tắt toàn bộ luồng tạo hóa đơn điện tử + gửi email hóa đơn.
+     */
+    public static function hasAnyEnabled(): bool
+    {
+        foreach (self::enabledProviders() as $enabled) {
+            if ($enabled) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function defaultProvider(): string
     {
         $enabled = self::enabledProviders();

@@ -88,17 +88,16 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
             'createDailyId' => ['required', 'integer', 'exists:news,id'],
             'createFromDate' => ['required', 'date'],
             'createToDate' => ['required', 'date', 'after_or_equal:createFromDate'],
-            'paymentTermDays' => ['required', 'integer', 'min:0', 'max:365'],
             'note' => ['nullable', 'string', 'max:1000'],
         ], [], [
             'createDailyId' => 'Đại lý',
             'createFromDate' => 'Từ ngày',
             'createToDate' => 'Đến ngày',
-            'paymentTermDays' => 'Hạn thanh toán',
         ]);
 
         $from = Carbon::parse($data['createFromDate'])->startOfDay();
         $to = Carbon::parse($data['createToDate'])->endOfDay();
+        $termDays = (int) $this->paymentTermDays;
 
         $orders = $this->eligibleOrdersQuery($from, $to, (int) $data['createDailyId'])
             ->with(['packages'])
@@ -109,7 +108,7 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
             return;
         }
 
-        $debt = DB::transaction(function () use ($data, $from, $to, $orders) {
+        $debt = DB::transaction(function () use ($data, $from, $to, $orders, $termDays) {
             $debt = CongNoDaiLy::create([
                 'sohoadon' => CongNoDaiLy::generateSoHoaDon($from->format('dm'), $to->format('dm')),
                 'id_daily' => $data['createDailyId'],
@@ -118,8 +117,8 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
                 'tungay' => $from,
                 'denngay' => $to,
                 'ngaytaohoadon' => now(),
-                'songaythanhtoan' => $data['paymentTermDays'],
-                'hanthanhtoan' => now()->addDays((int) $data['paymentTermDays'])->startOfDay(),
+                'songaythanhtoan' => $termDays,
+                'hanthanhtoan' => now()->addDays($termDays)->startOfDay(),
                 'status' => DebtStatusEnum::MOI_TAO,
                 'ghichu' => $data['note'],
             ]);
@@ -258,7 +257,6 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
                     'Đã thanh toán',
                     'Còn lại',
                     'Trạng thái',
-                    'Hạn thanh toán',
                 ];
             }
 
@@ -274,7 +272,6 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
                     (float) $debt->paid_amount,
                     (float) $debt->remaining_amount,
                     $debt->status?->label(),
-                    $debt->hanthanhtoan?->format('d/m/Y'),
                 ];
             }
         }, $fileName);

@@ -8,6 +8,8 @@ use App\Models\CongNoEInvoice;
 use App\Models\CongNoPayment;
 use App\Models\News;
 use App\Models\Order;
+use App\Models\Setting;
+use App\Mail\EInvoiceMail;
 use App\Services\EInvoices\Data\EInvoiceRequestData;
 use App\Services\EInvoices\EInvoiceProviderManager;
 use App\Services\Payments\InvoiceCodeGenerator;
@@ -15,10 +17,13 @@ use App\Services\Payments\PaymentProviderManager;
 use App\Services\Payments\Data\PaymentRequestData;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -44,6 +49,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     public string $einvoiceProvider = '';
     public string $einvoiceNotes = '';
     public array $enabledEInvoiceProviders = [];
+    public ?int $pendingEmailEInvoiceId = null;
 
     public ?int $editingSaleChargeDetailId = null;
     public ?string $editingSaleChargeOrderCode = null;
@@ -179,6 +185,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         }
 
         DB::transaction(function () {
+            $fromStatus = $this->debt->status;
+
             $this->debt->forceFill([
                 'status' => DebtStatusEnum::DA_CHOT_CUOC,
                 'id_success' => auth()->id(),
@@ -186,6 +194,17 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                 'ngaychothoadon' => now(),
                 'hanthanhtoan' => now()->addDays((int) $this->debt->songaythanhtoan)->startOfDay(),
             ])->save();
+
+            $this->debt->writeActivityLog(
+                action: 'confirmed',
+                title: 'Chốt cước công nợ khách hàng',
+                fromStatus: $fromStatus,
+                toStatus: DebtStatusEnum::DA_CHOT_CUOC,
+                metadata: array_filter([
+                    'total_orders' => (int) $this->debt->total_orders,
+                    'total_amount' => (float) $this->debt->total_cuocban,
+                ], fn ($v) => $v !== null),
+            );
 
             $this->debt->orders()->update(['customer_payment_status' => DebtStatusEnum::DA_CHOT_CUOC->value]);
         });
@@ -225,7 +244,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                     throw new \RuntimeException(sprintf('Số tiền vượt mức cho phép. Tối đa còn lại: %s đ.', number_format($available, 0, ',', '.')));
                 }
 
-                CongNoPayment::create([
+                $payment = CongNoPayment::create([
                     'id_congno' => $debt->id,
                     'id_user' => auth()->id(),
                     'amount' => $amount,
@@ -234,6 +253,17 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                     'status' => InvoicePaymentStatusEnum::CHO_DUYET->value,
                     'loai_hoa_don' => InvoiceTypeEnum::THU->value,
                 ]);
+
+                $debt->writeActivityLog(
+                    action: 'payment_invoice_created',
+                    title: 'Tạo hóa đơn thu',
+                    metadata: array_filter([
+                        'invoice_id' => $payment->id,
+                        'invoice_code' => $payment->ma_hoa_don,
+                        'amount' => $amount,
+                        'note' => $data['invoiceNote'] ?: null,
+                    ], fn ($v) => $v !== null && $v !== ''),
+                );
             });
         } catch (\RuntimeException $exception) {
             Flux::toast(heading: 'Không thể tạo', text: $exception->getMessage(), variant: 'warning');
@@ -263,6 +293,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         ])->save();
 
         $invoice->writeStatusLog('approved', $fromStatus, InvoicePaymentStatusEnum::DA_DUYET, auth()->id());
+        $this->debt->writeActivityLog(
+            action: 'payment_invoice_approved',
+            title: 'Duyệt hóa đơn thu',
+            metadata: array_filter([
+                'invoice_id' => $invoice->id,
+                'invoice_code' => $invoice->ma_hoa_don,
+                'amount' => (float) $invoice->amount,
+            ], fn ($v) => $v !== null && $v !== ''),
+        );
 
         $this->reloadDebt();
         Flux::toast(heading: 'Đã duyệt', text: 'Hóa đơn ' . $invoice->ma_hoa_don . ' đã được duyệt.', variant: 'success');
@@ -325,6 +364,16 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         ])->save();
 
         $invoice->writeStatusLog('cancelled', $fromStatus, InvoicePaymentStatusEnum::HUY, auth()->id(), $this->cancelReason);
+        $this->debt->writeActivityLog(
+            action: 'payment_invoice_cancelled',
+            title: 'Hủy hóa đơn thu',
+            note: $this->cancelReason,
+            metadata: array_filter([
+                'invoice_id' => $invoice->id,
+                'invoice_code' => $invoice->ma_hoa_don,
+                'amount' => (float) $invoice->amount,
+            ], fn ($v) => $v !== null && $v !== ''),
+        );
 
         $this->closeCancelInvoiceModal();
         $this->reloadDebt();
@@ -407,6 +456,16 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         $invoice->writeStatusLog('cash_submitted', $fromStatus, InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, auth()->id(), null, [
             'photo' => $path,
         ]);
+        $this->debt->writeActivityLog(
+            action: 'cash_payment_submitted',
+            title: 'Gửi chứng từ thanh toán',
+            metadata: array_filter([
+                'invoice_id' => $invoice->id,
+                'invoice_code' => $invoice->ma_hoa_don,
+                'amount' => (float) $invoice->amount,
+                'photo' => $path,
+            ], fn ($v) => $v !== null && $v !== ''),
+        );
 
         $this->closePayModal();
         $this->reloadDebt();
@@ -473,6 +532,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                     'qr_payment_code' => $code,
                     'provider' => $intent->provider,
                 ]);
+
+                $this->debt->writeActivityLog(
+                    action: 'online_payment_requested',
+                    title: 'Tạo link thanh toán online',
+                    metadata: array_filter([
+                        'invoice_id' => $locked->id,
+                        'invoice_code' => $locked->ma_hoa_don,
+                        'amount' => (float) $locked->amount,
+                        'provider' => $intent->provider,
+                        'channel' => $intent->channel,
+                        'qr_payment_code' => $code,
+                    ], fn ($v) => $v !== null && $v !== ''),
+                );
             });
         } catch (\Throwable $exception) {
             Flux::toast(heading: 'Không thể tạo thanh toán', text: $exception->getMessage(), variant: 'danger');
@@ -549,6 +621,18 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                 $locked->writeStatusLog('qr_regenerated', $fromStatus, $locked->status, auth()->id(), null, [
                     'qr_payment_code' => $code,
                 ]);
+
+                $this->debt->writeActivityLog(
+                    action: 'qr_regenerated',
+                    title: 'Tạo lại QR thanh toán',
+                    metadata: array_filter([
+                        'invoice_id' => $locked->id,
+                        'invoice_code' => $locked->ma_hoa_don,
+                        'amount' => (float) $locked->amount,
+                        'provider' => $intent->provider,
+                        'qr_payment_code' => $code,
+                    ], fn ($v) => $v !== null && $v !== ''),
+                );
             });
         } catch (\Throwable $exception) {
             Flux::toast(heading: 'Lỗi tạo QR', text: $exception->getMessage(), variant: 'danger');
@@ -580,6 +664,18 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
             $debt->syncPaidAmountFromPayments();
             $debt->refresh();
+
+            $debt->writeActivityLog(
+                action: 'cash_payment_confirmed',
+                title: 'Xác nhận đã thanh toán',
+                fromStatus: $this->debt->status,
+                toStatus: $debt->status,
+                metadata: array_filter([
+                    'invoice_id' => $locked->id,
+                    'invoice_code' => $locked->ma_hoa_don,
+                    'amount' => (float) $locked->amount,
+                ], fn ($v) => $v !== null && $v !== ''),
+            );
 
             $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
                 ? DebtStatusEnum::DA_THANH_TOAN->value
@@ -742,9 +838,24 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             if ($result->trackingCode && ! $result->invoiceNumber) {
                 $this->pollEInvoiceStatus($einvoice, $driver, attempts: 3, delayMs: 1500);
             }
+
+            $fresh = $einvoice->fresh();
+            $this->debt->writeActivityLog(
+                action: 'einvoice_created',
+                title: 'Tạo hóa đơn điện tử',
+                metadata: array_filter([
+                    'einvoice_id' => $einvoice->id,
+                    'reference' => $reference,
+                    'provider' => $providerKey,
+                    'tracking_code' => $fresh?->tracking_code,
+                    'invoice_number' => $fresh?->invoice_number,
+                    'status' => $fresh?->status,
+                    'amount' => (float) $einvoice->amount,
+                ], fn ($v) => $v !== null && $v !== ''),
+            );
         } catch (\Throwable $e) {
             // Lưu record thất bại
-            CongNoEInvoice::create([
+            $failed = CongNoEInvoice::create([
                 'id_congno' => $this->debt->id,
                 'id_user' => auth()->id(),
                 'provider' => $providerKey,
@@ -760,6 +871,17 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                 'notes' => $this->einvoiceNotes ?: null,
                 'error_message' => $e->getMessage(),
             ]);
+
+            $this->debt->writeActivityLog(
+                action: 'einvoice_create_failed',
+                title: 'Tạo hóa đơn điện tử thất bại',
+                note: $e->getMessage(),
+                metadata: array_filter([
+                    'einvoice_id' => $failed->id,
+                    'reference' => $reference,
+                    'provider' => $providerKey,
+                ], fn ($v) => $v !== null && $v !== ''),
+            );
 
             Flux::toast(heading: 'Lỗi tạo hóa đơn', text: $e->getMessage(), variant: 'danger');
             $this->closeEInvoiceModal();
@@ -848,6 +970,9 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             return;
         }
 
+        $beforeStatus = $einvoice->status;
+        $beforeInvoiceNumber = $einvoice->invoice_number;
+
         try {
             $driver = app(EInvoiceProviderManager::class)->driver($einvoice->provider);
             $statusData = $driver->status($einvoice->tracking_code);
@@ -867,9 +992,26 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             return;
         }
 
+        $fresh = $einvoice->fresh();
+
+        if ($beforeStatus !== $fresh->status || $beforeInvoiceNumber !== $fresh->invoice_number) {
+            $this->debt->writeActivityLog(
+                action: 'einvoice_status_checked',
+                title: 'Cập nhật trạng thái hóa đơn điện tử',
+                metadata: array_filter([
+                    'einvoice_id' => $fresh->id,
+                    'reference' => $fresh->reference,
+                    'provider' => $fresh->provider,
+                    'status_from' => $beforeStatus,
+                    'status_to' => $fresh->status,
+                    'invoice_number_from' => $beforeInvoiceNumber,
+                    'invoice_number_to' => $fresh->invoice_number,
+                ], fn ($v) => $v !== null && $v !== ''),
+            );
+        }
+
         $this->reloadDebt();
 
-        $fresh = $einvoice->fresh();
         $label = $fresh->statusLabel();
         $extraText = $fresh->invoice_number ? " (Số HĐ: {$fresh->invoice_number})" : '';
         Flux::toast(heading: 'Đã cập nhật', text: "Trạng thái: {$label}{$extraText}", variant: 'success');
@@ -899,9 +1041,115 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         $this->reloadDebt();
 
         if ($downloaded) {
+            $this->debt->writeActivityLog(
+                action: 'einvoice_files_downloaded',
+                title: 'Tải file hóa đơn điện tử',
+                metadata: array_filter([
+                    'einvoice_id' => $einvoice->id,
+                    'reference' => $einvoice->reference,
+                    'invoice_number' => $einvoice->invoice_number,
+                ], fn ($v) => $v !== null && $v !== ''),
+            );
+
             Flux::toast(heading: 'Đã tải file', text: 'PDF/XML đã được lưu vào hệ thống.', variant: 'success');
         } else {
             Flux::toast(heading: 'Đã có sẵn', text: 'File đã được tải trước đó hoặc provider chưa sẵn sàng.', variant: 'warning');
+        }
+    }
+
+    public function confirmSendEInvoiceEmail(int $einvoiceId): void
+    {
+        abort_unless($this->canManage(), 403);
+
+        $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->firstOrFail();
+
+        if (! $einvoice->isSuccess() || ! $einvoice->pdf_path) {
+            Flux::toast(heading: 'Không thể gửi', text: 'Hóa đơn chưa có file PDF để gửi.', variant: 'warning');
+            return;
+        }
+
+        $customerEmail = $this->debt->customer?->email;
+
+        if (! $customerEmail) {
+            Flux::toast(heading: 'Thiếu email', text: 'Khách hàng chưa có địa chỉ email.', variant: 'warning');
+            return;
+        }
+
+        $this->pendingEmailEInvoiceId = $einvoiceId;
+
+        $this->dispatch('open-confirm', [
+            'title' => 'Gửi hóa đơn qua email',
+            'message' => "Gửi hóa đơn điện tử #{$einvoice->invoice_number} đến email {$customerEmail}?",
+            'confirmText' => 'Gửi email',
+            'cancelText' => 'Hủy',
+            'variant' => 'info',
+        ]);
+    }
+
+    #[On('confirm-action')]
+    public function handleConfirmAction(): void
+    {
+        if ($this->pendingEmailEInvoiceId) {
+            $this->executeSendEInvoiceEmail($this->pendingEmailEInvoiceId);
+            $this->pendingEmailEInvoiceId = null;
+        }
+    }
+
+    protected function executeSendEInvoiceEmail(int $einvoiceId): void
+    {
+        $einvoice = CongNoEInvoice::query()->whereKey($einvoiceId)->first();
+
+        if (! $einvoice || ! $einvoice->isSuccess() || ! $einvoice->pdf_path) {
+            return;
+        }
+
+        $customerEmail = $this->debt->customer?->email;
+
+        if (! $customerEmail) {
+            return;
+        }
+
+        // Apply SMTP config from system settings
+        $options = Setting::query()->first()?->options ?? [];
+        $smtpHost = $options['smtp_host'] ?? null;
+        $smtpUsername = $options['smtp_username'] ?? null;
+        $smtpPassword = $options['smtp_password'] ?? null;
+
+        if (! $smtpHost || ! $smtpUsername || ! $smtpPassword) {
+            Flux::toast(heading: 'Chưa cấu hình SMTP', text: 'Vui lòng cấu hình SMTP trong Cài đặt hệ thống trước khi gửi email.', variant: 'danger');
+            return;
+        }
+
+        Config::set('mail.mailers.smtp.host', $smtpHost);
+        Config::set('mail.mailers.smtp.port', (int) ($options['smtp_port'] ?? 587));
+        Config::set('mail.mailers.smtp.username', $smtpUsername);
+        Config::set('mail.mailers.smtp.password', $smtpPassword);
+        Config::set('mail.mailers.smtp.encryption', 'tls');
+        Config::set('mail.from.address', $options['smtp_from_email'] ?? $smtpUsername);
+        Config::set('mail.from.name', $options['smtp_from_name'] ?? ($options['company_short_name'] ?? ($options['company_name'] ?? config('app.name'))));
+
+        // Purge cached mailer so new config takes effect
+        app('mail.manager')->purge('smtp');
+
+        try {
+            Mail::mailer('smtp')->to($customerEmail)->send(new EInvoiceMail($einvoice, $this->debt));
+
+            $einvoice->forceFill(['email_sent_at' => now()])->save();
+            $this->debt->writeActivityLog(
+                action: 'einvoice_email_sent',
+                title: 'Gửi email hóa đơn điện tử',
+                metadata: array_filter([
+                    'einvoice_id' => $einvoice->id,
+                    'reference' => $einvoice->reference,
+                    'invoice_number' => $einvoice->invoice_number,
+                    'email' => $customerEmail,
+                ], fn ($v) => $v !== null && $v !== ''),
+            );
+            $this->reloadDebt();
+
+            Flux::toast(heading: 'Đã gửi email', text: "Hóa đơn đã được gửi đến {$customerEmail}", variant: 'success');
+        } catch (\Throwable $e) {
+            Flux::toast(heading: 'Gửi email thất bại', text: $e->getMessage(), variant: 'danger');
         }
     }
 
@@ -912,9 +1160,22 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     }
 
     #[Computed]
+    public function eInvoiceEnabled(): bool
+    {
+        return EInvoiceProviderManager::hasAnyEnabled();
+    }
+
+    #[Computed]
+    public function onlinePaymentEnabled(): bool
+    {
+        return \App\Services\Payments\PaymentProviderManager::hasAnyEnabled();
+    }
+
+    #[Computed]
     public function canCreateEInvoice(): bool
     {
-        return $this->debt->status === DebtStatusEnum::DA_THANH_TOAN
+        return EInvoiceProviderManager::hasAnyEnabled()
+            && $this->debt->status === DebtStatusEnum::DA_THANH_TOAN
             && ! CongNoEInvoice::hasSuccessfulInvoice($this->debt->id);
     }
 
@@ -1023,6 +1284,17 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
                 $after,
                 'cập nhật cước bán từ công nợ'
             );
+
+            $this->debt->writeActivityLog(
+                action: 'sale_charge_updated',
+                title: 'Cập nhật cước bán',
+                metadata: array_filter([
+                    'detail_id' => $detail->id,
+                    'order_id' => $order->id,
+                    'order_code' => $order->id_bill,
+                    'amount' => (float) $detail->cuocban,
+                ], fn ($v) => $v !== null && $v !== ''),
+            );
         });
 
         $this->resetSaleChargeModal();
@@ -1042,8 +1314,20 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         }
 
         $detail = $this->debt->details()->whereKey($detailId)->firstOrFail();
+        $orderCode = $detail->order_code ?: $detail->order?->id_bill ?: data_get($detail->snapshot, 'order_code');
+        $orderId = $detail->id_order;
+
         $detail->delete();
         $this->debt->syncTotalsFromDetails();
+        $this->debt->writeActivityLog(
+            action: 'order_removed',
+            title: 'Gỡ order khỏi công nợ',
+            metadata: array_filter([
+                'detail_id' => $detailId,
+                'order_id' => $orderId,
+                'order_code' => $orderCode,
+            ], fn ($v) => $v !== null && $v !== ''),
+        );
         $this->reloadDebt();
 
         Flux::toast(heading: 'Đã xóa order', text: 'Order đã được gỡ khỏi công nợ.', variant: 'success');
@@ -1100,6 +1384,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     protected function reloadDebt(): void
     {
         $this->debt = $this->loadDebt($this->debt->uuid ?: (string) $this->debt->id);
+        $this->dispatch('debt-activity-updated');
     }
 
     public function canView(): bool

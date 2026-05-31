@@ -21,6 +21,7 @@ class CongNoEInvoice extends Model
     protected $fillable = [
         'uuid',
         'id_congno',
+        'id_order',
         'id_user',
         'provider',
         'provider_account_id',
@@ -36,6 +37,7 @@ class CongNoEInvoice extends Model
         'pdf_path',
         'xml_path',
         'files_downloaded_at',
+        'email_sent_at',
         'amount',
         'currency',
         'status',
@@ -57,6 +59,7 @@ class CongNoEInvoice extends Model
         'issued_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'files_downloaded_at' => 'datetime',
+        'email_sent_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -82,6 +85,11 @@ class CongNoEInvoice extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'id_user');
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class, 'id_order');
     }
 
     public function creator()
@@ -336,6 +344,39 @@ class CongNoEInvoice extends Model
     {
         return self::query()
             ->where('id_congno', $congNoId)
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Tạo reference code cho hóa đơn điện tử đơn lẻ.
+     */
+    public static function generateReferenceForOrder(Order $order): string
+    {
+        $prefix = 'EINV';
+        $orderCode = $order->id_bill ?: ('ORD' . $order->id);
+
+        return $prefix . '-' . $orderCode . '-' . now()->format('YmdHis') . '-' . strtoupper(Str::random(4));
+    }
+
+    /**
+     * Kiểm tra đơn hàng đã có hóa đơn điện tử thành công chưa.
+     */
+    public static function hasSuccessfulInvoiceForOrder(int $orderId): bool
+    {
+        return self::query()
+            ->where('id_order', $orderId)
+            ->where('status', self::STATUS_SUCCESS)
+            ->exists();
+    }
+
+    /**
+     * Lấy hóa đơn điện tử mới nhất của đơn hàng.
+     */
+    public static function latestForOrder(int $orderId): ?self
+    {
+        return self::query()
+            ->where('id_order', $orderId)
             ->latest('id')
             ->first();
     }

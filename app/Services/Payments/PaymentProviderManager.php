@@ -53,6 +53,21 @@ class PaymentProviderManager
         return $result;
     }
 
+    /**
+     * True nếu có ít nhất một cổng thanh toán online được bật.
+     * Dùng để ẩn/hiện phương thức "Chuyển khoản online" trong UI.
+     */
+    public static function hasAnyEnabled(): bool
+    {
+        foreach (self::enabledProviders() as $enabled) {
+            if ($enabled) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function defaultProvider(): string
     {
         $enabled = self::enabledProviders();

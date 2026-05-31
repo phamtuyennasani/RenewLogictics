@@ -199,7 +199,10 @@ class CongNoPayment extends Model
             InvoicePaymentStatusEnum::KHONG_CHAP_NHAN,
         ];
 
-        return in_array($this->status, $allowedFrom, true)
+        $expiredAndPending = $this->status === InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT
+            && $this->isPaymentExpired();
+
+        return (in_array($this->status, $allowedFrom, true) || $expiredAndPending)
             && ($this->isCreator($user) || $this->hasStaffPower($user) || $user->hasRole('sale'));
     }
 
@@ -288,6 +291,11 @@ class CongNoPayment extends Model
         }
 
         return $this->qr_generated_at->copy()->addMinutes(self::QR_THROTTLE_MINUTES);
+    }
+
+    public function isPaymentExpired(): bool
+    {
+        return $this->qr_expires_at !== null && $this->qr_expires_at->isPast();
     }
 
     public function statusLabel(): string

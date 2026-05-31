@@ -3,17 +3,22 @@
 use Livewire\Component;
 use App\Models\Setting;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
 
 new class extends Component {
     public string $name = '';
     public string $short_name = '';
-    public string $slogan = '';
     public string $address = '';
     public string $phone = '';
     public string $email = '';
     public string $tax_code = '';
     public string $website = '';
     public string $representative = '';
+    public $city_id = null;
+    public $ward_id = null;
+    public $dim = 6000;
+    public array $cities = [];
+    public array $wards = [];
     public bool $isSaving = false;
 
     public function mount()
@@ -23,13 +28,45 @@ new class extends Component {
 
         $this->name = $options['company_name'] ?? config('system.name', '');
         $this->short_name = $options['company_short_name'] ?? config('system.short_name', '');
-        $this->slogan = $options['company_slogan'] ?? config('system.slogan', '');
         $this->address = $options['company_address'] ?? '';
         $this->phone = $options['company_phone'] ?? '';
         $this->email = $options['company_email'] ?? '';
         $this->tax_code = $options['company_tax_code'] ?? '';
         $this->website = $options['company_website'] ?? '';
         $this->representative = $options['company_representative'] ?? '';
+        $this->city_id = $options['company_city_id'] ?? null;
+        $this->ward_id = $options['company_ward_id'] ?? null;
+        $this->dim = $options['dim'] ?? 6000;
+        $this->cities = DB::table('province')
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get()
+            ->toArray();
+
+        if ($this->city_id) {
+            $this->loadWards($this->city_id);
+        }
+    }
+
+    public function loadWards($cityId): void
+    {
+        if (!$cityId) {
+            $this->wards = [];
+            return;
+        }
+
+        $this->wards = DB::table('wards')
+            ->where('parent_code', $cityId)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get()
+            ->toArray();
+    }
+
+    public function updatedCityId($value): void
+    {
+        $this->ward_id = null;
+        $this->loadWards($value);
     }
 
     public function save()
@@ -37,13 +74,32 @@ new class extends Component {
         $this->validate([
             'name' => 'required|string|max:255',
             'short_name' => 'nullable|string|max:50',
-            'slogan' => 'nullable|string|max:255',
             'address' => 'nullable|string|max:500',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'tax_code' => 'nullable|string|max:20',
             'website' => 'nullable|url|max:255',
             'representative' => 'nullable|string|max:255',
+            'city_id' => 'nullable|exists:province,id',
+            'ward_id' => [
+                'nullable',
+                'exists:wards,id',
+                function ($attribute, $value, $fail) {
+                    if (!$this->city_id || !$value) {
+                        return;
+                    }
+
+                    $valid = DB::table('wards')
+                        ->where('id', $value)
+                        ->where('parent_code', $this->city_id)
+                        ->exists();
+
+                    if (!$valid) {
+                        $fail('Phường/xã không thuộc tỉnh/thành phố đã chọn');
+                    }
+                },
+            ],
+            'dim' => 'required|numeric|min:1',
         ]);
 
         $this->isSaving = true;
@@ -53,13 +109,16 @@ new class extends Component {
 
         $options['company_name'] = $this->name;
         $options['company_short_name'] = $this->short_name;
-        $options['company_slogan'] = $this->slogan;
         $options['company_address'] = $this->address;
         $options['company_phone'] = $this->phone;
         $options['company_email'] = $this->email;
         $options['company_tax_code'] = $this->tax_code;
         $options['company_website'] = $this->website;
         $options['company_representative'] = $this->representative;
+        $options['company_city_id'] = $this->city_id;
+        $options['company_ward_id'] = $this->ward_id;
+        $options['dim'] = $this->dim;
+        unset($options['company_slogan']);
 
         $setting->update(['options' => $options]);
 
@@ -126,11 +185,6 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
             </div>
 
             <flux:field>
-                <flux:label>Slogan</flux:label>
-                <flux:input wire:model="slogan" placeholder="VD: Giao hàng nhanh - An toàn - Tiết kiệm" />
-            </flux:field>
-
-            <flux:field>
                 <flux:label>Người đại diện</flux:label>
                 <flux:input wire:model="representative" placeholder="Họ và tên người đại diện pháp luật" />
             </flux:field>
@@ -149,9 +203,36 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
             </div>
 
             <flux:field>
-                <flux:label>Địa chỉ</flux:label>
-                <flux:input wire:model="address" placeholder="Địa chỉ trụ sở chính" />
+                <flux:label>Địa chỉ chi tiết</flux:label>
+                <flux:input wire:model="address" placeholder="Số nhà, đường, khu vực..." />
             </flux:field>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <flux:field>
+                    <flux:label>Tỉnh/Thành phố</flux:label>
+                    <x-select-search
+                        name="city_id"
+                        :options="collect($cities)->pluck('name', 'id')->toArray()"
+                        :selected="$city_id"
+                        placeholder="-- Chọn tỉnh/thành phố --"
+                    />
+                    @error('city_id') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Phường/Xã</flux:label>
+                    <div wire:key="company-ward-{{ $city_id ?? 'none' }}">
+                        <x-select-search
+                            name="ward_id"
+                            :options="collect($wards)->pluck('name', 'id')->toArray()"
+                            :selected="$ward_id"
+                            placeholder="-- Chọn phường/xã --"
+                            :disabled="empty($city_id)"
+                        />
+                    </div>
+                    @error('ward_id') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <flux:field>
@@ -165,6 +246,12 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                     @error('website') <flux:error>{{ $message }}</flux:error> @enderror
                 </flux:field>
             </div>
+
+            <flux:field>
+                <flux:label>DIM</flux:label>
+                <flux:input type="number" min="1" step="1" wire:model="dim" placeholder="VD: 6000" />
+                @error('dim') <flux:error>{{ $message }}</flux:error> @enderror
+            </flux:field>
 
         </div>
 

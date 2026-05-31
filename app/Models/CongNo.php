@@ -152,6 +152,31 @@ class CongNo extends Model
         return $this->hasMany(CongNoPayment::class, 'id_congno');
     }
 
+    public function activityLogs()
+    {
+        return $this->hasMany(DebtActivityLog::class, 'congno_id');
+    }
+
+    public function writeActivityLog(
+        string $action,
+        string $title,
+        DebtStatusEnum|string|null $fromStatus = null,
+        DebtStatusEnum|string|null $toStatus = null,
+        ?int $actorId = null,
+        ?string $note = null,
+        array $metadata = []
+    ): DebtActivityLog {
+        return $this->activityLogs()->create([
+            'actor_id' => $actorId ?? auth()->id(),
+            'action' => $action,
+            'from_status' => $fromStatus instanceof DebtStatusEnum ? $fromStatus->value : $fromStatus,
+            'to_status' => $toStatus instanceof DebtStatusEnum ? $toStatus->value : $toStatus,
+            'title' => $title,
+            'note' => $note,
+            'metadata' => $metadata ?: null,
+        ]);
+    }
+
     public function einvoices()
     {
         return $this->hasMany(CongNoEInvoice::class, 'id_congno');

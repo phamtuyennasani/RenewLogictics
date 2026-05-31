@@ -3,10 +3,15 @@
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use App\Actions\Pickup\CreatePickupAction;
 use App\Actions\Order\RecordOrderEditHistoryAction;
 use App\Actions\Order\RecordTrackingHistoryAction;
+use App\Models\News;
 use App\Models\Order;
+use App\Models\Pickup;
+use App\Models\Province;
 use App\Models\User;
+use App\Models\Ward;
 use App\Enums\OrderStatusEnum;
 use App\Support\OrderAccess;
 use Flux\Flux;
@@ -17,6 +22,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
     public array $statusSteps = [];
     public string $trackingForm = '';
     public bool $printBillWithCvck = false;
+    public array $pickupForm = [];
 
     public function mount(string $uuid): void
     {
@@ -34,6 +40,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 'congNoPayments.user:id,fullname,username',
                 'congNoPayments.paymentConfirmer:id,fullname,username',
                 'photos',
+                'pickups',
                 'dichvu:id,namevi',
                 'chiTietDichVu:id,namevi',
                 'chiNhanhNhanHang:id,namevi',
@@ -134,6 +141,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             ->values()
             ->all();
 
+        if ($this->canCreatePickup()) {
+            $buttons[] = ['type' => 'pickup', 'label' => 'Tạo phiếu Pickup'];
+        }
+
         if ($this->order->bill_status !== OrderStatusEnum::MOI_TAO) {
             $buttons[] = ['type' => 'price', 'label' => 'Cáº­p nháº­t GiÃ¡'];
         }
@@ -198,6 +209,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             'status' => $base . ' border-emerald-600 bg-emerald-600 text-white hover:border-emerald-700 hover:bg-emerald-700',
             'price' => $base . ' border-amber-200 bg-amber-50 text-amber-800 hover:border-amber-300 hover:bg-amber-100',
             'tracking' => $base . ' border-sky-200 bg-sky-50 text-sky-800 hover:border-sky-300 hover:bg-sky-100',
+            'pickup' => $base . ' border-teal-600 bg-teal-600 text-white hover:border-teal-700 hover:bg-teal-700',
             'exit' => $base . ' border-neutral-200 bg-white text-neutral-700 shadow-xs hover:bg-neutral-50',
             default => $base . ' border-neutral-200 bg-white text-neutral-700 shadow-xs hover:bg-neutral-50',
         };
@@ -238,6 +250,153 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             text: $this->order->lock_order ? 'Đơn hàng không thể chỉnh sửa cho đến khi admin mở khóa.' : 'Đơn hàng đã trở về luồng phân quyền bình thường.',
             variant: 'success'
         );
+    }
+
+    public function currentPickup(): ?Pickup
+    {
+        if (! $this->order->relationLoaded('pickups')) {
+            $this->order->load('pickups');
+        }
+
+        return $this->order->pickups->first();
+    }
+
+    public function canCreatePickup(): bool
+    {
+        return ! $this->order->lock_order
+            && $this->order->bill_status === OrderStatusEnum::DA_XAC_NHAN
+            && auth()->user()->hasAnyRole(['admin', 'cs', 'sale', 'ops'])
+            && ! $this->currentPickup();
+    }
+
+    public function openPickupModal(): void
+    {
+        abort_unless($this->canCreatePickup(), 403);
+
+        $sender = $this->order->sender ?? [];
+        $this->pickupForm = [
+            'company' => data_get($sender, 'company', ''),
+            'fullname' => data_get($sender, 'fullname', ''),
+            'phone' => data_get($sender, 'phone', ''),
+            'email' => data_get($sender, 'email', ''),
+            'country' => data_get($sender, 'country', 'VIETNAM') ?: 'VIETNAM',
+            'address' => data_get($sender, 'address', ''),
+            'id_city' => data_get($sender, 'id_city', data_get($sender, 'city_id')),
+            'id_ward' => data_get($sender, 'id_ward', data_get($sender, 'ward_id')),
+            'vehicle_id' => null,
+            'scheduled_at' => now()->format('Y-m-d\TH:i'),
+            'packages_count' => (int) $this->order->packages->sum('number_of_package'),
+            'total_weight' => (float) $this->order->packages->sum('c_weight'),
+            'labor_cost' => 0,
+            'branch_id' => data_get($this->order->service ?? [], 'id_chinhanh_nhanhang'),
+            'note' => '',
+        ];
+
+        Flux::modal('create-pickup')->show();
+    }
+
+    public function updatedPickupFormIdCity(): void
+    {
+        $this->pickupForm['id_ward'] = null;
+    }
+
+    public function createPickup(): void
+    {
+        abort_unless($this->canCreatePickup(), 403);
+
+        try {
+            $data = $this->validate([
+                'pickupForm.company' => 'required|string|max:255',
+                'pickupForm.fullname' => 'required|string|max:255',
+                'pickupForm.phone' => 'required|string|max:50',
+                'pickupForm.email' => 'nullable|email|max:255',
+                'pickupForm.country' => 'required|string|max:100',
+                'pickupForm.address' => 'required|string|max:500',
+                'pickupForm.id_city' => 'required|exists:province,id',
+                'pickupForm.id_ward' => 'required|exists:wards,id',
+                'pickupForm.vehicle_id' => 'required|exists:news,id',
+                'pickupForm.scheduled_at' => 'required|date',
+                'pickupForm.packages_count' => 'nullable|integer|min:0',
+                'pickupForm.total_weight' => 'nullable|numeric|min:0',
+                'pickupForm.labor_cost' => 'nullable|numeric|min:0',
+                'pickupForm.branch_id' => 'nullable|exists:news,id',
+                'pickupForm.note' => 'nullable|string|max:1000',
+            ], [
+                'pickupForm.vehicle_id.required' => 'Vui lòng chọn phương tiện.',
+            ])['pickupForm'];
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            Flux::toast(
+                duration: 3500,
+                heading: 'Thiếu thông tin Pickup',
+                text: $exception->validator->errors()->first(),
+                variant: 'warning'
+            );
+            return;
+        }
+
+        $wardIsValid = Ward::query()
+            ->whereKey($data['id_ward'])
+            ->where('parent_code', $data['id_city'])
+            ->exists();
+
+        if (! $wardIsValid) {
+            $this->addError('pickupForm.id_ward', 'Phường/xã không thuộc tỉnh/thành phố đã chọn.');
+            return;
+        }
+
+        try {
+            $pickup = CreatePickupAction::execute($this->order, [
+                'sender_snapshot' => [
+                    'company' => trim($data['company']),
+                    'fullname' => trim($data['fullname']),
+                    'phone' => trim($data['phone']),
+                    'email' => trim((string) ($data['email'] ?? '')),
+                    'country' => trim($data['country']),
+                    'address' => trim($data['address']),
+                    'id_city' => (int) $data['id_city'],
+                    'id_ward' => (int) $data['id_ward'],
+                ],
+                'vehicle_id' => (int) $data['vehicle_id'],
+                'scheduled_at' => $data['scheduled_at'],
+                'packages_count' => (int) ($data['packages_count'] ?? 0),
+                'total_weight' => (float) ($data['total_weight'] ?? 0),
+                'labor_cost' => (float) ($data['labor_cost'] ?? 0),
+                'branch_id' => filled($data['branch_id'] ?? null) ? (int) $data['branch_id'] : null,
+                'note' => trim((string) ($data['note'] ?? '')),
+            ], auth()->id());
+        } catch (\Throwable $exception) {
+            report($exception);
+            Flux::toast(duration: 3500, heading: 'Không thể tạo Pickup', text: $exception->getMessage(), variant: 'warning');
+            return;
+        }
+
+        $this->order->load('pickups');
+        Flux::modal('create-pickup')->close();
+        Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã tạo Pickup '.$pickup->ma_pickup.'.', variant: 'success');
+    }
+
+    public function pickupProvinces()
+    {
+        return Province::query()->orderBy('name')->get(['id', 'name']);
+    }
+
+    public function pickupWards()
+    {
+        return Ward::query()
+            ->when(data_get($this->pickupForm, 'id_city'), fn ($query, $cityId) => $query->where('parent_code', $cityId))
+            ->when(! data_get($this->pickupForm, 'id_city'), fn ($query) => $query->whereRaw('1 = 0'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    public function pickupVehicles()
+    {
+        return News::query()->where('type', 'phuongtien')->orderBy('namevi')->get(['id', 'namevi']);
+    }
+
+    public function pickupBranches()
+    {
+        return News::query()->where('type', 'chinhanh')->orderBy('namevi')->get(['id', 'namevi']);
     }
 
     public function updateStatus(string $status): void
@@ -734,6 +893,11 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 <p class="text-xs text-neutral-500">Trạng thái hiện tại: {{ $this->statusLabel }}</p>
             </div>
             <div class="flex flex-wrap justify-end gap-2">
+                @if($this->currentPickup())
+                    <span class="inline-flex items-center rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700">
+                        Đã tạo Pickup: {{ $this->currentPickup()->ma_pickup }}
+                    </span>
+                @endif
                 @foreach($this->actionButtons() as $button)
                     @if($button['type'] === 'status')
                         <button
@@ -752,6 +916,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                         <a href="{{ route('orders.tracking', ['uuid' => $order->uuid]) }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
                             {{ $this->actionButtonLabel($button) }}
                         </a>
+                    @elseif($button['type'] === 'pickup')
+                        <button type="button" wire:click="openPickupModal" wire:loading.attr="disabled" class="{{ $this->actionButtonClass($button) }}">
+                            {{ $this->actionButtonLabel($button) }}
+                        </button>
                     @else
                         <a href="{{ route('orders.index') }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
                             {{ $this->actionButtonLabel($button) }}
@@ -761,6 +929,123 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             </div>
         </div>
     </section>
+
+    <flux:modal name="create-pickup" class="w-full max-w-5xl">
+        <form wire:submit="createPickup" class="space-y-5">
+            <div>
+                <flux:heading size="lg">Tạo Pickup mới</flux:heading>
+                <flux:subheading>Thông tin người gửi được lấy từ đơn {{ $order->id_bill }}. Các chỉnh sửa bên dưới chỉ áp dụng cho phiếu Pickup.</flux:subheading>
+            </div>
+
+            <div class="grid gap-4 md:grid-cols-3">
+                <flux:field class="md:col-span-3">
+                    <flux:label>Tên công ty *</flux:label>
+                    <flux:input wire:model="pickupForm.company" />
+                    @error('pickupForm.company') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Tên người gửi *</flux:label>
+                    <flux:input wire:model="pickupForm.fullname" />
+                    @error('pickupForm.fullname') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Số điện thoại *</flux:label>
+                    <flux:input wire:model="pickupForm.phone" />
+                    @error('pickupForm.phone') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Email</flux:label>
+                    <flux:input type="email" wire:model="pickupForm.email" />
+                    @error('pickupForm.email') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Quốc gia</flux:label>
+                    <flux:input wire:model="pickupForm.country" readonly />
+                    @error('pickupForm.country') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Tỉnh / Thành phố *</flux:label>
+                    <select wire:model.live="pickupForm.id_city" class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                        <option value="">Chọn Tỉnh / Thành phố</option>
+                        @foreach($this->pickupProvinces() as $province)
+                            <option value="{{ $province->id }}">{{ $province->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('pickupForm.id_city') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Phường / Xã *</flux:label>
+                    <select wire:model="pickupForm.id_ward" class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" @disabled(empty($pickupForm['id_city']))>
+                        <option value="">Chọn Phường / Xã</option>
+                        @foreach($this->pickupWards() as $ward)
+                            <option value="{{ $ward->id }}">{{ $ward->name }}</option>
+                        @endforeach
+                    </select>
+                    @error('pickupForm.id_ward') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field class="md:col-span-3">
+                    <flux:label>Địa chỉ *</flux:label>
+                    <flux:input wire:model="pickupForm.address" />
+                    @error('pickupForm.address') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Chọn phương tiện *</flux:label>
+                    <select wire:model="pickupForm.vehicle_id" class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                        <option value="">Chọn Phương Tiện</option>
+                        @foreach($this->pickupVehicles() as $vehicle)
+                            <option value="{{ $vehicle->id }}">{{ $vehicle->namevi }}</option>
+                        @endforeach
+                    </select>
+                    @error('pickupForm.vehicle_id') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Ngày hẹn *</flux:label>
+                    <flux:input type="datetime-local" wire:model="pickupForm.scheduled_at" />
+                    @error('pickupForm.scheduled_at') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Số lượng kiện</flux:label>
+                    <flux:input type="number" min="0" wire:model="pickupForm.packages_count" />
+                    @error('pickupForm.packages_count') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Cân nặng</flux:label>
+                    <flux:input type="number" min="0" step="0.01" wire:model="pickupForm.total_weight" />
+                    @error('pickupForm.total_weight') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Chi phí công</flux:label>
+                    <flux:input type="number" min="0" step="1000" wire:model="pickupForm.labor_cost" />
+                    @error('pickupForm.labor_cost') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label>Chi nhánh nhận hàng</flux:label>
+                    <select wire:model="pickupForm.branch_id" class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                        <option value="">Chọn chi nhánh nhận hàng</option>
+                        @foreach($this->pickupBranches() as $branch)
+                            <option value="{{ $branch->id }}">{{ $branch->namevi }}</option>
+                        @endforeach
+                    </select>
+                    @error('pickupForm.branch_id') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+                <flux:field class="md:col-span-3">
+                    <flux:label>Ghi chú</flux:label>
+                    <flux:textarea wire:model="pickupForm.note" rows="3" />
+                    @error('pickupForm.note') <flux:error>{{ $message }}</flux:error> @enderror
+                </flux:field>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <flux:modal.close>
+                    <flux:button type="button" variant="ghost">Thoát</flux:button>
+                </flux:modal.close>
+                <flux:button type="submit" variant="primary" wire:loading.attr="disabled" wire:target="createPickup">
+                    <span wire:loading.remove wire:target="createPickup">Tạo Pickup</span>
+                    <span wire:loading wire:target="createPickup">Đang tạo...</span>
+                </flux:button>
+            </div>
+        </form>
+    </flux:modal>
 
     <flux:modal name="edit-tracking" class="w-full max-w-lg">
         <form wire:submit="saveTracking" class="space-y-6">

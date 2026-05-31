@@ -831,7 +831,14 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                     <p class="mt-1 text-sm font-medium text-neutral-500">Tự động gửi email thông báo sau khi tạo đơn.</p>
                                 </div>
                             </div>
-                            <flux:checkbox wire:model="emailOrderEnabled" />
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked="{{ $emailOrderEnabled ? 'true' : 'false' }}"
+                                wire:click="$toggle('emailOrderEnabled')"
+                                class="relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $emailOrderEnabled ? 'bg-emerald-500' : 'bg-neutral-300' }}">
+                                <span class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform {{ $emailOrderEnabled ? 'translate-x-4' : 'translate-x-0.5' }}"></span>
+                            </button>
                         </div>
                     </div>
                 </div>

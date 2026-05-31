@@ -3,6 +3,7 @@
 use App\Actions\Order\RecordOrderEditHistoryAction;
 use App\Actions\Order\RecordTrackingHistoryAction;
 use App\Enums\OrderStatusEnum;
+use App\Models\News;
 use App\Models\Order;
 use App\Models\OrderHistory;
 use App\Models\OrderPackage;
@@ -11,6 +12,7 @@ use App\Services\TrackingMore\TrackingMoreException;
 use App\Support\OrderAccess;
 use Carbon\Carbon;
 use Flux\Flux;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -25,6 +27,14 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
     public string $commonCourierCode = '';
     public string $trackingMode = 'common';
     public array $courierOptions = [];
+
+    // Partner info (Đại lý, Hãng bay, Đối tác chung chuyển)
+    public ?int $partnerDailyId = null;
+    public ?int $partnerHangbayId = null;
+    public ?int $partnerDoitacChungchuyenId = null;
+    public array $dailyOptions = [];
+    public array $hangbayOptions = [];
+    public array $doitacChungchuyenOptions = [];
 
     public function mount(string $uuid): void
     {
@@ -57,6 +67,27 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
 
         $this->trackingMode = $this->detectTrackingMode();
         $this->courierOptions = $this->loadCourierOptions();
+
+        $this->loadPartnerInfo();
+    }
+
+    protected function loadPartnerInfo(): void
+    {
+        $this->partnerDailyId = ($id = data_get($this->order->service, 'id_daily')) !== null && $id !== '' ? (int) $id : null;
+        $this->partnerHangbayId = ($id = data_get($this->order->service, 'id_hangbay')) !== null && $id !== '' ? (int) $id : null;
+        $this->partnerDoitacChungchuyenId = ($id = data_get($this->order->service, 'id_doitac_chungchuyen')) !== null && $id !== '' ? (int) $id : null;
+
+        $options = Cache::remember('order_partner_options_v1', 3600, function () {
+            return News::whereIn('type', ['daily', 'hangbay', 'doitacchungchuyen'])
+                ->orderBy('numb', 'asc')
+                ->get(['id', 'namevi', 'type'])
+                ->toArray();
+        });
+
+        $options = collect($options);
+        $this->dailyOptions = $options->where('type', 'daily')->values()->all();
+        $this->hangbayOptions = $options->where('type', 'hangbay')->values()->all();
+        $this->doitacChungchuyenOptions = $options->where('type', 'doitacchungchuyen')->values()->all();
     }
 
     protected function detectTrackingMode(): string
@@ -153,6 +184,59 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
     public function getCanUpdateProperty(): bool
     {
         return OrderAccess::canEditOrder(auth()->user(), $this->order);
+    }
+
+    /**
+     * Quyền edit Đại lý / Hãng bay / Đối tác chung chuyển: chỉ admin, cs, manager.
+     * Đây là 3 thông tin partner đặc thù, tách riêng khỏi quyền edit chung của order.
+     */
+    public function getCanEditPartnerProperty(): bool
+    {
+        return auth()->user()?->hasAnyRole(['admin', 'cs', 'manager']) ?? false;
+    }
+
+    public function savePartnerInfo(): void
+    {
+        abort_unless($this->canEditPartner, 403);
+
+        $this->validate([
+            'partnerDailyId' => ['nullable', 'integer', 'exists:news,id'],
+            'partnerHangbayId' => ['nullable', 'integer', 'exists:news,id'],
+            'partnerDoitacChungchuyenId' => ['nullable', 'integer', 'exists:news,id'],
+        ], [], [
+            'partnerDailyId' => 'Đại lý',
+            'partnerHangbayId' => 'Hãng bay',
+            'partnerDoitacChungchuyenId' => 'Đối tác chung chuyển',
+        ]);
+
+        $service = is_array($this->order->service) ? $this->order->service : [];
+        $before = [
+            'id_daily' => data_get($service, 'id_daily'),
+            'id_hangbay' => data_get($service, 'id_hangbay'),
+            'id_doitac_chungchuyen' => data_get($service, 'id_doitac_chungchuyen'),
+        ];
+
+        $service['id_daily'] = $this->partnerDailyId;
+        $service['id_hangbay'] = $this->partnerHangbayId;
+        $service['id_doitac_chungchuyen'] = $this->partnerDoitacChungchuyenId;
+
+        $this->order->forceFill(['service' => $service])->save();
+        $this->order->refresh();
+
+        RecordOrderEditHistoryAction::execute(
+            $this->order,
+            'edit_partner_info',
+            'partner_info',
+            $before,
+            [
+                'id_daily' => $this->partnerDailyId,
+                'id_hangbay' => $this->partnerHangbayId,
+                'id_doitac_chungchuyen' => $this->partnerDoitacChungchuyenId,
+            ],
+            'cập nhật đại lý / hãng bay / đối tác chung chuyển'
+        );
+
+        Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã cập nhật thông tin đối tác.', variant: 'success');
     }
 
     public function getTrackingHistoriesProperty()
@@ -1007,6 +1091,45 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                             <p class="mt-1 text-xs text-neutral-500">Đơn đã giao không cho phép chỉnh trạng thái.</p>
                         @endif
                     </label>
+                </div>
+            </section>
+
+            <section class="rounded-xl border border-neutral-200 bg-white p-5 shadow-xs">
+                <h2 class="text-sm font-semibold uppercase text-neutral-900">Đối tác vận chuyển</h2>
+                <p class="mt-1 text-xs text-neutral-500">Đại lý, hãng bay và đối tác chung chuyển</p>
+                <div class="mt-4 space-y-4">
+                    <label class="block">
+                        <span class="text-xs font-medium text-neutral-600">Đại lý</span>
+                        <select wire:model="partnerDailyId" @disabled(! $this->canEditPartner) class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500">
+                            <option value="">-- Chọn đại lý --</option>
+                            @foreach($dailyOptions as $option)
+                                <option value="{{ $option['id'] }}">{{ $option['namevi'] }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="text-xs font-medium text-neutral-600">Hãng bay</span>
+                        <select wire:model="partnerHangbayId" @disabled(! $this->canEditPartner) class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500">
+                            <option value="">-- Chọn hãng bay --</option>
+                            @foreach($hangbayOptions as $option)
+                                <option value="{{ $option['id'] }}">{{ $option['namevi'] }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label class="block">
+                        <span class="text-xs font-medium text-neutral-600">Đối tác chung chuyển</span>
+                        <select wire:model="partnerDoitacChungchuyenId" @disabled(! $this->canEditPartner) class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm shadow-xs focus:border-primary-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500">
+                            <option value="">-- Chọn đối tác --</option>
+                            @foreach($doitacChungchuyenOptions as $option)
+                                <option value="{{ $option['id'] }}">{{ $option['namevi'] }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    @if($this->canEditPartner)
+                        <button type="button" wire:click="savePartnerInfo" wire:loading.attr="disabled" class="inline-flex w-full items-center justify-center rounded-xl border border-primary-600 bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-xs transition hover:bg-primary-700">
+                            Lưu đối tác
+                        </button>
+                    @endif
                 </div>
             </section>
 

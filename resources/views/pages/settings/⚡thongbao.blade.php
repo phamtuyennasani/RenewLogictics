@@ -386,7 +386,7 @@ $canCreateNotification = in_array($currentRole, \App\Enums\RoleEnum::canCreateNo
                                     </div>
                                     <div>
                                         <p class="text-sm font-medium text-neutral-600">Chưa có thông báo nào</p>
-                                        <p class="text-xs text-neutral-400 mt-0.5">@if ($canCreateNotification)Hãy tạo thông báo đầu tiên@else Hiện chưa có thông báo nào dành cho bạn@endif</p>
+                                        <p class="text-xs text-neutral-400 mt-0.5">{{ $canCreateNotification ? 'Hãy tạo thông báo đầu tiên' : 'Hiện chưa có thông báo nào dành cho bạn' }}</p>
                                     </div>
                                     @if ($canCreateNotification)
                                     <button wire:click="openCreate"

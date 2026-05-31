@@ -2,26 +2,32 @@
 
 use App\Enums\DebtStatusEnum;
 use App\Enums\InvoicePaymentStatusEnum;
-use App\Enums\InvoiceTypeEnum;
+use App\Enums\OrderStatusEnum;
 use App\Models\CongNoDaiLy;
-use App\Models\CongNoDaiLyPayment;
+use App\Models\CongNoDaiLyDetail;
+use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Flux\Flux;
 
 new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class extends Component {
+    use WithFileUploads;
+
     public CongNoDaiLy $debt;
-    public string $invoiceAmount = '';
-    public string $invoiceNote = '';
+    public string $referenceCode = '';
+    public $paymentPhoto = null;
 
     public function mount(string $id): void
     {
         $this->debt = $this->loadDebt($id);
 
         abort_unless($this->canView(), 403);
+
+        $this->referenceCode = (string) ($this->debt->sohoadon_thamchieu ?? '');
     }
 
     protected function loadDebt(string $id): CongNoDaiLy
@@ -31,14 +37,10 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                 'daily:id,namevi,nameen',
                 'creator:id,fullname,username,code',
                 'ketoan:id,fullname,username,code',
+                'success:id,fullname,username,code',
                 'details.order.dichvu:id,namevi',
                 'details.order.chiNhanhNhanHang:id,namevi',
                 'details.order.packages',
-                'payments.user:id,fullname,username,code',
-                'payments.ketoan:id,fullname,username,code',
-                'payments.approver:id,fullname,username,code',
-                'payments.paymentConfirmer:id,fullname,username,code',
-                'payments.cancelledBy:id,fullname,username,code',
             ])
             ->where(function ($query) use ($id) {
                 $query->where('uuid', $id);
@@ -50,123 +52,132 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
             ->firstOrFail();
     }
 
-    public function createPaymentInvoice(): void
+    /**
+     * Lưu mã tham chiếu + chứng từ thanh toán mà không đổi trạng thái.
+     * Chỉ áp dụng khi công nợ đã chốt cước và chưa thanh toán.
+     */
+    public function updatePaymentInfo(): void
     {
         abort_unless($this->canManage(), 403);
 
-        if (! $this->debt->canCreatePaymentInvoice()) {
-            Flux::toast(heading: 'Chưa chốt cước', text: 'Cần chốt cước công nợ trước khi tạo hóa đơn chi.', variant: 'warning');
+        if (! $this->canEditPaymentInfo()) {
+            Flux::toast(heading: 'Không thể cập nhật', text: 'Chỉ công nợ đã chốt cước và chưa thanh toán mới có thể cập nhật.', variant: 'warning');
             return;
         }
 
         $data = $this->validate([
-            'invoiceAmount' => ['required', 'regex:/^[0-9.,]+$/'],
-            'invoiceNote' => ['nullable', 'string', 'max:1000'],
+            'referenceCode' => ['nullable', 'string', 'max:255'],
+            'paymentPhoto' => ['nullable', 'image', 'max:5120'],
         ], [], [
-            'invoiceAmount' => 'Số tiền hóa đơn',
+            'referenceCode' => 'Mã tham chiếu',
+            'paymentPhoto' => 'Chứng từ thanh toán',
         ]);
 
-        $amount = round($this->number($data['invoiceAmount']), 2);
-        if ($amount <= 0) {
-            Flux::toast(heading: 'Số tiền không hợp lệ', text: 'Vui lòng nhập số tiền lớn hơn 0.', variant: 'warning');
-            return;
-        }
+        $oldReference = (string) ($this->debt->sohoadon_thamchieu ?? '');
+        $oldPhoto = (string) ($this->debt->photo ?? '');
 
-        try {
-            DB::transaction(function () use ($amount, $data) {
-                $debt = CongNoDaiLy::query()->whereKey($this->debt->id)->lockForUpdate()->firstOrFail();
-                $available = $debt->availableForNewInvoice();
+        $photoPath = $this->storePaymentPhoto();
 
-                if ($amount > $available + 0.5) {
-                    throw new \RuntimeException(sprintf('Số tiền vượt mức cho phép. Tối đa còn lại: %s đ.', number_format($available, 0, ',', '.')));
-                }
+        $this->debt->forceFill(array_filter([
+            'sohoadon_thamchieu' => $data['referenceCode'] ?: null,
+            'photo' => $photoPath,
+        ], fn ($value, $key) => $key === 'sohoadon_thamchieu' || $value !== null, ARRAY_FILTER_USE_BOTH))->save();
 
-                CongNoDaiLyPayment::create([
-                    'id_congno_daily' => $debt->id,
-                    'id_user' => auth()->id(),
-                    'amount' => $amount,
-                    'due_at' => $debt->hanthanhtoan,
-                    'note' => $data['invoiceNote'] ?: 'Hóa đơn chi cho đại lý ' . ($debt->daily?->namevi ?: $debt->daily?->nameen ?: ''),
-                    'status' => InvoicePaymentStatusEnum::CHO_DUYET->value,
-                    'loai_hoa_don' => InvoiceTypeEnum::CHI->value,
-                ]);
-            });
-        } catch (\RuntimeException $exception) {
-            Flux::toast(heading: 'Không thể tạo', text: $exception->getMessage(), variant: 'warning');
-            return;
-        }
+        $this->debt->writeActivityLog(
+            action: 'payment_info_updated',
+            title: 'Cập nhật thông tin thanh toán',
+            metadata: array_filter([
+                'reference_from' => $oldReference !== '' ? $oldReference : null,
+                'reference_to' => $data['referenceCode'] ?: null,
+                'photo_from' => $oldPhoto !== '' ? $oldPhoto : null,
+                'photo_to' => $photoPath,
+            ], fn ($v) => $v !== null),
+        );
 
-        $this->invoiceAmount = '';
-        $this->invoiceNote = '';
+        $this->paymentPhoto = null;
         $this->reloadDebt();
+        $this->referenceCode = (string) ($this->debt->sohoadon_thamchieu ?? '');
 
-        Flux::toast(heading: 'Đã tạo hóa đơn chi', text: 'Hóa đơn đã được lưu ở trạng thái Mới tạo.', variant: 'success');
+        Flux::toast(heading: 'Đã cập nhật', text: 'Thông tin thanh toán đã được lưu.', variant: 'success');
     }
 
-    public function markPaid(int $invoiceId): void
+    /**
+     * Lưu thông tin thanh toán và chuyển công nợ sang trạng thái Đã thanh toán.
+     */
+    public function confirmPaid(): void
     {
         abort_unless($this->canManage(), 403);
 
-        DB::transaction(function () use ($invoiceId) {
-            $invoice = $this->debt->payments()->whereKey($invoiceId)->lockForUpdate()->firstOrFail();
+        if (! $this->canEditPaymentInfo()) {
+            Flux::toast(heading: 'Không thể xác nhận', text: 'Chỉ công nợ đã chốt cước và chưa thanh toán mới có thể xác nhận thanh toán.', variant: 'warning');
+            return;
+        }
 
-            if (! $invoice->canMarkPaid(auth()->user())) {
-                throw new \RuntimeException('Hóa đơn không thể chuyển sang đã thanh toán.');
-            }
+        $data = $this->validate([
+            'referenceCode' => ['nullable', 'string', 'max:255'],
+            'paymentPhoto' => ['nullable', 'image', 'max:5120'],
+        ], [], [
+            'referenceCode' => 'Mã tham chiếu',
+            'paymentPhoto' => 'Chứng từ thanh toán',
+        ]);
 
-            $fromStatus = $invoice->status;
+        $photoPath = $this->storePaymentPhoto();
 
-            $invoice->forceFill([
-                'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
-                'paid_at' => now(),
-                'ngay_duyet' => now(),
-                'id_ketoan' => auth()->id(),
-                'payment_confirmed_by' => auth()->id(),
-                'method' => $invoice->method ?: 'bank_transfer',
+        DB::transaction(function () use ($data, $photoPath) {
+            $fromStatus = $this->debt->status;
+
+            $this->debt->forceFill([
+                'sohoadon_thamchieu' => $data['referenceCode'] ?: $this->debt->sohoadon_thamchieu,
+                'photo' => $photoPath ?? $this->debt->photo,
+                'status' => DebtStatusEnum::DA_THANH_TOAN->value,
+                'paid_amount' => $this->debt->total_cuocvon,
+                'ngaythanhtoan' => now(),
+                'id_ketoan' => auth()->user()->hasRole('ketoan') ? auth()->id() : $this->debt->id_ketoan,
             ])->save();
 
-            $invoice->writeStatusLog('expense_paid', $fromStatus, InvoicePaymentStatusEnum::DA_THANH_TOAN, auth()->id());
+            $this->debt->writeActivityLog(
+                action: 'paid_confirmed',
+                title: 'Xác nhận đã thanh toán',
+                fromStatus: $fromStatus,
+                toStatus: DebtStatusEnum::DA_THANH_TOAN,
+                metadata: array_filter([
+                    'amount' => (float) $this->debt->total_cuocvon,
+                    'reference' => $data['referenceCode'] ?: $this->debt->sohoadon_thamchieu,
+                    'photo' => $photoPath ?? $this->debt->photo,
+                ], fn ($v) => $v !== null && $v !== ''),
+            );
 
-            $debt = CongNoDaiLy::query()->whereKey($this->debt->id)->lockForUpdate()->firstOrFail();
-            $debt->syncPaidAmountFromPayments();
-            $debt->refresh();
-
-            $isFullyPaid = (float) $debt->remaining_amount <= 0
-                ? DebtStatusEnum::DA_THANH_TOAN->value
-                : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
-
-            $debt->orders()->update([
-                'agency_payment_status' => $isFullyPaid,
-                'agency_paid_at' => $isFullyPaid === DebtStatusEnum::DA_THANH_TOAN->value ? now() : null,
+            $this->debt->orders()->update([
+                'agency_payment_status' => DebtStatusEnum::DA_THANH_TOAN->value,
+                'agency_paid_at' => now(),
             ]);
         });
 
+        $this->paymentPhoto = null;
         $this->reloadDebt();
-        Flux::toast(heading: 'Đã đánh dấu đã chi', text: 'Hóa đơn đã được chuyển sang trạng thái Đã thanh toán.', variant: 'success');
+        $this->referenceCode = (string) ($this->debt->sohoadon_thamchieu ?? '');
+
+        Flux::toast(heading: 'Đã thanh toán', text: 'Công nợ đại lý đã được xác nhận thanh toán.', variant: 'success');
+        Flux::modal('confirm-paid')->close();
     }
 
-    public function cancelInvoice(int $invoiceId): void
+    protected function storePaymentPhoto(): ?string
     {
-        DB::transaction(function () use ($invoiceId) {
-            $invoice = $this->debt->payments()->whereKey($invoiceId)->lockForUpdate()->firstOrFail();
+        if (! $this->paymentPhoto) {
+            return null;
+        }
 
-            if (! $invoice->canCancel(auth()->user())) {
-                throw new \RuntimeException('Bạn không có quyền hủy hóa đơn này.');
-            }
+        return $this->paymentPhoto->store('congno-daily/chung-tu', 'public');
+    }
 
-            $fromStatus = $invoice->status;
-
-            $invoice->forceFill([
-                'status' => InvoicePaymentStatusEnum::HUY->value,
-                'cancelled_at' => now(),
-                'id_cancelled_by' => auth()->id(),
-            ])->save();
-
-            $invoice->writeStatusLog('cancelled', $fromStatus, InvoicePaymentStatusEnum::HUY, auth()->id());
-        });
-
-        $this->reloadDebt();
-        Flux::toast(heading: 'Đã hủy hóa đơn', text: 'Hóa đơn đã được hủy.', variant: 'success');
+    public function canEditPaymentInfo(): bool
+    {
+        return $this->canManage()
+            && in_array($this->debt->status, [
+                DebtStatusEnum::DA_CHOT_CUOC,
+                DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN,
+                DebtStatusEnum::QUA_HAN,
+            ], true);
     }
 
     public function removeOrder(int $detailId): void
@@ -179,11 +190,173 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
         }
 
         $detail = $this->debt->details()->whereKey($detailId)->firstOrFail();
+        $orderCode = $detail->order_code ?: $detail->order?->id_bill ?: data_get($detail->snapshot, 'order_code');
+        $orderId = $detail->id_order;
+
         $detail->delete();
         $this->debt->syncTotalsFromDetails();
+        $this->debt->writeActivityLog(
+            action: 'order_removed',
+            title: 'Gỡ order khỏi công nợ',
+            metadata: array_filter([
+                'detail_id' => $detailId,
+                'order_id' => $orderId,
+                'order_code' => $orderCode,
+            ], fn ($v) => $v !== null && $v !== ''),
+        );
         $this->reloadDebt();
 
         Flux::toast(heading: 'Đã xóa order', text: 'Order đã được gỡ khỏi công nợ đại lý.', variant: 'success');
+    }
+
+    public function confirmDebt(): void
+    {
+        abort_unless($this->canManage(), 403);
+
+        if ($this->debt->status !== DebtStatusEnum::MOI_TAO) {
+            Flux::toast(heading: 'Không hợp lệ', text: 'Chỉ công nợ mới tạo mới có thể chốt cước.', variant: 'warning');
+            return;
+        }
+
+        DB::transaction(function () {
+            $fromStatus = $this->debt->status;
+
+            $this->debt->forceFill([
+                'status' => DebtStatusEnum::DA_CHOT_CUOC,
+                'id_success' => auth()->id(),
+                'id_ketoan' => auth()->user()->hasRole('ketoan') ? auth()->id() : $this->debt->id_ketoan,
+                'ngaychothoadon' => now(),
+                'hanthanhtoan' => now()->addDays((int) ($this->debt->songaythanhtoan ?? 0))->startOfDay(),
+            ])->save();
+
+            $this->debt->writeActivityLog(
+                action: 'confirmed',
+                title: 'Chốt cước công nợ đại lý',
+                fromStatus: $fromStatus,
+                toStatus: DebtStatusEnum::DA_CHOT_CUOC,
+                metadata: array_filter([
+                    'total_orders' => (int) $this->debt->total_orders,
+                    'total_amount' => (float) $this->debt->total_cuocvon,
+                ], fn ($v) => $v !== null),
+            );
+
+            $this->debt->orders()->update(['agency_payment_status' => DebtStatusEnum::DA_CHOT_CUOC->value]);
+        });
+
+        $this->reloadDebt();
+        Flux::toast(heading: 'Đã chốt cước', text: 'Công nợ đại lý đã chuyển sang trạng thái đã chốt cước.', variant: 'success');
+    }
+
+    /**
+     * Quét lại các đơn hàng thỏa điều kiện (cùng đại lý, cùng khoảng ngày, chưa
+     * thuộc công nợ đang mở) và bổ sung vào công nợ này. Chỉ áp dụng khi công
+     * nợ chưa chốt cước.
+     */
+    public function refreshOrders(): void
+    {
+        abort_unless($this->canManage(), 403);
+
+        if ($this->debt->status !== DebtStatusEnum::MOI_TAO) {
+            Flux::toast(heading: 'Không thể làm mới', text: 'Chỉ công nợ chưa chốt cước mới có thể bổ sung order.', variant: 'warning');
+            return;
+        }
+
+        $from = $this->debt->tungay ? Carbon::parse($this->debt->tungay)->startOfDay() : null;
+        $to = $this->debt->denngay ? Carbon::parse($this->debt->denngay)->endOfDay() : null;
+        $idDaily = (int) $this->debt->id_daily;
+
+        if (! $from || ! $to || $idDaily <= 0) {
+            Flux::toast(heading: 'Thiếu thông tin', text: 'Công nợ thiếu khoảng ngày hoặc đại lý để quét.', variant: 'warning');
+            return;
+        }
+
+        $existingOrderIds = $this->debt->details()->pluck('id_order')->all();
+
+        $newOrders = $this->eligibleOrdersQuery($from, $to, $idDaily)
+            ->whereNotIn('id', $existingOrderIds)
+            ->with(['packages'])
+            ->get();
+
+        if ($newOrders->isEmpty()) {
+            Flux::toast(heading: 'Không có đơn mới', text: 'Không tìm thấy order mới thỏa điều kiện để bổ sung.', variant: 'info');
+            return;
+        }
+
+        DB::transaction(function () use ($newOrders) {
+            $rows = $newOrders->map(fn (Order $order) => [
+                'id_congno_daily' => $this->debt->id,
+                'id_order' => $order->id,
+                ...$this->snapshotForOrder($order),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ])->all();
+
+            CongNoDaiLyDetail::insert($rows);
+            $this->debt->syncTotalsFromDetails();
+            $this->debt->writeActivityLog(
+                action: 'orders_refreshed',
+                title: 'Bổ sung order vào công nợ',
+                metadata: [
+                    'added_count' => $newOrders->count(),
+                    'order_ids' => $newOrders->pluck('id')->values()->all(),
+                    'order_codes' => $newOrders->pluck('id_bill')->filter()->values()->all(),
+                ],
+            );
+
+            Order::query()->whereIn('id', $newOrders->pluck('id'))
+                ->update(['agency_payment_status' => DebtStatusEnum::MOI_TAO->value]);
+        });
+
+        $this->reloadDebt();
+        Flux::toast(heading: 'Đã làm mới', text: "Đã bổ sung {$newOrders->count()} order vào công nợ.", variant: 'success');
+        Flux::modal('refresh-orders')->close();
+    }
+
+    protected function eligibleOrdersQuery(Carbon $from, Carbon $to, int $idDaily)
+    {
+        return Order::query()
+            ->whereBetween('created_at', [$from, $to])
+            ->where('service->id_daily', $idDaily)
+            ->where('bill_status', '!=', OrderStatusEnum::HUY->value)
+            ->where(function ($q) {
+                $q->whereNull('agency_payment_status')
+                    ->orWhereNotIn('agency_payment_status', [
+                        DebtStatusEnum::MOI_TAO->value,
+                        DebtStatusEnum::DA_THANH_TOAN->value,
+                    ]);
+            })
+            ->whereDoesntHave(
+                'congNoDaiLyDetails.congNoDaiLy',
+                fn ($q) => $q->where('status', '!=', DebtStatusEnum::DA_THANH_TOAN->value)
+            );
+    }
+
+    protected function snapshotForOrder(Order $order): array
+    {
+        $weight = (float) $order->packages->sum(fn ($package) => (float) ($package->row_c_weight ?: $package->c_weight ?: 0));
+        $snapshot = [
+            'order_code' => $order->id_bill,
+            'sale_total' => (float) data_get($order->payment_cuocban, 'total_tongcuoc', 0),
+            'cost_total' => (float) data_get($order->payment_cuocvon, 'total_tongcuoc', 0),
+            'base_total' => (float) data_get($order->payment_cuocgoc, 'total_tongcuoc', 0),
+            'vat' => (float) data_get($order->payment_cuocvon, 'total_vat', 0),
+            'ppxd' => (float) data_get($order->payment_cuocvon, 'ppxd_amount', 0),
+            'fee' => (float) data_get($order->payment_cuocvon, 'total_phuphi', 0),
+            'commission' => (float) data_get($order->payment_cuocvon, 'bonus_sale_amount', 0),
+            'weight' => $weight,
+        ];
+
+        return [
+            'weight' => $weight,
+            'cuocban' => $snapshot['sale_total'],
+            'cuocvon' => $snapshot['cost_total'],
+            'cuocgoc' => $snapshot['base_total'],
+            'vat' => $snapshot['vat'],
+            'ppxd' => $snapshot['ppxd'],
+            'phuphi' => $snapshot['fee'],
+            'hoahong' => $snapshot['commission'],
+            'snapshot' => json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        ];
     }
 
     public function cancelDebt(): void
@@ -203,6 +376,17 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
         }
 
         DB::transaction(function () {
+            $this->debt->writeActivityLog(
+                action: 'cancelled',
+                title: 'Hủy công nợ đại lý',
+                fromStatus: $this->debt->status,
+                toStatus: null,
+                metadata: array_filter([
+                    'total_orders' => (int) $this->debt->total_orders,
+                    'total_amount' => (float) $this->debt->total_cuocvon,
+                ], fn ($v) => $v !== null),
+            );
+
             $this->debt->orders()->update([
                 'agency_payment_status' => null,
                 'agency_paid_at' => null,
@@ -218,6 +402,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
     protected function reloadDebt(): void
     {
         $this->debt = $this->loadDebt((string) $this->debt->id);
+        $this->dispatch('debt-activity-updated');
     }
 
     public function canView(): bool
@@ -273,16 +458,6 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
         return number_format((float) $value, 0, ',', '.').' đ';
     }
 
-    public function getAvailableForNewInvoiceProperty(): float
-    {
-        return $this->debt->availableForNewInvoice();
-    }
-
-    public function getPendingInvoicesTotalProperty(): float
-    {
-        return $this->debt->pendingInvoicesTotal();
-    }
-
     public function render()
     {
         return $this->view();
@@ -298,36 +473,27 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
             <div class="mt-2 flex flex-wrap items-center gap-3">
                 <h1 class="text-2xl font-bold text-neutral-950">{{ $debt->sohoadon }}</h1>
                 <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold {{ $debt->status->color() }}">{{ $debt->status->label() }}</span>
-                <span class="inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">Hóa đơn CHI</span>
+                <span class="inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">Công nợ đại lý</span>
             </div>
             <p class="mt-1 text-sm text-neutral-500">{{ $debt->daily?->namevi ?: $debt->daily?->nameen ?: 'Chưa rõ đại lý' }}</p>
         </div>
         @if ($this->canManage())
             <div class="flex flex-wrap items-center gap-2">
+                @if ($debt->status === DebtStatusEnum::MOI_TAO)
+                    <flux:modal.trigger name="refresh-orders">
+                        <flux:button type="button" variant="filled" icon="arrow-path">
+                            Làm mới
+                        </flux:button>
+                    </flux:modal.trigger>
+                    <flux:button type="button" wire:click="confirmDebt" wire:confirm="Chốt cước công nợ này? Sau khi chốt sẽ không thể sửa/xóa order." variant="primary" icon="check-circle">
+                        Chốt cước
+                    </flux:button>
+                @endif
                 @if ($debt->status !== DebtStatusEnum::DA_THANH_TOAN)
                     <button type="button" wire:click="cancelDebt" wire:confirm="Hủy công nợ này? Các order sẽ được giải phóng để tạo công nợ mới." class="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-100">Hủy công nợ</button>
                 @endif
             </div>
         @endif
-    </div>
-
-    <div class="grid gap-3 md:grid-cols-4">
-        <div class="rounded-2xl border border-neutral-200 bg-white p-4 shadow-xs">
-            <p class="text-xs font-medium uppercase text-neutral-500">Tổng cước vốn</p>
-            <p class="mt-2 text-xl font-bold text-neutral-950">{{ $this->money($debt->total_cuocvon) }}</p>
-        </div>
-        <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-xs">
-            <p class="text-xs font-medium uppercase text-emerald-700">Đã chi</p>
-            <p class="mt-2 text-xl font-bold text-emerald-800">{{ $this->money($debt->paid_amount) }}</p>
-        </div>
-        <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4 shadow-xs">
-            <p class="text-xs font-medium uppercase text-amber-700">HĐ chờ thanh toán</p>
-            <p class="mt-2 text-xl font-bold text-amber-800">{{ $this->money($this->pendingInvoicesTotal) }}</p>
-        </div>
-        <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-xs">
-            <p class="text-xs font-medium uppercase text-blue-700">Còn có thể tạo HĐ</p>
-            <p class="mt-2 text-xl font-bold text-blue-800">{{ $this->money($this->availableForNewInvoice) }}</p>
-        </div>
     </div>
 
     <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
@@ -379,83 +545,66 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                 </div>
             </div>
 
-            @if (! $debt->canCreatePaymentInvoice())
+            @if ($debt->status === DebtStatusEnum::MOI_TAO)
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                    <p class="font-semibold">Chưa thể tạo hóa đơn chi.</p>
-                    <p class="mt-1">Cần chốt cước công nợ trước khi tạo hóa đơn thanh toán cho đại lý.</p>
+                    <p class="font-semibold">Chưa chốt cước.</p>
+                    <p class="mt-1">Cần chốt cước công nợ trước khi cập nhật thông tin thanh toán.</p>
                 </div>
-            @else
-                <div class="rounded-2xl border border-neutral-200 bg-white shadow-xs">
-                    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 px-5 py-4">
-                        <div>
-                            <h2 class="font-bold text-neutral-950">Hóa đơn thanh toán (Chi)</h2>
-                            <p class="mt-1 text-sm text-neutral-500">Mỗi hóa đơn là một đợt ta thanh toán cho đại lý.</p>
-                        </div>
-                        <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ $debt->payments->count() }} hóa đơn</span>
-                    </div>
+            @elseif ($this->canEditPaymentInfo())
+                <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-xs">
+                    <h2 class="font-bold text-neutral-950">Thanh toán công nợ</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Cập nhật mã tham chiếu và chứng từ thanh toán cho đại lý.</p>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-[960px] w-full divide-y divide-neutral-100 text-sm">
-                            <thead class="bg-neutral-50 text-xs uppercase text-neutral-500">
-                                <tr>
-                                    <th class="px-4 py-3 text-left font-semibold">Mã HĐ</th>
-                                    <th class="px-4 py-3 text-left font-semibold">Ngày tạo</th>
-                                    <th class="px-4 py-3 text-left font-semibold">Người tạo</th>
-                                    <th class="px-4 py-3 text-right font-semibold">Số tiền</th>
-                                    <th class="px-4 py-3 text-left font-semibold">Trạng thái</th>
-                                    <th class="px-4 py-3 text-left font-semibold">Người xác nhận</th>
-                                    <th class="px-4 py-3 text-left font-semibold">Ghi chú</th>
-                                    <th class="px-4 py-3 text-right font-semibold"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-neutral-100">
-                                @forelse ($debt->payments->sortByDesc('created_at') as $invoice)
-                                    <tr class="hover:bg-neutral-50/70">
-                                        <td class="px-4 py-4 align-top">
-                                            <p class="font-bold text-neutral-950">{{ $invoice->ma_hoa_don }}</p>
-                                            @if ($invoice->paid_at)
-                                                <p class="mt-1 text-xs text-neutral-500">Chi: {{ $invoice->paid_at->format('d/m/Y H:i') }}</p>
-                                            @endif
-                                            @if ($invoice->cancelled_at)
-                                                <p class="mt-1 text-xs text-red-600">Hủy: {{ $invoice->cancelled_at->format('d/m/Y H:i') }}</p>
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-4 align-top text-neutral-700">{{ $invoice->created_at?->format('d/m/Y H:i') }}</td>
-                                        <td class="px-4 py-4 align-top text-neutral-700">{{ $invoice->user?->fullname ?: $invoice->user?->username ?: '-' }}</td>
-                                        <td class="px-4 py-4 text-right align-top font-bold text-neutral-950">{{ $this->money($invoice->amount) }}</td>
-                                        <td class="px-4 py-4 align-top">
-                                            <span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold {{ $invoice->status?->color() }}">{{ $invoice->status?->label() }}</span>
-                                        </td>
-                                        <td class="px-4 py-4 align-top text-neutral-700">
-                                            @if ($invoice->status === \App\Enums\InvoicePaymentStatusEnum::HUY)
-                                                <span class="text-xs text-red-600">{{ $invoice->cancelledBy?->fullname ?: $invoice->cancelledBy?->username ?: '-' }}</span>
-                                            @else
-                                                <p>{{ $invoice->ketoan?->fullname ?: $invoice->ketoan?->username ?: '-' }}</p>
-                                                @if ($invoice->paymentConfirmer)
-                                                    <p class="mt-1 text-xs text-emerald-700">Xác nhận: {{ $invoice->paymentConfirmer->fullname ?: $invoice->paymentConfirmer->username }}</p>
-                                                @endif
-                                            @endif
-                                        </td>
-                                        <td class="px-4 py-4 align-top text-xs text-neutral-600">{{ $invoice->note }}</td>
-                                        <td class="px-4 py-4 text-right align-top">
-                                            <div class="flex flex-col items-end gap-1">
-                                                @if ($invoice->canMarkPaid(auth()->user()))
-                                                    <button type="button" wire:click="markPaid({{ $invoice->id }})" wire:confirm="Xác nhận đã chi tiền cho đại lý?" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Đánh dấu đã chi</button>
-                                                @endif
-                                                @if ($invoice->canCancel(auth()->user()))
-                                                    <button type="button" wire:click="cancelInvoice({{ $invoice->id }})" wire:confirm="Hủy hóa đơn này?" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Hủy</button>
-                                                @endif
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8" class="px-4 py-10 text-center text-neutral-500">Chưa có hóa đơn chi nào.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                    <div class="mt-4 space-y-4">
+                        <label class="block">
+                            <span class="text-sm font-semibold text-neutral-700">Mã tham chiếu</span>
+                            <input type="text" wire:model="referenceCode" placeholder="Nhập mã tham chiếu thanh toán..." class="mt-1 h-10 w-full rounded-xl border border-neutral-200 px-3 text-sm outline-none focus:border-primary-500">
+                            @error('referenceCode') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                        </label>
+
+                        <div>
+                            <span class="text-sm font-semibold text-neutral-700">Chứng từ thanh toán</span>
+                            @if ($debt->photo)
+                                <div class="mt-2 mb-2">
+                                    <a href="{{ asset('storage/' . $debt->photo) }}" target="_blank" class="inline-flex items-center gap-1.5 text-sm text-primary-700 hover:text-primary-800">
+                                        <flux:icon.document class="size-4" />
+                                        Xem chứng từ hiện tại
+                                    </a>
+                                </div>
+                            @endif
+                            <input type="file" wire:model="paymentPhoto" accept="image/*" class="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-neutral-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-neutral-700">
+                            @error('paymentPhoto') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                            <p class="mt-1 text-xs text-neutral-400">Ảnh chứng từ (tối đa 5MB)</p>
+                        </div>
+
+                        <div class="flex items-center gap-2 pt-2">
+                            <flux:button type="button" wire:click="updatePaymentInfo" variant="outline" icon="arrow-up-tray">
+                                Cập nhật
+                            </flux:button>
+                            <flux:modal.trigger name="confirm-paid">
+                                <flux:button type="button" variant="primary" icon="check-circle">
+                                    Xác nhận đã thanh toán
+                                </flux:button>
+                            </flux:modal.trigger>
+                        </div>
                     </div>
+                </div>
+            @elseif ($debt->status === DebtStatusEnum::DA_THANH_TOAN)
+                <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-xs">
+                    <div class="flex items-center gap-2">
+                        <flux:icon.check-circle class="size-5 text-emerald-600" />
+                        <h2 class="font-bold text-emerald-800">Đã thanh toán</h2>
+                    </div>
+                    <dl class="mt-4 space-y-3 text-sm">
+                        <div class="flex justify-between gap-3"><dt class="text-emerald-600">Ngày thanh toán</dt><dd class="font-semibold text-emerald-900">{{ $debt->ngaythanhtoan?->format('d/m/Y H:i') ?: '-' }}</dd></div>
+                        <div class="flex justify-between gap-3"><dt class="text-emerald-600">Mã tham chiếu</dt><dd class="font-semibold text-emerald-900">{{ $debt->sohoadon_thamchieu ?: '-' }}</dd></div>
+                        @if ($debt->photo)
+                            <div class="flex justify-between gap-3">
+                                <dt class="text-emerald-600">Chứng từ</dt>
+                                <dd><a href="{{ asset('storage/' . $debt->photo) }}" target="_blank" class="font-semibold text-primary-700 hover:text-primary-800">Xem chứng từ</a></dd>
+                            </div>
+                        @endif
+                    </dl>
                 </div>
             @endif
         </div>
@@ -467,35 +616,69 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ đại lý')] class 
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Đại lý</dt><dd class="font-semibold text-neutral-900">{{ $debt->daily?->namevi ?: $debt->daily?->nameen ?: '-' }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Người tạo</dt><dd class="font-semibold text-neutral-900">{{ $debt->creator?->fullname ?: $debt->creator?->username ?: '-' }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Kế toán</dt><dd class="font-semibold text-neutral-900">{{ $debt->ketoan?->fullname ?: '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Tổng tiền</dt><dd class="font-semibold text-neutral-900">{{ $this->money($debt->total_cuocvon) }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Ngày tạo</dt><dd class="font-semibold text-neutral-900">{{ $debt->ngaytaohoadon?->format('d/m/Y H:i') ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Ngày chốt</dt><dd class="font-semibold text-neutral-900">{{ $debt->ngaychothoadon?->format('d/m/Y H:i') ?: '-' }}</dd></div>
-                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Hạn thanh toán</dt><dd class="font-semibold text-neutral-900">{{ $debt->hanthanhtoan?->format('d/m/Y') ?: '-' }}</dd></div>
+                    <div class="flex justify-between gap-3"><dt class="text-neutral-500">Ngày chốt cước</dt><dd class="font-semibold text-neutral-900">{{ $debt->ngaychothoadon?->format('d/m/Y H:i') ?: '-' }}</dd></div>
                     <div class="flex justify-between gap-3"><dt class="text-neutral-500">Tham chiếu</dt><dd class="font-semibold text-neutral-900">{{ $debt->sohoadon_thamchieu ?: '-' }}</dd></div>
+                    @if ($debt->ngaythanhtoan)
+                        <div class="flex justify-between gap-3"><dt class="text-neutral-500">Ngày thanh toán</dt><dd class="font-semibold text-emerald-700">{{ $debt->ngaythanhtoan->format('d/m/Y H:i') }}</dd></div>
+                    @endif
                 </dl>
             </div>
 
-            @if ($this->canManage() && $debt->canCreatePaymentInvoice() && $this->availableForNewInvoice > 0)
-                <div class="rounded-2xl border border-rose-100 bg-white p-5 shadow-xs">
-                    <h2 class="font-bold text-neutral-950">Tạo hóa đơn chi</h2>
-                    <p class="mt-1 text-xs text-neutral-500">Tối đa còn lại: <span class="font-semibold text-neutral-800">{{ $this->money($this->availableForNewInvoice) }}</span></p>
-                    <div class="mt-4 space-y-3">
-                        <label class="block">
-                            <span class="text-sm font-semibold text-neutral-700">Số tiền</span>
-                            <input type="text" wire:model="invoiceAmount" placeholder="0" class="mt-1 h-10 w-full rounded-xl border border-neutral-200 px-3 text-sm font-semibold outline-none focus:border-rose-500">
-                            @error('invoiceAmount') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                        </label>
-                        <label class="block">
-                            <span class="text-sm font-semibold text-neutral-700">Ghi chú</span>
-                            <textarea wire:model="invoiceNote" rows="3" placeholder="Ghi chú hóa đơn (vd: chi cho đợt thanh toán ...)" class="mt-1 w-full rounded-xl border border-neutral-200 px-3 py-2 text-sm outline-none focus:border-rose-500"></textarea>
-                        </label>
-                        <button type="button" wire:click="createPaymentInvoice" class="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700">Tạo hóa đơn chi</button>
-                    </div>
-                </div>
-            @elseif ($this->canManage() && $debt->canCreatePaymentInvoice())
-                <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
-                    Tất cả số tiền của công nợ này đã được phân bổ vào các hóa đơn.
-                </div>
-            @endif
+            <livewire:debt.activity-history :debt="$debt" wire:key="agency-debt-activity-{{ $debt->id }}" />
         </div>
     </div>
+
+    <flux:modal name="refresh-orders" class="w-full max-w-lg">
+        <div class="space-y-5">
+            <div class="flex items-start gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-700">
+                    <flux:icon.arrow-path class="size-5" />
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-neutral-950">Làm mới danh sách order</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Quét và bổ sung các đơn hàng thỏa điều kiện (cùng đại lý, cùng khoảng ngày, chưa thuộc công nợ đang mở) vào công nợ này.</p>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-neutral-100 bg-neutral-50 p-4 text-sm text-neutral-600">
+                <div class="flex justify-between gap-3"><span class="text-neutral-500">Đại lý</span><span class="font-semibold text-neutral-900">{{ $debt->daily?->namevi ?: $debt->daily?->nameen ?: '-' }}</span></div>
+                <div class="mt-2 flex justify-between gap-3"><span class="text-neutral-500">Khoảng ngày</span><span class="font-semibold text-neutral-900">{{ $debt->tungay?->format('d/m/Y') }} - {{ $debt->denngay?->format('d/m/Y') }}</span></div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+                <flux:modal.close>
+                    <flux:button type="button" variant="outline">Đóng</flux:button>
+                </flux:modal.close>
+                <flux:button type="button" variant="primary" icon="arrow-path" wire:click="refreshOrders">Quét &amp; bổ sung</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="confirm-paid" class="w-full max-w-lg">
+        <div class="space-y-5">
+            <div class="flex items-start gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                    <flux:icon.check-circle class="size-5" />
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-neutral-950">Xác nhận đã thanh toán</h2>
+                    <p class="mt-1 text-sm text-neutral-500">Lưu thông tin đã nhập và chuyển công nợ sang trạng thái đã thanh toán. Sau khi xác nhận, công nợ không thể cập nhật thêm.</p>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">
+                <div class="flex justify-between gap-3"><span>Tổng thanh toán</span><span class="font-bold">{{ $this->money($debt->total_cuocvon) }}</span></div>
+                <div class="mt-2 flex justify-between gap-3"><span>Mã tham chiếu</span><span class="font-semibold">{{ $referenceCode ?: '-' }}</span></div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 border-t border-neutral-100 pt-4">
+                <flux:modal.close>
+                    <flux:button type="button" variant="outline">Đóng</flux:button>
+                </flux:modal.close>
+                <flux:button type="button" variant="primary" icon="check-circle" wire:click="confirmPaid">Xác nhận đã thanh toán</flux:button>
+            </div>
+        </div>
+    </flux:modal>
 </div>

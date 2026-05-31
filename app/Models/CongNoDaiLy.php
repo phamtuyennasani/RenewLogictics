@@ -144,6 +144,31 @@ class CongNoDaiLy extends Model
         return $this->hasMany(CongNoDaiLyPayment::class, 'id_congno_daily');
     }
 
+    public function activityLogs()
+    {
+        return $this->hasMany(DebtActivityLog::class, 'congno_daily_id');
+    }
+
+    public function writeActivityLog(
+        string $action,
+        string $title,
+        DebtStatusEnum|string|null $fromStatus = null,
+        DebtStatusEnum|string|null $toStatus = null,
+        ?int $actorId = null,
+        ?string $note = null,
+        array $metadata = []
+    ): DebtActivityLog {
+        return $this->activityLogs()->create([
+            'actor_id' => $actorId ?? auth()->id(),
+            'action' => $action,
+            'from_status' => $fromStatus instanceof DebtStatusEnum ? $fromStatus->value : $fromStatus,
+            'to_status' => $toStatus instanceof DebtStatusEnum ? $toStatus->value : $toStatus,
+            'title' => $title,
+            'note' => $note,
+            'metadata' => $metadata ?: null,
+        ]);
+    }
+
     protected function remainingAmount(): Attribute
     {
         return Attribute::get(fn () => max(0, (float) $this->total_cuocvon - (float) $this->paid_amount));

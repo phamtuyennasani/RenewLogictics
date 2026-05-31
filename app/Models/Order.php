@@ -242,6 +242,13 @@ class Order extends Model
             ->withTimestamps();
     }
 
+    public function pickups()
+    {
+        return $this->belongsToMany(Pickup::class, 'pickup_orders', 'id_order', 'pickup_id')
+            ->withPivot(['added_by', 'created_at'])
+            ->withTimestamps();
+    }
+
     public function shipmentLoadHistories()
     {
         return $this->hasManyThrough(

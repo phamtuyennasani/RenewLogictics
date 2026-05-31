@@ -60,7 +60,11 @@
       "mcp__plugin_ecc_sequential-thinking__sequentialthinking",
       "Bash(php -r ' *)",
       "Bash(php -l \"app/Models/CongNoEInvoice.php\")",
-      "Bash(php -l \"app/Models/CongNo.php\")"
+      "Bash(php -l \"app/Models/CongNo.php\")",
+      "Bash(php -l app/Mail/EInvoiceMail.php)",
+      "Bash(php -l app/Models/CongNoEInvoice.php)",
+      "Bash(xargs tail -60)",
+      "Bash(php -l app/Services/Payments/PaymentProviderManager.php)"
     ]
   }
 }

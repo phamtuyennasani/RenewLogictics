@@ -280,6 +280,8 @@
                 </dl>
             </section>
 
+            <livewire:debt.activity-history :debt="$debt" wire:key="customer-debt-activity-{{ $debt->id }}" />
+
             @if ($canCreateInvoice && $this->canManage() && $availableForInvoice > 0)
                 <section class="rounded-xl border border-primary-100 bg-white p-5 shadow-sm">
                     <div class="flex items-center justify-between gap-3">
@@ -470,7 +472,7 @@
         $latestEInvoice = $einvoices->first();
     @endphp
 
-    @if ($this->canManage() && ($debt->status === \App\Enums\DebtStatusEnum::DA_THANH_TOAN || $einvoices->isNotEmpty()))
+    @if ($this->eInvoiceEnabled && $this->canManage() && ($debt->status === \App\Enums\DebtStatusEnum::DA_THANH_TOAN || $einvoices->isNotEmpty()))
         <section class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>
@@ -516,7 +518,7 @@
                                         <p class="font-bold text-primary-700">{{ $einvoice->reference }}</p>
                                         <p class="mt-1 text-xs text-neutral-500">{{ $einvoice->created_at?->format('H:i d/m/Y') ?: '-' }}</p>
                                         @if ($einvoice->tracking_code)
-                                            <p class="mt-0.5 text-xs text-neutral-500" title="{{ $einvoice->tracking_code }}">Tracking: {{ Str::limit($einvoice->tracking_code, 20) }}</p>
+                                            <p class="mt-0.5 text-xs text-neutral-500" title="{{ $einvoice->tracking_code }}">Tracking: {{ $einvoice->tracking_code }}</p>
                                         @endif
                                     </td>
                                     <td class="px-4 py-4 align-top">
@@ -593,6 +595,22 @@
                                                     </button>
                                                 @else
                                                     <span class="text-xs text-neutral-400">Đã lưu file</span>
+                                                @endif
+
+                                                @if ($einvoice->pdf_path && $debt->customer?->email)
+                                                    <button
+                                                        type="button"
+                                                        wire:click="confirmSendEInvoiceEmail({{ $einvoice->id }})"
+                                                        wire:loading.attr="disabled"
+                                                        wire:target="confirmSendEInvoiceEmail({{ $einvoice->id }}),handleConfirmAction"
+                                                        class="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition {{ $einvoice->email_sent_at ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-primary-200 bg-primary-50 text-primary-700 hover:bg-primary-100' }}"
+                                                    >
+                                                        <flux:icon.envelope class="size-3.5" wire:loading.class="animate-spin" wire:target="handleConfirmAction" />
+                                                        {{ $einvoice->email_sent_at ? 'Gửi lại email' : 'Gửi email' }}
+                                                    </button>
+                                                    @if ($einvoice->email_sent_at)
+                                                        <span class="text-[11px] text-neutral-400">Đã gửi {{ $einvoice->email_sent_at->format('H:i d/m/Y') }}</span>
+                                                    @endif
                                                 @endif
                                             </div>
                                         @elseif ($einvoice->isFailed())
@@ -845,7 +863,7 @@
             </div>
 
             @if ($payingInvoice)
-                <div class="grid gap-3 sm:grid-cols-2">
+                <div class="grid gap-3 {{ $this->onlinePaymentEnabled ? 'sm:grid-cols-2' : '' }}">
                     <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedMethod === 'cash' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
                         <input type="radio" wire:model.live="selectedMethod" value="cash" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
                         <div class="min-w-0">
@@ -853,16 +871,18 @@
                             <p class="mt-0.5 text-xs text-neutral-500">Khách thanh toán trực tiếp. Cần upload ảnh hóa đơn đã thu tiền.</p>
                         </div>
                     </label>
-                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedMethod === 'bank_transfer' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
-                        <input type="radio" wire:model.live="selectedMethod" value="bank_transfer" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
-                        <div class="min-w-0">
-                            <p class="text-sm font-semibold text-neutral-900">Chuyển khoản online</p>
-                            <p class="mt-0.5 text-xs text-neutral-500">Tạo link thanh toán qua cổng. Hệ thống tự xác nhận khi nhận tiền.</p>
-                        </div>
-                    </label>
+                    @if ($this->onlinePaymentEnabled)
+                        <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition {{ $selectedMethod === 'bank_transfer' ? 'border-rose-400 bg-rose-50/70 ring-2 ring-rose-100' : 'border-neutral-200 bg-white hover:border-rose-200' }}">
+                            <input type="radio" wire:model.live="selectedMethod" value="bank_transfer" class="mt-1 h-4 w-4 text-rose-600 focus:ring-rose-500">
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-neutral-900">Chuyển khoản online</p>
+                                <p class="mt-0.5 text-xs text-neutral-500">Tạo link thanh toán qua cổng. Hệ thống tự xác nhận khi nhận tiền.</p>
+                            </div>
+                        </label>
+                    @endif
                 </div>
 
-                @if ($selectedMethod === 'bank_transfer')
+                @if ($this->onlinePaymentEnabled && $selectedMethod === 'bank_transfer')
                     <div class="rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
                         <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-600">Chọn cổng thanh toán</p>
                         <div class="grid gap-2 sm:grid-cols-3">
@@ -904,7 +924,7 @@
                             </flux:button>
                         </div>
                     </form>
-                @elseif ($selectedMethod === 'bank_transfer')
+                @elseif ($this->onlinePaymentEnabled && $selectedMethod === 'bank_transfer')
                     <div class="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50/60 p-4">
                         <div class="flex items-start gap-2 text-sm text-neutral-600">
                             <flux:icon.information-circle class="mt-0.5 size-4 text-rose-500" />
@@ -927,81 +947,140 @@
     </flux:modal>
 
     {{-- E-Invoice Modal --}}
-    <flux:modal name="create-einvoice" class="w-full max-w-lg" :dismissible="false">
-        <form wire:submit="submitEInvoice" class="relative space-y-5"
+    @php
+        $einvoiceCompany = data_get($debt->customer?->options, 'company', []);
+        $einvoiceCompanyName = data_get($einvoiceCompany, 'company_name')
+            ?: $debt->customer?->company_name
+            ?: $debt->customer?->fullname
+            ?: $debt->customer?->username
+            ?: '-';
+        $einvoiceCompanyAddress = data_get($einvoiceCompany, 'address_detail')
+            ?: $debt->customer?->address
+            ?: '-';
+        $einvoiceCompanyTaxCode = data_get($einvoiceCompany, 'tax_code') ?: '-';
+        $enabledEInvoiceProvidersCount = collect($enabledEInvoiceProviders)->filter()->count();
+    @endphp
+    <flux:modal name="create-einvoice" class="relative w-full max-w-2xl overflow-hidden p-0" :dismissible="false">
+        <form wire:submit="submitEInvoice" class="relative"
             x-on:submit="window.onbeforeunload = () => 'Đang tạo hóa đơn, vui lòng đợi.';"
             x-on:livewire:navigated.window="window.onbeforeunload = null;"
         >
-            <div>
-                <h2 class="text-lg font-bold text-neutral-950">Tạo hóa đơn điện tử</h2>
-                <p class="mt-1 text-sm text-neutral-500">
-                    Tạo hóa đơn điện tử cho công nợ <span class="font-semibold text-primary-700">{{ $debt->sohoadon }}</span>
-                </p>
+            <div class="border-b border-neutral-100 bg-white px-5 py-5 sm:px-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                        <flux:icon.receipt-percent class="size-5" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <h2 class="text-xl font-bold text-neutral-950">Tạo hóa đơn điện tử</h2>
+                            <span class="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                Đã thanh toán
+                            </span>
+                        </div>
+                        <p class="mt-1.5 text-sm text-neutral-500">
+                            Công nợ <span class="font-semibold text-primary-700">{{ $debt->sohoadon }}</span>
+                            sẽ được phát hành hóa đơn theo nhà cung cấp đã cấu hình.
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-5 px-5 py-5 sm:px-6">
                 {{-- Provider --}}
-                <label class="block">
-                    <span class="text-sm font-semibold text-neutral-700">Nhà cung cấp</span>
-                    <select
-                        wire:model="einvoiceProvider"
-                        class="mt-1 h-10 w-full rounded-lg border border-neutral-200 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    >
+                <div>
+                    <p class="mb-2 flex items-center gap-2 text-sm font-semibold text-neutral-800">
+                        <flux:icon.building-office-2 class="size-4 text-neutral-400" />
+                        Nhà cung cấp hóa đơn
+                    </p>
+                    <div class="grid gap-2 {{ $enabledEInvoiceProvidersCount > 1 ? 'sm:grid-cols-2' : '' }}">
                         @foreach ($this->einvoiceProviderLabels as $key => $label)
-                            <option value="{{ $key }}">{{ $label['name'] }}</option>
+                            @if ($enabledEInvoiceProviders[$key] ?? false)
+                                <label class="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition {{ $einvoiceProvider === $key ? 'border-emerald-400 bg-emerald-50/70 ring-2 ring-emerald-100' : 'border-neutral-200 bg-white hover:border-emerald-200' }}">
+                                    <input type="radio" wire:model.live="einvoiceProvider" value="{{ $key }}" class="mt-0.5 h-4 w-4 text-emerald-600 focus:ring-emerald-500">
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-neutral-900">{{ $label['name'] }}</p>
+                                        <p class="mt-0.5 text-xs text-neutral-500">{{ $label['description'] }}</p>
+                                    </div>
+                                </label>
+                            @endif
                         @endforeach
-                    </select>
-                </label>
-
-                {{-- Thông tin tóm tắt --}}
-                <div class="rounded-lg border border-neutral-200 bg-neutral-50 p-4 space-y-2">
-                    <p class="text-xs font-bold uppercase tracking-wide text-neutral-500">Thông tin hóa đơn</p>
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                            <p class="text-neutral-500">Khách hàng</p>
-                            <p class="font-semibold text-neutral-900">{{ $debt->customer?->fullname ?: $debt->customer?->username ?: '-' }}</p>
-                        </div>
-                        <div>
-                            <p class="text-neutral-500">Tổng tiền</p>
-                            <p class="font-bold text-neutral-950">{{ $this->money($debt->total_cuocban) }}</p>
-                        </div>
-                        <div>
-                            <p class="text-neutral-500">Số order</p>
-                            <p class="font-semibold text-neutral-900">{{ $debt->total_orders }}</p>
-                        </div>
-                        <div>
-                            <p class="text-neutral-500">Mã công nợ</p>
-                            <p class="font-semibold text-neutral-900">{{ $debt->sohoadon }}</p>
-                        </div>
                     </div>
                 </div>
 
-                {{-- Ghi chú --}}
-                <label class="block">
-                    <span class="text-sm font-semibold text-neutral-700">Ghi chú</span>
-                    <textarea
-                        wire:model="einvoiceNotes"
-                        rows="2"
-                        placeholder="Ghi chú trên hóa đơn (tùy chọn)"
-                        class="mt-1 w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
-                    ></textarea>
-                </label>
+                {{-- Thông tin xuất hóa đơn --}}
+                <div class="overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50/70">
+                    <div class="flex items-center justify-between gap-3 border-b border-neutral-200/70 px-4 py-3">
+                        <p class="text-xs font-bold uppercase tracking-wide text-neutral-500">Thông tin hóa đơn</p>
+                        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-500">
+                            <flux:icon.archive-box class="size-3.5" />
+                            {{ $debt->total_orders }} order
+                        </span>
+                    </div>
+                    <div class="space-y-3 bg-white p-4 text-sm">
+                        <div>
+                            <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                <flux:icon.building-office-2 class="size-3.5" />
+                                Tên công ty
+                            </p>
+                            <p class="mt-1.5 break-words text-base font-bold text-neutral-950">{{ $einvoiceCompanyName }}</p>
+                        </div>
+                        <div>
+                            <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                <flux:icon.map-pin class="size-3.5" />
+                                Địa chỉ
+                            </p>
+                            <p class="mt-1.5 break-words font-semibold text-neutral-900">{{ $einvoiceCompanyAddress }}</p>
+                        </div>
+                        <div>
+                            <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                <flux:icon.identification class="size-3.5" />
+                                Mã số thuế
+                            </p>
+                            <p class="mt-1.5 font-semibold text-neutral-900">{{ $einvoiceCompanyTaxCode }}</p>
+                        </div>
+                    </div>
+                    <div class="grid gap-px border-t border-neutral-200/70 bg-neutral-200/70 text-sm sm:grid-cols-2">
+                        <div class="bg-neutral-50/70 p-4">
+                            <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                <flux:icon.banknotes class="size-3.5" />
+                                Tổng tiền
+                            </p>
+                            <p class="mt-2 text-lg font-bold text-emerald-700">{{ $this->money($debt->total_cuocban) }}</p>
+                        </div>
+                        <div class="bg-neutral-50/70 p-4">
+                            <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                <flux:icon.hashtag class="size-3.5" />
+                                Mã hóa đơn
+                            </p>
+                            <p class="mt-2 break-all font-bold text-neutral-900">{{ $debt->sohoadon }}</p>
+                        </div>
+                        <div class="bg-neutral-50/70 p-4 sm:col-span-2">
+                            <p class="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                                <flux:icon.calendar-days class="size-3.5" />
+                                Kỳ công nợ
+                            </p>
+                            <p class="mt-2 font-semibold text-neutral-900">
+                                {{ $debt->tungay?->format('d/m/Y') ?: '-' }} - {{ $debt->denngay?->format('d/m/Y') ?: '-' }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="flex items-center justify-end gap-3 border-t border-neutral-100 pt-4">
+            <div class="flex flex-col-reverse gap-2 border-t border-neutral-100 bg-neutral-50/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
                 <button
                     type="button"
                     wire:click="closeEInvoiceModal"
                     wire:loading.attr="disabled"
                     wire:target="submitEInvoice"
-                    class="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    class="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:border-neutral-300 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     Hủy
                 </button>
                 <button
                     type="submit"
                     wire:loading.attr="disabled"
-                    class="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-50"
+                    class="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <span wire:loading.remove wire:target="submitEInvoice">
                         <flux:icon.receipt-percent class="size-4" />
@@ -1011,31 +1090,33 @@
                 </button>
             </div>
         </form>
-    </flux:modal>
 
-    {{-- Fullscreen loading overlay khi tạo hóa đơn --}}
-    <template x-teleport="body">
-        <div wire:loading wire:target="submitEInvoice" class="fixed inset-0 z-[9999] flex items-center justify-center bg-neutral-900/60 backdrop-blur-sm">
-            <div class="flex flex-col items-center gap-5 rounded-2xl bg-white px-10 py-8 shadow-2xl">
-                {{-- Animated icon --}}
+        {{-- Loading overlay nằm trong top-layer của modal để luôn phủ lên form. --}}
+        <div
+            wire:loading.flex
+            wire:target="submitEInvoice"
+            style="display: none;"
+            class="absolute inset-0 z-50 items-center justify-center bg-white/95 px-5 backdrop-blur-sm"
+            role="status"
+            aria-live="polite"
+            aria-label="Đang tạo hóa đơn điện tử"
+        >
+            <div class="flex w-full max-w-sm flex-col items-center gap-5 rounded-xl border border-emerald-100 bg-white px-6 py-7 text-center shadow-xl">
                 <div class="relative flex size-16 items-center justify-center">
                     <span class="absolute inline-flex size-16 animate-ping rounded-full bg-emerald-200 opacity-60"></span>
                     <span class="absolute inline-flex size-16 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600"></span>
-                    <svg class="relative size-7 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-                    </svg>
+                    <flux:icon.receipt-percent class="relative size-7 text-emerald-600" />
                 </div>
-                <div class="text-center">
+                <div>
                     <p class="text-base font-bold text-neutral-900">Đang tạo hóa đơn điện tử</p>
                     <p class="mt-1.5 text-sm text-neutral-500">Hệ thống đang xử lý, vui lòng không tắt trang...</p>
                 </div>
-                {{-- Progress dots --}}
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-1.5" aria-hidden="true">
                     <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 0ms"></span>
                     <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 150ms"></span>
                     <span class="size-2 animate-bounce rounded-full bg-emerald-500" style="animation-delay: 300ms"></span>
                 </div>
             </div>
         </div>
-    </template>
+    </flux:modal>
 </div>
