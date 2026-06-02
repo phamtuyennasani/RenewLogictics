@@ -25,7 +25,9 @@ new class extends Component {
 
     public function mount($uuid = null)
     {
+        abort_unless(\Gate::allows('receiver.index'), 403);
         $this->uuid = $uuid;
+        $saleId = $this->saleIdForCurrentUser(null);
 
         // Load countries
         $this->countries = DB::table('countries')
@@ -37,6 +39,7 @@ new class extends Component {
         // Load sales
         $this->sales = User::query()
             ->whereHas('roles', fn ($q) => $q->where('name', 'SALE'))
+            ->when($saleId, fn ($q) => $q->whereKey($saleId))
             ->orderBy('fullname')
             ->get(['id', 'fullname', 'username'])
             ->mapWithKeys(fn ($u) => [
@@ -61,7 +64,7 @@ new class extends Component {
             'fullname' => '',
             'email' => '',
             'phone' => '',
-            'id_sale' => null,
+            'id_sale' => $saleId,
             'id_ctv' => null,
             'id_sender' => null,
             'country_id' => null,
@@ -70,8 +73,13 @@ new class extends Component {
             'postcode' => '',
         ];
 
+        if ($saleId) {
+            $this->loadCtvs($saleId);
+            $this->loadSenders($saleId);
+        }
+
         if ($uuid) {
-            $item = Member::where('uuid', $uuid)->receiver()->firstOrFail();
+            $item = Member::where('uuid', $uuid)->receiver()->visibleTo(auth()->user())->firstOrFail();
             $this->formData = [
                 'company_name' => $item->company_name ?? '',
                 'fullname' => $item->fullname ?? '',
@@ -111,6 +119,8 @@ new class extends Component {
 
     public function loadSenders($saleId, $ctvId = null)
     {
+        $saleId = $this->saleIdForCurrentUser($saleId);
+
         if (!$saleId) {
             $this->senders = [];
             return;
@@ -134,6 +144,8 @@ new class extends Component {
 
     public function loadCtvs($saleId)
     {
+        $saleId = $this->saleIdForCurrentUser($saleId);
+
         if (!$saleId) {
             $this->ctvs = [];
             return;
@@ -209,6 +221,8 @@ new class extends Component {
 
     public function updatedFormDataIdSale($value)
     {
+        $value = $this->saleIdForCurrentUser($value);
+        $this->formData['id_sale'] = $value;
         $this->formData['id_ctv'] = null;
         $this->formData['id_sender'] = null;
         $this->loadCtvs($value);
@@ -219,6 +233,13 @@ new class extends Component {
     {
         $this->formData['id_sender'] = null;
         $this->loadSenders($this->formData['id_sale'], $value);
+    }
+
+    protected function saleIdForCurrentUser($saleId)
+    {
+        $user = auth()->user();
+
+        return $user?->hasAnyRole(['sale', 'SALE']) ? $user->id : $saleId;
     }
 
     public function openStateModal()
@@ -313,6 +334,8 @@ new class extends Component {
     public function save()
     {
         $this->isSaving = true;
+        $this->formData['id_sale'] = $this->saleIdForCurrentUser($this->formData['id_sale'] ?? null);
+
         try {
             $this->validate($this->rules(), $this->messages());
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -343,7 +366,7 @@ new class extends Component {
         ];
 
         if ($this->uuid) {
-            $member = Member::where('uuid', $this->uuid)->receiver()->firstOrFail();
+            $member = Member::where('uuid', $this->uuid)->receiver()->visibleTo(auth()->user())->firstOrFail();
             $member->update($data);
         } else {
             $data['uuid'] = (string) Str::uuid();

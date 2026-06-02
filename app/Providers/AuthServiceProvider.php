@@ -36,19 +36,19 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'cs', 'sale', 'ctv']);
         });
 
-        // Gate for pickups
+        // Gate for pickups — creator: admin, manager, ops; shipper: read-only
         Gate::define('pickups.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'cs', 'sale', 'ops']);
+            return $user->hasAnyRole(['admin', 'manager', 'ops', 'shipper']);
         });
 
         // Gate for scan
         Gate::define('scan', function ($user) {
-            return $user->hasAnyRole(['admin', 'ops', 'warehouse']);
+            return $user->hasAnyRole(['admin', 'ops']);
         });
 
         // Gate for packages
         Gate::define('packages.view', function ($user) {
-            return $user->hasAnyRole(['admin', 'manager', 'ops', 'cs', 'warehouse']);
+            return $user->hasAnyRole(['admin', 'manager', 'ops', 'cs']);
         });
         Gate::define('packages.create', function ($user) {
             return $user->hasAnyRole(['admin', 'manager', 'ops']);
@@ -57,12 +57,12 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'manager', 'ops']);
         });
         Gate::define('packages.scan', function ($user) {
-            return $user->hasAnyRole(['admin', 'ops', 'warehouse']);
+            return $user->hasAnyRole(['admin', 'ops']);
         });
 
         // Gate for congno
         Gate::define('congno.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'ketoan', 'manager', 'sale']);
+            return $user->hasAnyRole(['admin', 'ketoan', 'manager', 'sale', 'ctv']);
         });
 
         Gate::define('invoice.index', function ($user) {
@@ -80,7 +80,7 @@ class AuthServiceProvider extends ServiceProvider
 
         // Gate for thongke
         Gate::define('thongke', function ($user) {
-            return $user->hasAnyRole(['admin', 'manager', 'ketoan', 'sale', 'SALE', 'ctv', 'CTV', 'cs', 'ops']);
+            return $user->hasAnyRole(['admin', 'manager', 'ketoan', 'sale', 'ctv', 'cs', 'ops']);
         });
 
         // Gate for customers
@@ -88,38 +88,49 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'cs', 'sale']);
         });
 
-        // Gate for sender/receiver
+        // Gate for sender/receiver — khớp với sidebar roles
         Gate::define('sender.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'cs', 'sale', 'ctv']);
+            return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale', 'ctv']);
         });
 
         Gate::define('receiver.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'cs', 'sale', 'ctv']);
+            return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale', 'ctv']);
         });
 
-        // Gate for CTV management
+        // CTV — admin/manager/cs thấy tất cả; sale chỉ thấy CTV thuộc mình (lọc trong query)
         Gate::define('ctv.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'sale']);
+            return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale']);
         });
+
 
         // Gate for nhansu
         Gate::define('nhansu.index', function ($user) {
-            return $user->hasRole('admin');
+            return $user->hasAnyRole(['admin', 'manager']);
         });
 
-        // Gate for dulieu
+        // Gate for dulieu — admin, manager, cs: create/edit; admin only: delete
         Gate::define('dulieu.index', function ($user) {
-            return $user->hasRole('admin');
+            return $user->hasAnyRole(['admin', 'manager', 'cs']);
         });
 
-        // Gate for chinhsach
+        // Gate for chinhsach — admin only
         Gate::define('chinhsach.index', function ($user) {
             return $user->hasRole('admin');
         });
 
-        // Gate for settings
+        // Gate for settings — admin, manager, ketoan, cs
         Gate::define('settings.index', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'ketoan', 'cs']);
+        });
+
+        // Gate for settings children — admin only (logo, favicon, banner, he-thong, social, company)
+        Gate::define('settings.admin', function ($user) {
             return $user->hasRole('admin');
+        });
+
+        // Gate for phuphi — admin, manager, ketoan
+        Gate::define('phuphi.index', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'ketoan']);
         });
     }
 }

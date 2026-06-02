@@ -952,12 +952,23 @@
                 return `${year}-${month}-${day}`;
             }
 
-            document.addEventListener('DOMContentLoaded', initCongNoIndex);
-            document.addEventListener('livewire:navigated', initCongNoIndex);
+            const scheduleCongNoIndexInit = (attempt = 0) => {
+                initCongNoIndex();
+
+                const tableEl = document.getElementById('debts-table');
+                if (tableEl?.dataset.ready === 'true' || attempt >= 20) {
+                    return;
+                }
+
+                setTimeout(() => scheduleCongNoIndexInit(attempt + 1), 100);
+            };
+
+            document.addEventListener('DOMContentLoaded', scheduleCongNoIndexInit);
+            document.addEventListener('livewire:navigated', () => scheduleCongNoIndexInit());
             document.addEventListener('livewire:initialized', () => {
-                Livewire.hook('morph.updated', () => setTimeout(initCongNoIndex, 0));
+                Livewire.hook('morph.updated', () => setTimeout(() => scheduleCongNoIndexInit(), 0));
             });
-            setTimeout(initCongNoIndex, 0);
+            scheduleCongNoIndexInit();
         })();
     </script>
 @endpush

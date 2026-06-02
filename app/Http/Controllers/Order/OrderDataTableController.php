@@ -79,9 +79,25 @@ class OrderDataTableController extends Controller
         $status = OrderStatusEnum::tryFrom($data['status']);
         abort_if(! $status, 422, 'Trạng thái không hợp lệ.');
 
+        $allowedRoles = match ($status) {
+            OrderStatusEnum::HUY => ['admin', 'manager'],
+            OrderStatusEnum::DA_NHAN_HANG => ['admin', 'ops', 'manager', 'cs'],
+            OrderStatusEnum::DUYET_XUAT_HANG, OrderStatusEnum::DANG_PHAT_HANG => ['admin', 'manager', 'cs'],
+            default => [],
+        };
+        abort_unless($request->user()->hasAnyRole($allowedRoles), 403);
+
         $count = 0;
         foreach ($this->query($request, includeStatus: false)->whereIn('orders.id', $data['ids'])->get() as $order) {
-            if (! OrderAccess::canEditOrder($request->user(), $order)) {
+            if ($status === OrderStatusEnum::HUY && ! $this->canCancelOrDelete($order)) {
+                continue;
+            }
+
+            $canReceiveAsOps = $status === OrderStatusEnum::DA_NHAN_HANG
+                && $request->user()->hasRole('ops')
+                && ! $order->lock_order;
+
+            if (! $canReceiveAsOps && ! OrderAccess::canEditOrder($request->user(), $order)) {
                 continue;
             }
 
@@ -106,7 +122,7 @@ class OrderDataTableController extends Controller
 
     public function deleteCancelled(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasAnyRole(['admin', 'manager']), 403);
+        abort_unless($request->user()->hasRole('admin'), 403);
 
         $data = $request->validate([
             'ids' => ['required', 'array'],
@@ -115,13 +131,28 @@ class OrderDataTableController extends Controller
 
         $orders = $this->query($request)
             ->whereIn('orders.id', $data['ids'])
-            ->where('bill_status', OrderStatusEnum::HUY->value)
+            ->whereIn('bill_status', [
+                OrderStatusEnum::MOI_TAO->value,
+                OrderStatusEnum::DA_XAC_NHAN->value,
+                OrderStatusEnum::DA_NHAN_HANG->value,
+                OrderStatusEnum::DUYET_XUAT_HANG->value,
+            ])
             ->get();
 
         $count = $orders->count();
         $orders->each->delete();
 
-        return response()->json(['message' => "Đã xóa {$count} đơn hàng đã hủy."]);
+        return response()->json(['message' => "Đã xóa {$count} đơn hàng."]);
+    }
+
+    protected function canCancelOrDelete(Order $order): bool
+    {
+        return in_array($order->bill_status, [
+            OrderStatusEnum::MOI_TAO,
+            OrderStatusEnum::DA_XAC_NHAN,
+            OrderStatusEnum::DA_NHAN_HANG,
+            OrderStatusEnum::DUYET_XUAT_HANG,
+        ], true);
     }
 
     public function export(Request $request): StreamedResponse

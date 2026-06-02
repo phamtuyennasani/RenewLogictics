@@ -105,7 +105,7 @@
             <div class="grid gap-4 md:grid-cols-2">
                 <flux:field>
                     <flux:label>Bonus sale (%)</flux:label>
-                    <flux:input type="number" min="0" step="0.01" wire:model.live.debounce.300ms="payment.cuocvon.bonus_sale_percent" />
+                    <flux:input type="number" min="0" step="0.01" wire:model.live.debounce.300ms="payment.cuocvon.bonus_sale_percent" :disabled="$readonly" />
                 </flux:field>
                 <div class="rounded-xl border border-neutral-100 bg-neutral-50 px-4 py-3">
                     <p class="text-xs text-neutral-500">Bonus sale tạm tính</p>

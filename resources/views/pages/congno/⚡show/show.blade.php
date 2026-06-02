@@ -435,7 +435,7 @@
                                     @if ($invoice->sepay_transaction_id)
                                         <p class="mt-1 max-w-[180px] truncate text-xs text-neutral-500" title="{{ $invoice->sepay_transaction_id }}">SePay: {{ $invoice->sepay_transaction_id }}</p>
                                     @endif
-                                    @if ($invoice->payment_url || $invoice->qr_url)
+                                    @if (($invoice->payment_url || $invoice->qr_url) && ! $statusEnum?->isPaid() && ! $statusEnum?->isCancelled())
                                         <a href="{{ $invoice->payment_url ?: $invoice->qr_url }}" target="_blank" rel="noopener" class="mt-1 inline-flex text-xs font-semibold text-primary-700 hover:text-primary-800">Mở thanh toán</a>
                                     @endif
                                     @if ($invoice->photo)

@@ -68,7 +68,8 @@
       "Bash(php database/seed-demo-accounts.php)",
       "Bash(composer dump-autoload *)",
       "Bash(LICENSE_KEY=INVALID php artisan route:list)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(php -l routes/web.php)"
     ]
   }
 }

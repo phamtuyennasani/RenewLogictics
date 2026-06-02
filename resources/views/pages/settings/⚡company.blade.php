@@ -23,6 +23,7 @@ new class extends Component {
 
     public function mount()
     {
+        abort_unless(\Gate::allows('settings.admin'), 403);
         $setting = Setting::first();
         $options = $setting->options ?? [];
 

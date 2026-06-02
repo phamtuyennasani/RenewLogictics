@@ -58,10 +58,25 @@ class OrderAccess
         }
 
         if ($user->hasAnyRole(['admin', 'manager', 'ketoan'])) {
-            return true;
+            // Admin/Manager/Ketoan: chỉ cập nhật giá khi đơn đã xác nhận trở đi
+            return $order->bill_status !== OrderStatusEnum::MOI_TAO;
         }
 
-        return $user->hasRole('sale') && self::canView($user, $order);
+        if ($user->hasRole('sale')) {
+            // Sale: chỉ khi đơn mới tạo hoặc đã xác nhận
+            if (! in_array($order->bill_status, [OrderStatusEnum::MOI_TAO, OrderStatusEnum::DA_XAC_NHAN], true)) {
+                return false;
+            }
+
+            // Sale: không cập nhật nếu đã chốt cước bán
+            if (filled($order->sale_price_locked_at)) {
+                return false;
+            }
+
+            return self::canView($user, $order);
+        }
+
+        return false;
     }
 
     public static function canToggleLock(User $user): bool

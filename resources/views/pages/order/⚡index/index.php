@@ -137,7 +137,11 @@ new class extends Component
 
         $this->capabilities = [
             'canCreate' => $user->can('orders.create') || $user->hasAnyRole(['admin', 'manager', 'sale', 'SALE', 'cs']),
-            'canDeleteCancelled' => $user->hasAnyRole(['admin', 'manager']),
+            'canDeleteCancelled' => $user->hasRole('admin'),
+            'canCancel' => $user->hasAnyRole(['admin', 'manager']),
+            'canReceive' => $user->hasAnyRole(['admin', 'ops', 'manager', 'cs']),
+            'canApproveExport' => $user->hasAnyRole(['admin', 'manager', 'cs']),
+            'canShip' => $user->hasAnyRole(['admin', 'manager', 'cs']),
             'canSeeFinance' => $user->hasAnyRole(['admin', 'manager', 'ketoan']),
             'canSeeExtraFilters' => $user->hasAnyRole(['admin', 'cs']),
         ];

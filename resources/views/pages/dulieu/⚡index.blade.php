@@ -18,6 +18,13 @@ new class extends Component {
     public array $config = [];
     public ?string $pendingAction = null;
     public mixed $pendingId = null;
+
+    public function mount(): void
+    {
+        $gate = request()->routeIs('phuphi.*') ? 'phuphi.index' : 'dulieu.index';
+        abort_unless(\Gate::allows($gate), 403);
+    }
+
     public function updatingKeyword()
     {
         $this->resetPage();
@@ -41,6 +48,7 @@ new class extends Component {
         return $this->items->pluck('id')->map(fn($id) => (string) $id)->toArray();
     }
     public function deleteSelected(){
+        abort_unless(auth()->user()->hasRole('admin'), 403);
         if (empty($this->xCheck)) {
             Flux::toast(duration: 2000,heading: 'Cảnh báo', text: 'Vui lòng chọn dữ liệu cần xóa!', variant: 'warning');
             return;
@@ -55,6 +63,7 @@ new class extends Component {
         ]);
     }
     public function deleteItem($id){
+        abort_unless(auth()->user()->hasRole('admin'), 403);
         $this->pendingAction = 'deleteItem';
         $this->pendingId = $id;
         $this->dispatch('open-confirm', [
@@ -65,6 +74,10 @@ new class extends Component {
     }
     #[On('confirm-action')]
     public function handleConfirmAction(){
+        if (in_array($this->pendingAction, ['deleteItem', 'deleteSelected'], true)) {
+            abort_unless(auth()->user()->hasRole('admin'), 403);
+        }
+
         match ($this->pendingAction) {
             'deleteItem' => News::findOrFail($this->pendingId)->delete(),
             'deleteSelected' => News::whereIn('id', $this->xCheck)->delete(),
@@ -164,6 +177,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                 </span>
             </div>
 
+            @if (auth()->user()->hasRole('admin'))
             <div class="flex items-center gap-2" x-cloak x-show="localCheck.length > 0" x-transition>
                 <button
                     wire:click="deleteSelected()"
@@ -176,6 +190,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                     Xóa <span x-text="'(' + localCheck.length + ')'"></span>
                 </button>
             </div>
+            @endif
         </div>
 
         <div class="overflow-x-auto">
@@ -293,6 +308,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                                   d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
                                     </a>
+                                    @if (auth()->user()->hasRole('admin'))
                                     <button
                                         wire:click="deleteItem({{ $v->id }})"
                                         class="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
@@ -302,6 +318,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                                   d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                         </svg>
                                     </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use App\Http\Controllers\CongNo\CongNoDataTableController;
 use App\Http\Controllers\CongNo\CongNoDaiLyDataTableController;
+use App\Http\Controllers\Api\GlobalSearchController;
 use App\Http\Controllers\Order\OrderDataTableController;
 use App\Services\Providers\Sepay\SepayPaymentService;
 use App\Livewire\Dashboard;
@@ -81,6 +82,9 @@ Route::middleware('guest')->group(function () {
    AUTH ROUTES — Đã đăng nhập
    ============================================================ */
 Route::middleware('auth')->group(function () {
+    // --- Global Search API ---
+    Route::get('/api/global-search', GlobalSearchController::class)->name('api.global-search');
+
     // --- Dashboard ---
     Route::livewire('/dashboard', 'pages::thongke.index')->name('dashboard')
         ->middleware('can:thongke');
@@ -213,7 +217,7 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/{type}','pages::dulieu.index')->name('index');
         Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
         Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
-    })->middleware('can:dulieu.index');
+    })->middleware('can:phuphi.index');
 
    
     Route::prefix('place')->name('place.')->group(function () {
@@ -236,14 +240,14 @@ Route::middleware('auth')->group(function () {
 
     // --- Cấu hình ---
     Route::prefix('cai-dat')->name('settings.')->group(function () {
-        Route::livewire('/', 'pages::settings.index')->name('index');
+        Route::livewire('/', 'pages::settings.index')->name('index')->middleware('can:settings.admin');
         Route::livewire('/thong-bao', 'pages::settings.thongbao')->name('thongbao');
-        Route::livewire('/logo', 'pages::settings.logo')->name('logo');
-        Route::livewire('/favicon', 'pages::settings.favicon')->name('favicon');
-        Route::livewire('/banner', 'pages::settings.banner')->name('banner');
-        Route::livewire('/social', 'pages::settings.social')->name('social');
-        Route::livewire('/thong-tin-cong-ty', 'pages::settings.company')->name('company');
-        Route::livewire('/he-thong', 'pages::settings.he-thong')->name('he-thong');
+        Route::livewire('/logo', 'pages::settings.logo')->name('logo')->middleware('can:settings.admin');
+        Route::livewire('/favicon', 'pages::settings.favicon')->name('favicon')->middleware('can:settings.admin');
+        Route::livewire('/banner', 'pages::settings.banner')->name('banner')->middleware('can:settings.admin');
+        Route::livewire('/social', 'pages::settings.social')->name('social')->middleware('can:settings.admin');
+        Route::livewire('/thong-tin-cong-ty', 'pages::settings.company')->name('company')->middleware('can:settings.admin');
+        Route::livewire('/he-thong', 'pages::settings.he-thong')->name('he-thong')->middleware('can:settings.admin');
     })->middleware('can:settings.index');
 
     // --- Profile ---

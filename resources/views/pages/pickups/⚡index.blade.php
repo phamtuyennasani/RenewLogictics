@@ -23,6 +23,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
 
     public function mount(): void
     {
+        abort_unless(\Gate::allows('pickups.index'), 403);
         $this->fromDate ??= now()->subDays(30)->format('Y-m-d');
         $this->toDate ??= now()->format('Y-m-d');
     }

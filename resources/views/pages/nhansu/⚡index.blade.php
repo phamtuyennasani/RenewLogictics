@@ -22,6 +22,7 @@ new class extends Component {
 
     public function mount(string $type)
     {
+        abort_unless(\Gate::allows('nhansu.index'), 403);
         $this->type = $type;
         $this->config = config('nhansu.' . $this->type, []);
     }
@@ -41,6 +42,8 @@ new class extends Component {
     public function items()
     {
         $roleName = $this->config['role'] ?? null;
+        $user = auth()->user();
+        $isManagerOnly = $user->hasRole('manager') && !$user->hasRole('admin');
 
         return User::with('roles')
             ->when($this->keyword, fn($q) => $q->where('fullname', 'like', '%' . $this->keyword . '%')
@@ -48,6 +51,7 @@ new class extends Component {
                 ->orWhere('email', 'like', '%' . $this->keyword . '%')
                 ->orWhere('code', 'like', '%' . $this->keyword . '%'))
             ->when($roleName, fn($q) => $q->role($roleName))
+            ->when($isManagerOnly, fn($q) => $q->whereDoesntHave('roles', fn($r) => $r->where('name', 'manager')))
             ->orderByDesc('id')
             ->paginate(15);
     }
@@ -58,8 +62,15 @@ new class extends Component {
         return $this->items->pluck('id')->map(fn($id) => (string) $id)->toArray();
     }
 
+    public function canDeleteStaff(): bool
+    {
+        return auth()->user()->hasRole('admin');
+    }
+
     public function deleteSelected()
     {
+        abort_unless($this->canDeleteStaff(), 403);
+
         if (empty($this->xCheck)) {
             Flux::toast(duration: 2000, heading: 'Cảnh báo', text: 'Vui lòng chọn tài khoản cần xóa!', variant: 'warning');
             return;
@@ -76,6 +87,8 @@ new class extends Component {
 
     public function deleteItem($id)
     {
+        abort_unless($this->canDeleteStaff(), 403);
+
         $this->pendingAction = 'deleteItem';
         $this->pendingId = $id;
         $this->dispatch('open-confirm', [
@@ -186,6 +199,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
             </div>
 
             <div class="flex items-center gap-2" x-cloak x-show="localCheck.length > 0" x-transition>
+                @if ($this->canDeleteStaff())
                 <button
                     wire:click="deleteSelected()"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium
@@ -196,6 +210,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                     </svg>
                     Xóa <span x-text="'(' + localCheck.length + ')'"></span>
                 </button>
+                @endif
             </div>
         </div>
 
@@ -315,6 +330,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                                   d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
                                     </a>
+                                    @if ($this->canDeleteStaff())
                                     <button wire:click="deleteItem({{ $v->id }})"
                                             class="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
                                             title="Xóa">
@@ -323,6 +339,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                                   d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                         </svg>
                                     </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

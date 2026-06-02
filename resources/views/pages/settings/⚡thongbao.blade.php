@@ -9,6 +9,11 @@ use Flux\Flux;
 new class extends Component {
     use WithPagination;
 
+    public function mount(): void
+    {
+        abort_unless(\Gate::allows('settings.index'), 403);
+    }
+
     public bool $showModal = false;
     public ?int $editingId = null;
 

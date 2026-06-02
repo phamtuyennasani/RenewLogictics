@@ -1814,16 +1814,18 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     protected function recalculateOrderPayments(Order $order, array $salePaymentInput): array
     {
         $salePayment = $this->normalizePayment($salePaymentInput, 'dongiaban');
-        $costPayment = $this->normalizePayment($order->payment_cuocvon, 'dongiavon');
+        $costPayment = $order->payment_cuocvon ?? [];
         $basePayment = $this->normalizePayment($order->payment_cuocgoc, 'dongiagoc');
 
         $salePayment = $this->recalculateGroup($salePayment, 'dongiaban', ['phuphi', 'hh_khachhang']);
-        $costPayment = $this->recalculateGroup($costPayment, 'dongiavon', ['phuphi', 'phichiho'], ['phichiho']);
         $basePayment = $this->recalculateGroup($basePayment, 'dongiagoc', ['phuphi']);
 
-        $saleBonusPercent = $this->number($costPayment['bonus_sale_percent'] ?? 0);
-        $costPayment['bonus_sale_percent'] = $saleBonusPercent;
-        $costPayment['bonus_sale_amount'] = round($this->number($salePayment['total_tongcuoc_no_vat'] ?? 0) * ($saleBonusPercent / 100));
+        if ($order->agency_payment_status !== DebtStatusEnum::DA_THANH_TOAN->value) {
+            $costPayment = $this->recalculateGroup($this->normalizePayment($costPayment, 'dongiavon'), 'dongiavon', ['phuphi', 'phichiho'], ['phichiho']);
+            $saleBonusPercent = $this->number($costPayment['bonus_sale_percent'] ?? 0);
+            $costPayment['bonus_sale_percent'] = $saleBonusPercent;
+            $costPayment['bonus_sale_amount'] = round($this->number($salePayment['total_tongcuoc_no_vat'] ?? 0) * ($saleBonusPercent / 100));
+        }
 
         return [
             $salePayment,

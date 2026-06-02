@@ -120,6 +120,14 @@ class Member extends Model
         return $query->where('type', 'receiver');
     }
 
+    public function scopeVisibleTo($query, ?User $user = null)
+    {
+        return $query->when(
+            $user?->hasAnyRole(['sale', 'SALE']),
+            fn ($query) => $query->where('id_sale', $user->id)
+        );
+    }
+
     // Computed attributes
     protected function infoSale(): Attribute
     {

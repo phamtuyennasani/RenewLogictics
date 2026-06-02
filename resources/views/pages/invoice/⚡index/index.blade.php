@@ -1776,9 +1776,14 @@
                     const download = detailModal.querySelector('[data-detail-download-qr]');
                     const copy = detailModal.querySelector('[data-detail-copy-link]');
 
+                    // Ẩn link/QR thanh toán nếu hóa đơn đã thanh toán hoặc đã hủy
+                    const invoiceStatus = detailState.invoice?.status || '';
+                    const hiddenStatuses = ['da_thanh_toan', 'huy'];
+                    const forceHide = hiddenStatuses.includes(invoiceStatus);
+
                     const decodedQrUrl = qrUrl ? decodeHTMLEntities(qrUrl) : '';
                     const decodedLinkValue = linkValue ? decodeHTMLEntities(linkValue) : '';
-                    box?.classList.toggle('hidden', !qrUrl && !paymentUrl);
+                    box?.classList.toggle('hidden', forceHide || (!qrUrl && !paymentUrl));
                     setDetailText('[data-detail-payment-result-title]', showQr ? 'Mã QR thanh toán' : 'Link thanh toán');
                     if (qrContainer) {
                         qrContainer.style.display = showQr ? '' : 'none';
@@ -2118,12 +2123,23 @@
                 return `${year}-${month}-${day}`;
             }
 
-            document.addEventListener('DOMContentLoaded', initInvoiceIndex);
-            document.addEventListener('livewire:navigated', initInvoiceIndex);
+            const scheduleInvoiceIndexInit = (attempt = 0) => {
+                initInvoiceIndex();
+
+                const tableEl = document.getElementById('invoices-table');
+                if (tableEl?.dataset.ready === 'true' || attempt >= 20) {
+                    return;
+                }
+
+                setTimeout(() => scheduleInvoiceIndexInit(attempt + 1), 100);
+            };
+
+            document.addEventListener('DOMContentLoaded', scheduleInvoiceIndexInit);
+            document.addEventListener('livewire:navigated', () => scheduleInvoiceIndexInit());
             document.addEventListener('livewire:initialized', () => {
-                Livewire.hook('morph.updated', () => setTimeout(initInvoiceIndex, 0));
+                Livewire.hook('morph.updated', () => setTimeout(() => scheduleInvoiceIndexInit(), 0));
             });
-            setTimeout(initInvoiceIndex, 0);
+            scheduleInvoiceIndexInit();
         })();
     </script>
 @endpush

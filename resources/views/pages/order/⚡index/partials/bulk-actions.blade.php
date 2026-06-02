@@ -15,35 +15,43 @@
         @php
             $statusByValue = collect($statusOptions)->keyBy('value');
             $quickActions = [
-                ['label' => 'Hủy', 'status' => 'huy', 'icon' => 'x-circle'],
-                ['label' => 'Nhận hàng', 'status' => 'da_nhan_hang', 'icon' => 'archive-box-arrow-down'],
-                ['label' => 'Duyệt Xuất', 'status' => 'duyet_xuat_hang', 'icon' => 'clipboard-document-check'],
-                ['label' => 'Xuất hàng', 'status' => 'dang_phat_hang', 'icon' => 'truck'],
+                ['label' => 'Hủy', 'status' => 'huy', 'icon' => 'x-circle', 'capability' => 'canCancel'],
+                ['label' => 'Nhận hàng', 'status' => 'da_nhan_hang', 'icon' => 'archive-box-arrow-down', 'capability' => 'canReceive'],
+                ['label' => 'Duyệt Xuất', 'status' => 'duyet_xuat_hang', 'icon' => 'clipboard-document-check', 'capability' => 'canApproveExport'],
+                ['label' => 'Xuất hàng', 'status' => 'dang_phat_hang', 'icon' => 'truck', 'capability' => 'canShip'],
             ];
+            $quickActions = collect($quickActions)
+                ->filter(fn (array $action) => $capabilities[$action['capability']] ?? false)
+                ->values();
+            $bulkActionCount = $quickActions->count() + (!empty($capabilities['canDeleteCancelled']) ? 1 : 0);
         @endphp
 
-        <div class="grid grid-cols-5 gap-2 lg:min-w-[560px]">
-            <button
-                type="button"
-                data-delete-cancelled
-                class="inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-center text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45"
-            >
-                <flux:icon.trash class="size-4 shrink-0" />
-                <span class="truncate">Xóa</span>
-            </button>
+        @if ($bulkActionCount > 0)
+            <div class="grid gap-2 lg:min-w-[560px]" style="grid-template-columns: repeat({{ $bulkActionCount }}, minmax(0, 1fr));">
+                @if (!empty($capabilities['canDeleteCancelled']))
+                    <button
+                        type="button"
+                        data-delete-cancelled
+                        class="inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-center text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                        <flux:icon.trash class="size-4 shrink-0" />
+                        <span class="truncate">Xóa</span>
+                    </button>
+                @endif
 
-            @foreach ($quickActions as $action)
-                @php($status = $statusByValue->get($action['status']))
-                <button
-                    type="button"
-                    data-bulk-status="{{ $action['status'] }}"
-                    class="{{ $status['textClass'] ?? 'text-neutral-700' }} {{ isset($status['bgClass']) ? 'hover:'.$status['bgClass'] : 'hover:bg-neutral-100' }} inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-center text-sm font-medium transition hover:border-transparent"
-                >
-                    <flux:icon :icon="$action['icon']" class="size-4 shrink-0" />
-                    <span class="truncate">{{ $action['label'] }}</span>
-                </button>
-            @endforeach
-        </div>
+                @foreach ($quickActions as $action)
+                    @php($status = $statusByValue->get($action['status']))
+                    <button
+                        type="button"
+                        data-bulk-status="{{ $action['status'] }}"
+                        class="{{ $status['textClass'] ?? 'text-neutral-700' }} {{ isset($status['bgClass']) ? 'hover:'.$status['bgClass'] : 'hover:bg-neutral-100' }} inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-center text-sm font-medium transition hover:border-transparent"
+                    >
+                        <flux:icon :icon="$action['icon']" class="size-4 shrink-0" />
+                        <span class="truncate">{{ $action['label'] }}</span>
+                    </button>
+                @endforeach
+            </div>
+        @endif
     </div>
     <div class="order-status-nav">
         <div class="order-status-nav-header">

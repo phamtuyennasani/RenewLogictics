@@ -45,6 +45,7 @@ new class extends Component
 
     public function mount(): void
     {
+        abort_unless(\Gate::allows('settings.admin'), 403);
         $this->loadFromSettings();
     }
 

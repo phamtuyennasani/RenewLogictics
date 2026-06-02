@@ -68,7 +68,7 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     <select data-template='custom-sender' class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="sender-select" autocomplete="off">
                         <option value=0>Người Gửi Mới</option>
                         @foreach($listCustomer as $item)
-                            <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">AccNo. {{ $item['code'] }} - {{ $item['fullname'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['company_name'] }} </option>
+                            <option value="{{ $item['id'] }}" data-attr='@json($item)'>AccNo. {{ $item['code'] }} - {{ $item['fullname'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['company_name'] }} </option>
                         @endforeach
                     </select>
                 </flux:field>
@@ -98,7 +98,7 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                     <div class="select-hidden absolute top-full p-2 bg-white shadow-sm left-0 z-10 w-full" wire:ignore wire:show="showSelectSender" >
                         <select data-template='custom-danhsachgui' wire:change="toggleSelectSender" class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="danhsachgui-select" autocomplete="off">
                             @foreach($listSender as $item)
-                                <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">{{ $item['company_name'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['fullname'] }} </option>
+                                <option value="{{ $item['id'] }}" data-attr='@json($item)'>{{ $item['company_name'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['fullname'] }} </option>
                             @endforeach
                         </select>
                     </div>

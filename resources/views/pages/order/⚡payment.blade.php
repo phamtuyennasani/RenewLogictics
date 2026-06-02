@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Order\RecordOrderEditHistoryAction;
+use App\Enums\DebtStatusEnum;
 use App\Enums\InvoicePaymentStatusEnum;
 use App\Mail\OrderEInvoiceMail;
 use App\Models\CongNoEInvoice;
@@ -61,7 +62,13 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     public function mount(string $uuid): void
     {
         $this->order = Order::query()
-            ->with(['customer:id,fullname,code', 'sale:id,fullname,username,code', 'salePriceLocker:id,fullname,username,code'])
+            ->with([
+                'customer:id,fullname,code',
+                'sale:id,fullname,username,code',
+                'salePriceLocker:id,fullname,username,code',
+                'congNoDetails.congNo.customer',
+                'congNoDaiLyDetails.congNoDaiLy.daily',
+            ])
             ->where('uuid', $uuid)
             ->firstOrFail();
 
@@ -392,6 +399,12 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     {
         abort_unless(OrderAccess::canEditPayment(auth()->user(), $this->order), 403);
 
+        $this->order->refresh();
+
+        if ($this->isCostChargeLocked()) {
+            $this->payment['cuocvon'] = $this->normalizePayment($this->order->payment_cuocvon, 'dongiavon');
+        }
+
         $this->enforceEditableChargeScope();
         $this->syncSelectedOptionNames();
 
@@ -426,14 +439,14 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         $cuocban = $this->canEditSaleCharge()
             ? $this->payment['cuocban']
             : $this->normalizePayment($this->order->payment_cuocban, 'dongiaban');
-        $cuocvon = $this->canEditAllCharges()
+        $cuocvon = $this->canEditAllCharges() && ! $this->isCostChargeLocked()
             ? $this->payment['cuocvon']
             : $this->normalizePayment($this->order->payment_cuocvon, 'dongiavon');
         $cuocgoc = $this->canEditAllCharges()
             ? $this->payment['cuocgoc']
             : $this->normalizePayment($this->order->payment_cuocgoc, 'dongiagoc');
 
-        if (! $this->canEditAllCharges()) {
+        if (! $this->canEditAllCharges() && ! $this->isCostChargeLocked()) {
             $cuocvon['bonus_sale_percent'] = $this->number($this->payment['cuocvon']['bonus_sale_percent'] ?? ($cuocvon['bonus_sale_percent'] ?? 0));
             $cuocvon['bonus_sale_amount'] = $this->number($this->payment['cuocvon']['bonus_sale_amount'] ?? 0);
         }
@@ -746,6 +759,11 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     public function canEditAllCharges(): bool
     {
         return auth()->user()->hasAnyRole(['admin', 'manager', 'ketoan']);
+    }
+
+    public function isCostChargeLocked(): bool
+    {
+        return $this->order->agency_payment_status === DebtStatusEnum::DA_THANH_TOAN->value;
     }
 
     // =====================================================
@@ -1462,12 +1480,45 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 ?>
 
 <div class="space-y-5">
+    @php
+        $customerDebt = $order->congNoDetails
+            ->sortByDesc('created_at')
+            ->first(fn ($detail) => $detail->congNo)?->congNo;
+        $customerDebtCompany = data_get($customerDebt?->customer?->options, 'company.company_short_name')
+            ?: data_get($customerDebt?->customer?->options, 'company.company_name')
+            ?: $customerDebt?->customer?->company_name
+            ?: $customerDebt?->customer?->fullname
+            ?: $customerDebt?->customer?->username
+            ?: $customerDebt?->customer?->code;
+        $agencyDebt = $order->congNoDaiLyDetails
+            ->sortByDesc('created_at')
+            ->first(fn ($detail) => $detail->congNoDaiLy)?->congNoDaiLy;
+        $agencyDebtName = $agencyDebt?->daily?->namevi
+            ?: $agencyDebt?->daily?->nameen;
+    @endphp
+
     <section class="rounded-xl border border-neutral-200 bg-white px-5 py-4 shadow-xs">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
             <p class="text-sm text-neutral-500">Đơn hàng / {{ $order->id_bill ?: 'ORDER-'.$order->id }}</p>
             <h1 class="text-2xl font-bold text-neutral-900">Cập nhật giá đơn hàng</h1>
             <p class="mt-1 text-sm text-neutral-500">Cập nhật cước bán, cước vốn, cước gốc, phụ phí và lợi nhuận.</p>
+            @if($customerDebt || $agencyDebt)
+                <div class="mt-3 flex flex-wrap gap-2">
+                    @if($customerDebt)
+                        <a href="{{ route('congno.show', $customerDebt->uuid) }}" wire:navigate class="inline-flex items-center gap-1.5 rounded-full bg-primary-50 px-3 py-1.5 text-xs font-semibold text-primary-700 transition hover:bg-primary-100 hover:text-primary-800">
+                            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"></span>
+                            <span>Công nợ khách hàng: {{ $customerDebt->sohoadon }} - {{ $customerDebtCompany ?: 'Chưa rõ khách hàng' }}</span>
+                        </a>
+                    @endif
+                    @if($agencyDebt)
+                        <a href="{{ route('congno.daily.show', $agencyDebt->uuid) }}" wire:navigate class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-800">
+                            <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"></span>
+                            <span>Công nợ đại lý: {{ $agencyDebt->sohoadon }} - {{ $agencyDebtName ?: 'Chưa rõ đại lý' }}</span>
+                        </a>
+                    @endif
+                </div>
+            @endif
         </div>
         <a href="{{ route('orders.show', ['uuid' => $order->uuid]) }}" wire:navigate class="inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 shadow-xs hover:bg-neutral-50">
             Quay lại chi tiết
@@ -1486,7 +1537,6 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                             @if($order->salePriceLocker)
                                 bởi {{ $order->salePriceLocker->fullname ?: $order->salePriceLocker->username }}
                             @endif
-                            . Chỉ Admin có quyền cập nhật cước bán sau khi chốt.
                         </div>
                     </div>
                 @endif
@@ -1507,12 +1557,19 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
                 @endif
 
                 @if($this->showCostCharge())
+                    @if($this->isCostChargeLocked())
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+                            <div class="font-semibold">Cước vốn đã khóa</div>
+                            <div class="mt-1 text-amber-700">Đơn hàng đã thanh toán đại lý nên không thể điều chỉnh Cước vốn.</div>
+                        </div>
+                    @endif
                     @include('pages.order.partials.payment-card', [
                         'group' => 'cuocvon',
                         'title' => 'Cước vốn',
                         'subtitle' => 'Giá vốn nhà cung ứng và chi hộ',
                         'priceKey' => 'dongiavon',
                         'priceLabel' => 'Đơn giá vốn',
+                        'readonly' => $this->isCostChargeLocked(),
                         'buckets' => [
                             ['key' => 'phuphi', 'label' => 'Phụ phí vốn'],
                             ['key' => 'phichiho', 'label' => 'Phí chi hộ'],
@@ -1551,6 +1608,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
     {{-- ============================================================
          HÓA ĐƠN THU CHO ĐƠN LẺ
          ============================================================ --}}
+    @if($this->order->isWalkIn())
     <section class="rounded-xl border border-neutral-200 bg-white shadow-xs">
         <div class="flex items-center justify-between border-b border-neutral-100 px-5 py-4">
             <div>
@@ -1877,6 +1935,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
             @endif
         </div>
     </section>
+    @endif
 
     {{-- ============================================================
          MODALS

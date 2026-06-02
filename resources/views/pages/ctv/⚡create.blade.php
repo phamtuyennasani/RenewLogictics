@@ -33,6 +33,7 @@ new class extends Component {
 
     public function mount($id = null)
     {
+        abort_unless(\Gate::allows('ctv.index'), 403);
         $this->itemId = $id;
         $this->dim = Setting::selectRaw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.dim')) as dim")
             ->value('dim') ?: 6000;
@@ -53,13 +54,20 @@ new class extends Component {
             ])
             ->toArray();
 
+        // Sale tạo mới → mặc định chưa kích hoạt
+        $currentUser = auth()->user();
+        $isSaleOnly = $currentUser->hasRole('sale') && ! $currentUser->hasAnyRole(['admin', 'manager', 'cs']);
+        if (! $id && $isSaleOnly) {
+            $this->isActive = false;
+        }
+
         $this->formData = [
             'username' => '',
             'code'     => '',
             'fullname' => '',
             'email'    => '',
             'phone'    => '',
-            'id_sale'  => null,
+            'id_sale'  => $isSaleOnly ? $currentUser->id : null,
             'password' => '',
             'password_confirmation' => '',
         ];
@@ -67,6 +75,11 @@ new class extends Component {
         if ($id) {
             $item = User::find($id);
             if ($item) {
+                // Sale chỉ được sửa CTV thuộc mình
+                if ($isSaleOnly && $item->id_sale !== $currentUser->id) {
+                    abort(403);
+                }
+
                 $this->formData = [
                     'username' => $item->username ?? '',
                     'code'     => $item->code ?? '',
@@ -92,6 +105,16 @@ new class extends Component {
                 }
             }
         }
+    }
+
+    /**
+     * Sale chỉ được phép: tạo/sửa thông tin cơ bản.
+     * Không được: xóa, cập nhật DIM, kích hoạt, đổi mật khẩu.
+     */
+    public function isSaleOnly(): bool
+    {
+        $user = auth()->user();
+        return $user->hasRole('sale') && ! $user->hasAnyRole(['admin', 'manager', 'cs']);
     }
 
     public function loadWards($cityId)
@@ -126,20 +149,22 @@ new class extends Component {
             'formData.fullname' => 'required|string|max:225',
             'formData.email'    => 'nullable|email|' . $uniqueEmail,
             'formData.phone'    => 'nullable|string|max:20',
-            'formData.id_sale'  => [
-                'required',
-                'exists:user,id',
-                function ($attribute, $value, $fail) {
-                    $isSale = User::query()
-                        ->whereKey($value)
-                        ->whereHas('roles', fn ($q) => $q->where('name', 'SALE'))
-                        ->exists();
+            'formData.id_sale'  => array_merge(
+                $this->isSaleOnly() ? [] : [
+                    'required',
+                    'exists:user,id',
+                    function ($attribute, $value, $fail) {
+                        $isSale = User::query()
+                            ->whereKey($value)
+                            ->whereHas('roles', fn ($q) => $q->where('name', 'SALE'))
+                            ->exists();
 
-                    if (!$isSale) {
-                        $fail('Nhân viên được chọn không thuộc nhóm SALE');
-                    }
-                },
-            ],
+                        if (!$isSale) {
+                            $fail('Nhân viên được chọn không thuộc nhóm SALE');
+                        }
+                    },
+                ],
+            ),
 
             // Company validation
             'companyData.company_name' => 'required|string|max:255',
@@ -215,6 +240,8 @@ new class extends Component {
     public function save()
     {
         $this->isSaving = true;
+        $isSale = $this->isSaleOnly();
+
         try {
             $this->validate($this->rules(), $this->messages());
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -230,7 +257,19 @@ new class extends Component {
             $this->formData['code'] = $this->generateUniqueCode();
         }
 
+        // Sale luôn gán id_sale = chính mình
+        if ($isSale) {
+            $this->formData['id_sale'] = auth()->id();
+        }
+
         if ($this->itemId) {
+            $user = User::findOrFail($this->itemId);
+
+            // Sale chỉ sửa CTV thuộc mình
+            if ($isSale && $user->id_sale !== auth()->id()) {
+                abort(403);
+            }
+
             $updateData = [
                 'username' => $this->formData['username'],
                 'code'     => $this->formData['code'],
@@ -238,20 +277,34 @@ new class extends Component {
                 'email'    => $this->formData['email'] ?: null,
                 'phone'    => $this->formData['phone'] ?: null,
                 'id_sale'  => $this->formData['id_sale'],
-                'status'   => $this->isActive ? '1' : '0',
-                'options'  => ['company' => $this->companyData],
             ];
-            if (!empty($this->formData['password'])) {
-                $updateData['password'] = bcrypt($this->formData['password']);
+
+            // Sale không được cập nhật: status, DIM, password
+            if (! $isSale) {
+                $updateData['status'] = $this->isActive ? '1' : '0';
+                if (!empty($this->formData['password'])) {
+                    $updateData['password'] = bcrypt($this->formData['password']);
+                }
             }
-            $user = User::findOrFail($this->itemId);
-            $updateData['options'] = array_merge($user->options ?? [], [
+
+            $options = array_merge($user->options ?? [], [
                 'company' => $this->companyData,
-                'dim' => $this->dim,
             ]);
+            // Sale không được cập nhật DIM
+            if (! $isSale) {
+                $options['dim'] = $this->dim;
+            }
+            $updateData['options'] = $options;
+
             $user->update($updateData);
             $user->syncRoles(['CTV']);
         } else {
+            // Sale tạo mới → mặc định chưa kích hoạt, không set DIM tùy ý
+            $status = $isSale ? '0' : ($this->isActive ? '1' : '0');
+            $dimValue = $isSale
+                ? (Setting::selectRaw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.dim')) as dim")->value('dim') ?: 6000)
+                : $this->dim;
+
             $user = User::create([
                 'username' => $this->formData['username'],
                 'code'     => $this->formData['code'],
@@ -260,10 +313,10 @@ new class extends Component {
                 'phone'    => $this->formData['phone'] ?: null,
                 'id_sale'  => $this->formData['id_sale'],
                 'password' => bcrypt($this->formData['password']),
-                'status'   => $this->isActive ? '1' : '0',
+                'status'   => $status,
                 'options'  => [
                     'company' => $this->companyData,
-                    'dim' => $this->dim,
+                    'dim' => $dimValue,
                 ],
             ]);
             $user->assignRole('CTV');
@@ -415,6 +468,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 </flux:field>
             </div>
 
+            @unless($this->isSaleOnly())
             <flux:field>
                 <flux:label badge="Bắt buộc">Nhân viên SALE phụ trách</flux:label>
                 <x-select-search
@@ -425,6 +479,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 />
                 @error('formData.id_sale')<flux:error>{{ $message }}</flux:error>@enderror
             </flux:field>
+            @endunless
 
             <div class="pt-2 border-t border-neutral-100">
                 <h3 class="text-sm font-semibold text-neutral-700 uppercase tracking-wide flex items-center gap-2">
@@ -549,6 +604,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 @error('companyData.address_detail')<flux:error>{{ $message }}</flux:error>@enderror
             </flux:field>
 
+            @unless($this->isSaleOnly())
             <flux:field>
                 <flux:label>DIM</flux:label>
                 <flux:input
@@ -562,7 +618,9 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 />
                 @error('dim')<flux:error>{{ $message }}</flux:error>@enderror
             </flux:field>
+            @endunless
 
+            @unless($this->isSaleOnly())
             {{-- Kích hoạt tài khoản --}}
             <div class="flex items-start gap-3">
                 <div class="mt-1.5">
@@ -679,6 +737,37 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 </div>
                 @endif
             </div>
+            @else
+            {{-- Sale tạo mới: vẫn cần nhập mật khẩu --}}
+            @if(! $itemId)
+            <div class="grid grid-cols-2 gap-3">
+                <flux:field>
+                    <flux:label badge="Bắt buộc">Mật khẩu</flux:label>
+                    <flux:input viewable
+                        type="password"
+                        wire:model.defer="formData.password"
+                        :invalid="$errors->has('formData.password')"
+                        placeholder="Nhập mật khẩu..."
+                        autocomplete="new-password"
+                        :class:input="$inputClass"
+                    />
+                    @error('formData.password')<flux:error>{{ $message }}</flux:error>@enderror
+                </flux:field>
+                <flux:field>
+                    <flux:label badge="Bắt buộc">Nhập lại mật khẩu</flux:label>
+                    <flux:input viewable
+                        type="password"
+                        wire:model.defer="formData.password_confirmation"
+                        :invalid="$errors->has('formData.password_confirmation')"
+                        placeholder="Nhập lại mật khẩu..."
+                        autocomplete="new-password"
+                        :class:input="$inputClass"
+                    />
+                    @error('formData.password_confirmation')<flux:error>{{ $message }}</flux:error>@enderror
+                </flux:field>
+            </div>
+            @endif
+            @endunless
         </div>
 
         {{-- ACTION BUTTONS --}}

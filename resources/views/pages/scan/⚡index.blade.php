@@ -29,7 +29,7 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
 
     public function mount(): void
     {
-        //
+        abort_unless(\Gate::allows('scan'), 403);
     }
 
     public function submitScan(): void
@@ -181,6 +181,13 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
     lastCode: '',
     lastAt: 0,
     duplicateWindowMs: 5000,
+    candidateCode: '',
+    candidateAt: 0,
+    candidateCount: 0,
+    confirmationWindowMs: 2500,
+    detectedPoints: '',
+    detectedViewBox: '0 0 1 1',
+    detectedLineTimer: null,
     busy: false,
 
     get csrf() {
@@ -267,6 +274,43 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         return fallback;
     },
 
+    showDetectedLine(result) {
+        const video = document.querySelector('[data-camera-video]');
+        const points = result?.getResultPoints?.() || [];
+
+        if (!video || points.length < 2 || !video.videoWidth || !video.videoHeight) {
+            return;
+        }
+
+        this.detectedViewBox = `0 0 ${video.videoWidth} ${video.videoHeight}`;
+        this.detectedPoints = points
+            .map(point => `${point.getX?.() ?? point.x},${point.getY?.() ?? point.y}`)
+            .join(' ');
+
+        clearTimeout(this.detectedLineTimer);
+        this.detectedLineTimer = setTimeout(() => {
+            this.detectedPoints = '';
+        }, 700);
+    },
+
+    async enableContinuousFocus() {
+        const getCapabilities = this.scannerControls?.streamVideoCapabilitiesGet;
+        const applyConstraints = this.scannerControls?.streamVideoConstraintsApply;
+
+        if (!getCapabilities || !applyConstraints) {
+            return;
+        }
+
+        try {
+            const capabilities = getCapabilities(track => track.kind === 'video');
+            if ((capabilities?.focusMode || []).includes('continuous')) {
+                await applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+            }
+        } catch {
+            // Some mobile browsers expose camera controls but reject focus constraints.
+        }
+    },
+
     async startCamera() {
         const video = document.querySelector('[data-camera-video]');
         const select = document.querySelector('[data-camera-select]');
@@ -274,24 +318,63 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         this.stopCamera();
         this.setCameraStatus('Đang bật camera...', 'neutral');
         try {
-            const { BrowserMultiFormatReader } = await this.loadScanner();
+            const { BarcodeFormat, BrowserMultiFormatOneDReader, DecodeHintType } = await this.loadScanner();
             const devices = await this.loadCamerasWithPermission();
             const preferredDeviceId = select?.value || devices[0]?.deviceId;
-            this.codeReader = new BrowserMultiFormatReader();
-            this.scannerControls = await this.codeReader.decodeFromVideoDevice(
-                preferredDeviceId || undefined,
+            const hints = new Map([
+                [DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]],
+                [DecodeHintType.TRY_HARDER, true],
+            ]);
+            const videoConstraints = {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                ...(preferredDeviceId
+                    ? { deviceId: { exact: preferredDeviceId } }
+                    : { facingMode: { ideal: 'environment' } }),
+            };
+            this.codeReader = new BrowserMultiFormatOneDReader(hints, {
+                delayBetweenScanAttempts: 120,
+                delayBetweenScanSuccess: 150,
+            });
+            this.scannerControls = await this.codeReader.decodeFromConstraints(
+                { video: videoConstraints },
                 video,
                 (result) => {
-                    const text = result?.getText?.();
+                    this.showDetectedLine(result);
+                    const text = result?.getText?.()?.trim().toUpperCase();
                     if (!text) return;
+
+                    if (!/^[A-Z0-9-]+-\d{2,}$/.test(text)) {
+                        this.setCameraStatus('Barcode không đúng định dạng mã kiện: ' + text, 'neutral');
+                        return;
+                    }
+
                     const now = Date.now();
+
+                    if (text !== this.candidateCode || now - this.candidateAt > this.confirmationWindowMs) {
+                        this.candidateCode = text;
+                        this.candidateAt = now;
+                        this.candidateCount = 1;
+                        this.setCameraStatus('Đang xác nhận barcode: ' + text, 'neutral');
+                        return;
+                    }
+
+                    this.candidateCount += 1;
+                    this.candidateAt = now;
+
+                    if (this.candidateCount < 2) return;
                     if (text === this.lastCode && now - this.lastAt < this.duplicateWindowMs) return;
+
                     this.lastCode = text;
                     this.lastAt = now;
+                    this.candidateCode = '';
+                    this.candidateAt = 0;
+                    this.candidateCount = 0;
                     this.setCameraStatus('Đã đọc: ' + text, 'success');
                     $wire.set('barcodeInput', text).then(() => $wire.submitScan());
                 }
             );
+            await this.enableContinuousFocus();
             this.cameraActive = true;
             this.setCameraStatus('Camera đang quét. Đưa barcode vào khung hình.', 'success');
         } catch (e) {
@@ -307,6 +390,12 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
             video.srcObject = null;
         }
         this.cameraActive = false;
+        this.candidateCode = '';
+        this.candidateAt = 0;
+        this.candidateCount = 0;
+        clearTimeout(this.detectedLineTimer);
+        this.detectedLineTimer = null;
+        this.detectedPoints = '';
         this.setCameraStatus('Camera chưa bật.', 'neutral');
     },
 
@@ -381,8 +470,27 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
                         </button>
                     </div>
                 </div>
-                <div class="mt-4 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-950">
+                <div class="relative mt-4 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-950">
                     <video data-camera-video class="aspect-video w-full object-cover" muted playsinline></video>
+                    <div class="pointer-events-none absolute inset-[12%] rounded-lg border-2 border-white/70"></div>
+                    <div x-show="cameraActive" x-cloak class="camera-scan-line pointer-events-none absolute inset-x-[12%] border-t-2 border-red-500 shadow-[0_0_8px_red]"></div>
+                    <svg
+                        x-show="detectedPoints"
+                        x-cloak
+                        x-bind:viewBox="detectedViewBox"
+                        class="pointer-events-none absolute inset-0 h-full w-full"
+                        preserveAspectRatio="xMidYMid slice"
+                    >
+                        <polyline
+                            x-bind:points="detectedPoints"
+                            fill="none"
+                            stroke="#22c55e"
+                            stroke-width="5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            vector-effect="non-scaling-stroke"
+                        />
+                    </svg>
                 </div>
                 <p data-camera-status class="mt-3 text-sm font-semibold text-neutral-600">Camera chưa bật.</p>
             </div>
@@ -474,3 +582,14 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         </div>
     </section>
 </div>
+
+<style>
+    @keyframes camera-scan-line {
+        0%, 100% { top: 16%; }
+        50% { top: 84%; }
+    }
+
+    .camera-scan-line {
+        animation: camera-scan-line 1.8s ease-in-out infinite;
+    }
+</style>

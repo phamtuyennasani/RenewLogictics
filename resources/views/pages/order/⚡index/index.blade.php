@@ -703,7 +703,7 @@
                         { targets: 14, width: '130px' },
                         { targets: 15, width: '200px' },
                         { targets: 16, width: '190px' },
-                        { targets: 17, width: '96px' },
+                        { targets: 17, width: 'auto' },
                     ],
                 });
 
@@ -857,17 +857,44 @@
 
                 document.querySelector('[data-delete-cancelled]')?.addEventListener('click', () => {
                     if (selected.size === 0) {
-                        notify('Vui lòng chọn ít nhất một order đã hủy trước khi xóa.');
+                        notify('Vui lòng chọn ít nhất một order trước khi xóa.');
                         return;
                     }
 
                     window.dispatchEvent(new CustomEvent('open-confirm', { detail: {
                         title: 'Xác nhận xóa',
-                        message: `Bạn có chắc chắn muốn xóa ${selected.size} order đã hủy? Hành động này không thể hoàn tác.`,
+                        message: `Bạn có chắc chắn muốn xóa ${selected.size} order? Chỉ các order còn được phép thao tác sẽ bị xóa. Hành động này không thể hoàn tác.`,
                         variant: 'danger',
                         confirmText: 'Xóa',
                         onConfirm: () => postJson(routes.deleteCancelled, { ids: [...selected] }).then(reload),
                     }}));
+                });
+
+                tableEl.addEventListener('click', (event) => {
+                    const cancelButton = event.target.closest('[data-order-cancel]');
+                    if (cancelButton) {
+                        const id = cancelButton.dataset.orderCancel;
+                        window.dispatchEvent(new CustomEvent('open-confirm', { detail: {
+                            title: 'Xác nhận hủy đơn',
+                            message: 'Bạn có chắc chắn muốn hủy order này?',
+                            variant: 'warning',
+                            confirmText: 'Hủy đơn',
+                            onConfirm: () => postJson(routes.bulkStatus, { ids: [id], status: 'huy' }).then(reload),
+                        }}));
+                        return;
+                    }
+
+                    const deleteButton = event.target.closest('[data-order-delete]');
+                    if (deleteButton) {
+                        const id = deleteButton.dataset.orderDelete;
+                        window.dispatchEvent(new CustomEvent('open-confirm', { detail: {
+                            title: 'Xác nhận xóa',
+                            message: 'Bạn có chắc chắn muốn xóa order này? Hành động này không thể hoàn tác.',
+                            variant: 'danger',
+                            confirmText: 'Xóa',
+                            onConfirm: () => postJson(routes.deleteCancelled, { ids: [id] }).then(reload),
+                        }}));
+                    }
                 });
 
                 document.getElementById('orders-export')?.addEventListener('click', () => {
@@ -1014,9 +1041,20 @@
                 });
             }
 
-            document.addEventListener('DOMContentLoaded', initOrderIndex);
-            document.addEventListener('livewire:navigated', initOrderIndex);
-            setTimeout(initOrderIndex, 0);
+            const scheduleOrderIndexInit = (attempt = 0) => {
+                initOrderIndex();
+
+                const tableEl = document.getElementById('orders-table');
+                if (tableEl?.dataset.ready === 'true' || attempt >= 20) {
+                    return;
+                }
+
+                setTimeout(() => scheduleOrderIndexInit(attempt + 1), 100);
+            };
+
+            document.addEventListener('DOMContentLoaded', scheduleOrderIndexInit);
+            document.addEventListener('livewire:navigated', () => scheduleOrderIndexInit());
+            scheduleOrderIndexInit();
         })();
     </script>
 @endpush

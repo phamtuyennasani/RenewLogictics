@@ -15,6 +15,7 @@ new class extends Component {
 
     public function mount(?string $type = null, $id = null)
     {
+        abort_unless(\Gate::allows('nhansu.index'), 403);
         $this->type = $type;
         $this->itemId = $id;
         $this->config = config('nhansu.' . $this->type, []);

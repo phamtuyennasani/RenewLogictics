@@ -294,6 +294,13 @@ new class extends Component
         </div>
         <div class="flex items-center gap-2">
             <span class="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-700">{{ $order->invoices->count() }} dòng</span>
+            @if($order->invoices->isNotEmpty())
+                <button type="button"
+                    class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 shadow-xs transition hover:border-emerald-300 hover:bg-emerald-100">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M5 19h14"/></svg>
+                    Export Invoice
+                </button>
+            @endif
             @if($this->canEditInvoices())
             <flux:modal.trigger name="edit-invoices">
                 <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600" aria-label="Sửa invoice hàng hóa">

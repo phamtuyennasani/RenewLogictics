@@ -19,7 +19,9 @@ new class extends Component {
 
     public function mount($uuid = null)
     {
+        abort_unless(\Gate::allows('sender.index'), 403);
         $this->uuid = $uuid;
+        $saleId = $this->saleIdForCurrentUser(null);
 
         // Load provinces
         $this->provinces = DB::table('province')
@@ -31,6 +33,7 @@ new class extends Component {
         // Load sales
         $this->sales = User::query()
             ->whereHas('roles', fn ($q) => $q->where('name', 'SALE'))
+            ->when($saleId, fn ($q) => $q->whereKey($saleId))
             ->orderBy('fullname')
             ->get(['id', 'fullname', 'username'])
             ->mapWithKeys(fn ($u) => [
@@ -49,15 +52,19 @@ new class extends Component {
             'fullname' => '',
             'email' => '',
             'phone' => '',
-            'id_sale' => null,
+            'id_sale' => $saleId,
             'id_ctv' => null,
             'id_province' => null,
             'id_ward' => null,
             'address' => '',
         ];
 
+        if ($saleId) {
+            $this->loadCtvs($saleId);
+        }
+
         if ($uuid) {
-            $item = Member::where('uuid', $uuid)->sender()->firstOrFail();
+            $item = Member::where('uuid', $uuid)->sender()->visibleTo(auth()->user())->firstOrFail();
             $this->formData = [
                 'company_name' => $item->company_name ?? '',
                 'fullname' => $item->fullname ?? '',
@@ -84,6 +91,8 @@ new class extends Component {
 
     public function loadCtvs($saleId)
     {
+        $saleId = $this->saleIdForCurrentUser($saleId);
+
         if (!$saleId) {
             $this->ctvs = [];
             return;
@@ -121,8 +130,17 @@ new class extends Component {
 
     public function updatedFormDataIdSale($value)
     {
+        $value = $this->saleIdForCurrentUser($value);
+        $this->formData['id_sale'] = $value;
         $this->formData['id_ctv'] = null;
         $this->loadCtvs($value);
+    }
+
+    protected function saleIdForCurrentUser($saleId)
+    {
+        $user = auth()->user();
+
+        return $user?->hasAnyRole(['sale', 'SALE']) ? $user->id : $saleId;
     }
 
     protected function rules(): array
@@ -189,6 +207,8 @@ new class extends Component {
     public function save()
     {
         $this->isSaving = true;
+        $this->formData['id_sale'] = $this->saleIdForCurrentUser($this->formData['id_sale'] ?? null);
+
         try {
             $this->validate($this->rules(), $this->messages());
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -216,7 +236,7 @@ new class extends Component {
         ];
 
         if ($this->uuid) {
-            $member = Member::where('uuid', $this->uuid)->sender()->firstOrFail();
+            $member = Member::where('uuid', $this->uuid)->sender()->visibleTo(auth()->user())->firstOrFail();
             $member->update($data);
         } else {
             $data['uuid'] = (string) Str::uuid();

@@ -41,7 +41,7 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
                 <select data-template="custom-receiver" class="tomselectEml tomselectEml-getReceiver" id="receiver-select" data-placeholder="Người Nhận Mới" autocomplete="off">
                     <option value="0">Người Nhận Mới</option>
                     @foreach($listReceiver as $item)
-                        <option value="{{ $item['id'] }}" data-attr="{{ htmlentities(json_encode($item)) }}">
+                        <option value="{{ $item['id'] }}" data-attr='@json($item)'>
                             {{ collect([$item['company'] ?? '', $item['fullname'] ?? '', $item['phone'] ?? '', $item['postcode'] ?? '', $item['address'] ?? ''])->filter()->implode(' - ') }}
                         </option>
                     @endforeach

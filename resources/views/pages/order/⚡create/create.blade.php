@@ -79,6 +79,8 @@
                         </select>
                     </flux:field>
                 </div>
+            @else
+                <div class="hidden lg:block"></div>
             @endif
             <div class="hidden lg:block"></div>
             <div><livewire:order.sender wire:model="sender" :list-customer="$listCustomer" :list-sender="$listSender" :id-sale="$idSale" wire:key="sender" /></div>

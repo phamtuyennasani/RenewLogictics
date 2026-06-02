@@ -676,10 +676,21 @@
             function formatDate(date) {
                 return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
             }
-            document.addEventListener('DOMContentLoaded', initDailyDebtIndex);
-            document.addEventListener('livewire:navigated', initDailyDebtIndex);
-            document.addEventListener('livewire:initialized', () => Livewire.hook('morph.updated', () => setTimeout(initDailyDebtIndex, 0)));
-            setTimeout(initDailyDebtIndex, 0);
+            const scheduleDailyDebtIndexInit = (attempt = 0) => {
+                initDailyDebtIndex();
+
+                const tableEl = document.getElementById('daily-debts-table');
+                if (tableEl?.dataset.ready === 'true' || attempt >= 20) {
+                    return;
+                }
+
+                setTimeout(() => scheduleDailyDebtIndexInit(attempt + 1), 100);
+            };
+
+            document.addEventListener('DOMContentLoaded', scheduleDailyDebtIndexInit);
+            document.addEventListener('livewire:navigated', () => scheduleDailyDebtIndexInit());
+            document.addEventListener('livewire:initialized', () => Livewire.hook('morph.updated', () => setTimeout(() => scheduleDailyDebtIndexInit(), 0)));
+            scheduleDailyDebtIndexInit();
         })();
     </script>
 @endpush

@@ -23,6 +23,10 @@ class OrderInvoiceService
             throw new \RuntimeException('Chỉ đơn hàng vãng lai mới được tạo hóa đơn trực tiếp.');
         }
 
+        if (blank($order->sale_price_locked_at)) {
+            throw new \RuntimeException('Cần chốt cước bán trước khi tạo hóa đơn.');
+        }
+
         if ($order->isInvoiceLocked()) {
             throw new \RuntimeException('Đơn hàng đã có hóa đơn đang xử lý.');
         }
@@ -166,6 +170,11 @@ class OrderInvoiceService
         }
 
         if ($order->isInvoiceLocked()) {
+            return false;
+        }
+
+        // Chỉ order đã chốt cước bán mới được tạo hóa đơn
+        if (blank($order->sale_price_locked_at)) {
             return false;
         }
 

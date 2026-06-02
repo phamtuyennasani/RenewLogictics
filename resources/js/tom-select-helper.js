@@ -23,6 +23,7 @@ function buildTomSelectOptions(select) {
     if (template === 'custom-sender') {
         renderItem = function (data, escape) {
             const dataAttr = select.querySelector(`option[value="${data.value}"]`)?.getAttribute('data-attr');
+            console.log(JSON.parse(dataAttr));
             if(dataAttr==null) {
                 return renderDefaultItem(data, escape);
             }

@@ -11,6 +11,11 @@ use Flux\Flux;
 new class extends Component {
     use WithPagination;
 
+    public function mount(): void
+    {
+        abort_unless(\Gate::allows('receiver.index'), 403);
+    }
+
     #[Url(history: true)]
     public ?string $keyword = '';
 
@@ -34,6 +39,7 @@ new class extends Component {
     {
         return Member::with(['sale:id,fullname,code,username', 'ctv:id,fullname,username,code', 'sender:id,company_name,code', 'country:id,name'])
             ->receiver()
+            ->visibleTo(auth()->user())
             ->when($this->keyword, fn($q) => $q->where(function ($sub) {
                 $sub->where('company_name', 'like', '%' . $this->keyword . '%')
                     ->orWhere('fullname', 'like', '%' . $this->keyword . '%')
@@ -82,8 +88,8 @@ new class extends Component {
     public function handleConfirmAction()
     {
         match ($this->pendingAction) {
-            'deleteItem'     => Member::whereKey($this->pendingId)->receiver()->firstOrFail()->delete(),
-            'deleteSelected' => Member::whereIn('id', $this->xCheck)->receiver()->delete(),
+            'deleteItem'     => Member::whereKey($this->pendingId)->receiver()->visibleTo(auth()->user())->firstOrFail()->delete(),
+            'deleteSelected' => Member::whereIn('id', $this->xCheck)->receiver()->visibleTo(auth()->user())->delete(),
             default          => null,
         };
 

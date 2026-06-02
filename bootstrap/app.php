@@ -16,7 +16,29 @@ $app = Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Không có quyền truy cập.'], 403);
+            }
+            return response()->view('errors.403', [
+                'primaryColor' => config('theme.primary.hex', '#3b82f6'),
+                'accentColor'  => config('theme.accent.hex', '#0ea5e9'),
+                'primaryDark'  => config('theme.primary.dark', '#2563eb'),
+            ], 403);
+        });
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+            if ($e->getStatusCode() !== 403) {
+                return null;
+            }
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Không có quyền truy cập.'], 403);
+            }
+            return response()->view('errors.403', [
+                'primaryColor' => config('theme.primary.hex', '#3b82f6'),
+                'accentColor'  => config('theme.accent.hex', '#0ea5e9'),
+                'primaryDark'  => config('theme.primary.dark', '#2563eb'),
+            ], 403);
+        });
     })->create();
 
 $app->usePublicPath(dirname(__DIR__).'/public_html');

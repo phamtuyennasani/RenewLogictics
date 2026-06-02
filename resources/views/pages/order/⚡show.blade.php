@@ -15,6 +15,8 @@ use App\Models\Ward;
 use App\Enums\OrderStatusEnum;
 use App\Support\OrderAccess;
 use Flux\Flux;
+use Picqer\Barcode\Renderers\SvgRenderer;
+use Picqer\Barcode\Types\TypeCode128;
 
 new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Component
 {
@@ -113,8 +115,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         }
 
         if ($user->hasRole('ketoan') && ! $user->hasAnyRole(['admin', 'manager'])) {
+            // Ketoan: chỉ cập nhật giá khi đơn đã xác nhận trở đi
+            if ($this->order->bill_status !== OrderStatusEnum::MOI_TAO && OrderAccess::canEditPayment($user, $this->order)) {
+                return [
+                    ['type' => 'price', 'label' => 'Cập nhật Giá'],
+                    ['type' => 'exit', 'label' => 'Thoát'],
+                ];
+            }
+
             return [
-                ['type' => 'price', 'label' => 'Cập nhật Giá'],
                 ['type' => 'exit', 'label' => 'Thoát'],
             ];
         }
@@ -145,8 +154,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             $buttons[] = ['type' => 'pickup', 'label' => 'Tạo phiếu Pickup'];
         }
 
-        if ($this->order->bill_status !== OrderStatusEnum::MOI_TAO) {
-            $buttons[] = ['type' => 'price', 'label' => 'Cáº­p nháº­t GiÃ¡'];
+        if (OrderAccess::canEditPayment($user, $this->order)) {
+            $buttons[] = ['type' => 'price', 'label' => 'Cập nhật Giá'];
         }
 
         if (! in_array($this->order->bill_status, [OrderStatusEnum::MOI_TAO, OrderStatusEnum::DA_XAC_NHAN, OrderStatusEnum::HUY, OrderStatusEnum::DA_GIAO], true)) {
@@ -505,66 +514,21 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             return '';
         }
 
-        $patterns = [
-            '212222', '222122', '222221', '121223', '121322', '131222', '122213', '122312', '132212', '221213',
-            '221312', '231212', '112232', '122132', '122231', '113222', '123122', '123221', '223211', '221132',
-            '221231', '213212', '223112', '312131', '311222', '321122', '321221', '312212', '322112', '322211',
-            '212123', '212321', '232121', '111323', '131123', '131321', '112313', '132113', '132311', '211313',
-            '231113', '231311', '112133', '112331', '132131', '113123', '113321', '133121', '313121', '211331',
-            '231131', '213113', '213311', '213131', '311123', '311321', '331121', '312113', '312311', '332111',
-            '314111', '221411', '431111', '111224', '111422', '121124', '121421', '141122', '141221', '112214',
-            '112412', '122114', '122411', '142112', '142211', '241211', '221114', '413111', '241112', '134111',
-            '111242', '121142', '121241', '114212', '124112', '124211', '411212', '421112', '421211', '212141',
-            '214121', '412121', '111143', '111341', '131141', '114113', '114311', '411113', '411311', '113141',
-            '114131', '311141', '411131', '211412', '211214', '211232', '2331112',
-        ];
-
-        $codes = [104];
-        $checksum = 104;
-        $weight = 1;
-
-        foreach (str_split($value) as $char) {
-            $ascii = ord($char);
-            $code = ($ascii >= 32 && $ascii <= 127) ? $ascii - 32 : 0;
-            $codes[] = $code;
-            $checksum += $code * $weight;
-            $weight++;
-        }
-
-        $codes[] = $checksum % 103;
-        $codes[] = 106;
-
-        $module = 1.45;
-        $height = 42;
-        $quiet = 12;
-        $x = $quiet;
-        $bars = '';
-
-        foreach ($codes as $code) {
-            foreach (str_split($patterns[$code]) as $index => $width) {
-                $barWidth = (int) $width * $module;
-
-                if ($index % 2 === 0) {
-                    $bars .= sprintf(
-                        '<rect x="%.2f" y="0" width="%.2f" height="%d" fill="#000"/>',
-                        $x,
-                        $barWidth,
-                        $height
-                    );
-                }
-
-                $x += $barWidth;
-            }
-        }
-
-        $width = $x + $quiet;
-        $escapedValue = e($value);
+        $barcode = (new TypeCode128())->getBarcode($value);
+        $renderer = (new SvgRenderer())
+            ->setSvgType(SvgRenderer::TYPE_SVG_INLINE)
+            ->setBackgroundColor([255, 255, 255]);
+        $svg = $renderer->render($barcode, $barcode->getWidth() * 1.45, 42);
+        $svg = str_replace(
+            '<svg ',
+            '<svg preserveAspectRatio="xMidYMid meet" shape-rendering="crispEdges" style="display:block;width:100%;height:14mm;" ',
+            $svg
+        );
 
         return sprintf(
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %.2f 56" preserveAspectRatio="none" style="display:block;width:100%%;height:18mm;"><rect width="100%%" height="100%%" fill="#fff"/>%s<text x="50%%" y="53" text-anchor="middle" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="9" font-weight="700">%s</text></svg>',
-            $width,
-            $bars,
-            $escapedValue
+            '<div style="box-sizing:border-box;width:100%%;padding:0 3.2mm;text-align:center;background:#fff;">%s<div style="margin-top:1mm;font-family:Segoe UI,Tahoma,Arial,sans-serif;font-size:9px;font-weight:700;">%s</div></div>',
+            $svg,
+            e($value)
         );
     }
 
@@ -827,21 +791,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             </button>
             <flux:modal.trigger name="print-bill-confirm">
                 <button type="button"
+                    data-print-bill-trigger
                     class="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 shadow-xs transition-all hover:border-sky-300 hover:bg-sky-100">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14h6M9 18h6M7 3h7l5 5v13H7a2 2 0 01-2-2V5a2 2 0 012-2zM14 3v5h5"/></svg>
                     Print Bill
                 </button>
             </flux:modal.trigger>
-            <a href="{{ route('orders.tracking', ['uuid' => $order->uuid]) }}" wire:navigate
-                class="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 shadow-xs transition-all hover:border-indigo-300 hover:bg-indigo-100">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
-                Tracking
-            </a>
-            <button type="button"
-                class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-xs transition-all hover:border-emerald-300 hover:bg-emerald-100">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l4-4m-4 4l-4-4M5 19h14"/></svg>
-                Export Invoice
-            </button>
+            @if(auth()->user()->hasAnyRole(['admin', 'cs', 'manager']))
+                <a href="{{ route('orders.tracking', ['uuid' => $order->uuid]) }}" wire:navigate
+                    class="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 shadow-xs transition-all hover:border-indigo-300 hover:bg-indigo-100">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                    Tracking
+                </a>
+            @endif
             
         </div>
     </div>
@@ -881,8 +843,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         </div>
         <div class="space-y-5">
             <livewire:order.charges-summary :order="$order" wire:key="order-charges-summary-{{ $order->id }}" />
-            <livewire:order.edit-history :order="$order" wire:key="order-edit-history-{{ $order->id }}" />
-            <livewire:order.activity-notes :order="$order" wire:key="order-activity-notes-{{ $order->id }}" />
+            @if(auth()->user()->hasRole('admin'))
+                <livewire:order.edit-history :order="$order" wire:key="order-edit-history-{{ $order->id }}" />
+            @endif
+            @unless(auth()->user()->hasRole('ketoan'))
+                <livewire:order.activity-notes :order="$order" wire:key="order-activity-notes-{{ $order->id }}" />
+            @endunless
         </div>
     </div>
 
@@ -912,7 +878,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                         <a href="{{ route('orders.payment', ['uuid' => $order->uuid]) }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
                             {{ $this->actionButtonLabel($button) }}
                         </a>
-                    @elseif($button['type'] === 'tracking')
+                    @elseif($button['type'] === 'tracking' && auth()->user()->hasAnyRole(['admin', 'cs', 'manager']))
                         <a href="{{ route('orders.tracking', ['uuid' => $order->uuid]) }}" wire:navigate class="{{ $this->actionButtonClass($button) }}">
                             {{ $this->actionButtonLabel($button) }}
                         </a>
@@ -1362,3 +1328,33 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
     </div>
 
 </div>
+
+<script>
+    (() => {
+        const triggerRequestedPrint = () => {
+            const target = new URLSearchParams(window.location.search).get('print');
+            if (!['label', 'bill'].includes(target)) {
+                return;
+            }
+
+            const key = `${window.location.pathname}?print=${target}`;
+            if (document.body.dataset.orderAutoPrint === key) {
+                return;
+            }
+            document.body.dataset.orderAutoPrint = key;
+
+            requestAnimationFrame(() => {
+                if (target === 'label') {
+                    document.body.dataset.printTarget = 'label';
+                    window.print();
+                    return;
+                }
+
+                document.querySelector('[data-print-bill-trigger]')?.click();
+            });
+        };
+
+        document.addEventListener('livewire:navigated', triggerRequestedPrint);
+        setTimeout(triggerRequestedPrint, 0);
+    })();
+</script>

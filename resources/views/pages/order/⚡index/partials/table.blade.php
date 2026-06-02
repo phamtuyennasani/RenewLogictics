@@ -30,7 +30,7 @@
                 <col style="width: 130px;">
                 <col style="width: 200px;">
                 <col style="width: 190px;">
-                <col style="width: 96px;">
+                <col style="width: auto;">
             </colgroup>
             <thead class="bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 <tr data-dt-order="disable">
@@ -59,7 +59,7 @@
                     <th class="px-3 py-3">Lợi nhuận</th>
                     <th class="px-3 py-3">Khách hàng thanh toán</th>
                     <th class="px-3 py-3">Thanh toán đại lý</th>
-                    <th class="px-3 py-3">Thao tác</th>
+                    <th class="px-3 py-3 text-center">Thao tác</th>
                 </tr>
             </thead>
         </table>

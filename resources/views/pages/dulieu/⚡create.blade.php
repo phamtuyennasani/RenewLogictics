@@ -18,6 +18,8 @@ new class extends Component {
 
     public function mount($type = null, $id = null)
     {
+        $gate = request()->routeIs('phuphi.*') ? 'phuphi.index' : 'dulieu.index';
+        abort_unless(\Gate::allows($gate), 403);
         $this->type = $type;
         $this->itemId = $id;
         $this->config = config("dulieu.{$this->type}", []);

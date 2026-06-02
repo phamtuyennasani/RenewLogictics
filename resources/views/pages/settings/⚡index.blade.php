@@ -7,6 +7,7 @@ new class extends Component {
 
     public function mount()
     {
+        abort_unless(\Gate::allows('settings.admin'), 403);
         $userRole = auth()->user()->roles->first()?->name ?? '';
 
         $this->menuItems = array_filter([
