@@ -32,6 +32,7 @@ class OrderDataTableController extends Controller
             ->addColumn('agency_info', fn (Order $order) => view('pages.order.⚡index.partials.index.agency-info', compact('order'))->render())
             ->addColumn('package_info', fn (Order $order) => view('pages.order.⚡index.partials.index.packages', compact('order'))->render())
             ->addColumn('sale_total', fn (Order $order) => view('pages.order.⚡index.partials.index.sale-total', compact('order'))->render())
+            ->addColumn('sale_commission', fn (Order $order) => view('pages.order.⚡index.partials.index.sale-commission', compact('order'))->render())
             ->addColumn('cost_total', fn (Order $order) => view('pages.order.⚡index.partials.index.cost-total', compact('order'))->render())
             ->addColumn('profit_total', fn (Order $order) => view('pages.order.⚡index.partials.index.profit-total', compact('order'))->render())
             ->addColumn('payment_client', fn (Order $order) => view('pages.order.⚡index.partials.index.payment-client', compact('order'))->render())
@@ -54,6 +55,7 @@ class OrderDataTableController extends Controller
                 'agency_info',
                 'package_info',
                 'sale_total',
+                'sale_commission',
                 'cost_total',
                 'profit_total',
                 'payment_client',

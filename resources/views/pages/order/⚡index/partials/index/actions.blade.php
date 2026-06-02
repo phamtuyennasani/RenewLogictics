@@ -18,14 +18,14 @@
 
         @if ($canPrint)
             <flux:tooltip position="top" content="Print Label">
-                <a href="{{ route('orders.show', ['uuid' => $order->uuid, 'print' => 'label']) }}" target="_blank" class="inline-flex h-7 w-7 items-center justify-center rounded-md text-violet-700 transition hover:bg-violet-50 hover:text-violet-800" aria-label="Print Label">
+                <button type="button" data-order-print="label" data-order-print-url="{{ route('orders.show', ['uuid' => $order->uuid]) }}" class="inline-flex h-7 w-7 items-center justify-center rounded-md text-violet-700 transition hover:bg-violet-50 hover:text-violet-800" aria-label="Print Label">
                     <i class="pi pi-tag text-xs"></i>
-                </a>
+                </button>
             </flux:tooltip>
             <flux:tooltip position="top" content="Print Bill">
-                <a href="{{ route('orders.show', ['uuid' => $order->uuid, 'print' => 'bill']) }}" target="_blank" class="inline-flex h-7 w-7 items-center justify-center rounded-md text-sky-700 transition hover:bg-sky-50 hover:text-sky-800" aria-label="Print Bill">
+                <button type="button" data-order-print="bill" data-order-print-url="{{ route('orders.show', ['uuid' => $order->uuid]) }}" class="inline-flex h-7 w-7 items-center justify-center rounded-md text-sky-700 transition hover:bg-sky-50 hover:text-sky-800" aria-label="Print Bill">
                     <i class="pi pi-file text-xs"></i>
-                </a>
+                </button>
             </flux:tooltip>
         @endif
 

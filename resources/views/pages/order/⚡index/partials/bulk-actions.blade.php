@@ -8,7 +8,7 @@
                 <div class="text-sm font-semibold text-neutral-900">
                     <span data-selected-count>0</span> order đã chọn
                 </div>
-                <div class="text-xs text-neutral-500">Chọn order trong bảng để mở các thao tác hàng loạt.</div>
+                <div class="text-xs text-neutral-500">Chọn đơn hàng trong bảng để sử dụng thao tác hàng loạt.</div>
             </div>
         </div>
 

@@ -107,6 +107,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/create', fn () => redirect()->route('orders.index'))->name('create');
     })->middleware('can:pickups.index');
 
+    // --- Shipper Mobile Pickup ---
+    Route::livewire('/shipper/pickups', 'pages::pickups.shipper')->name('shipper.pickups')
+        ->middleware('can:pickups.index');
+
+    // --- OPS Mobile Scan ---
+    Route::livewire('/mobile/scan', 'pages::scan.mobile')->name('mobile.scan')
+        ->middleware('can:scan');
+
     // --- Scan ---
     Route::livewire('/scan', 'pages::scan.index')->name('scan')
         ->middleware('can:scan');

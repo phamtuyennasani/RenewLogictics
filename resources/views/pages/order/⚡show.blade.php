@@ -299,6 +299,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             'labor_cost' => 0,
             'branch_id' => data_get($this->order->service ?? [], 'id_chinhanh_nhanhang'),
             'note' => '',
+            'pickup_lat' => null,
+            'pickup_lng' => null,
         ];
 
         Flux::modal('create-pickup')->show();
@@ -372,6 +374,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 'labor_cost' => (float) ($data['labor_cost'] ?? 0),
                 'branch_id' => filled($data['branch_id'] ?? null) ? (int) $data['branch_id'] : null,
                 'note' => trim((string) ($data['note'] ?? '')),
+                'pickup_lat' => is_numeric($this->pickupForm['pickup_lat'] ?? null) ? (float) $this->pickupForm['pickup_lat'] : null,
+                'pickup_lng' => is_numeric($this->pickupForm['pickup_lng'] ?? null) ? (float) $this->pickupForm['pickup_lng'] : null,
             ], auth()->id());
         } catch (\Throwable $exception) {
             report($exception);
@@ -651,93 +655,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
 @endphp
 
 <div class="space-y-5">
-    <style>
-        .order-label-print-area,
-        .order-bill-print-area {
-            display: none;
-        }
-
-        @media print {
-            @page label {
-                size: A6 portrait;
-                margin: 0;
-            }
-
-            @page bill {
-                size: A4 portrait;
-                margin: 8mm;
-            }
-
-            html,
-            body {
-                margin: 0 !important;
-                padding: 0 !important;
-                background: #fff !important;
-            }
-
-            body * {
-                visibility: hidden !important;
-            }
-
-            body[data-print-target="label"] .order-label-print-area,
-            body[data-print-target="label"] .order-label-print-area *,
-            body[data-print-target="bill"] .order-bill-print-area,
-            body[data-print-target="bill"] .order-bill-print-area * {
-                visibility: visible !important;
-            }
-
-            body[data-print-target="label"] .order-label-print-area,
-            body[data-print-target="bill"] .order-bill-print-area {
-                display: block !important;
-                position: absolute;
-                inset: 0 auto auto 0;
-                background: #fff;
-            }
-
-            body[data-print-target="label"] .order-label-print-area {
-                width: 105mm;
-            }
-
-            body[data-print-target="bill"] .order-bill-print-area {
-                width: 194mm;
-            }
-
-            .order-label-page {
-                box-sizing: border-box;
-                width: 105mm;
-                height: 148mm;
-                page: label;
-                padding: 7mm;
-                overflow: hidden;
-                page-break-after: always;
-                break-after: page;
-                color: #111827;
-                font-family: "Segoe UI", Tahoma, "Arial Unicode MS", Arial, sans-serif;
-            }
-
-            .order-label-page:last-child {
-                page-break-after: auto;
-                break-after: auto;
-            }
-
-            .order-bill-page {
-                box-sizing: border-box;
-                width: 194mm;
-                min-height: 281mm;
-                page: bill;
-                page-break-after: always;
-                break-after: page;
-                color: #111827;
-                font-family: "Segoe UI", Tahoma, "Arial Unicode MS", Arial, sans-serif;
-                font-size: 11px;
-            }
-
-            .order-bill-page:last-child {
-                page-break-after: auto;
-                break-after: auto;
-            }
-        }
-    </style>
+    
 
     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
@@ -999,6 +917,22 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     <flux:textarea wire:model="pickupForm.note" rows="3" />
                     @error('pickupForm.note') <flux:error>{{ $message }}</flux:error> @enderror
                 </flux:field>
+            </div>
+
+            {{-- Pickup Map --}}
+            <div class="rounded-lg border border-neutral-200 p-4" wire:ignore>
+                <div class="mb-3 flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-semibold text-neutral-900">Vị trí lấy hàng</p>
+                        <p class="text-xs text-neutral-500" id="pickup-map-status">Đang chờ xác định vị trí...</p>
+                    </div>
+                    <button type="button" id="pickup-geocode-btn" class="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-100">
+                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        Tìm vị trí
+                    </button>
+                </div>
+                <div id="pickup-create-map" style="height: 300px; border-radius: 8px; z-index: 0;"></div>
+                <p class="mt-2 text-xs text-neutral-400">Click trên bản đồ để chọn/thay đổi vị trí lấy hàng nếu tự động tìm không chính xác.</p>
             </div>
 
             <div class="flex justify-end gap-2">
@@ -1327,17 +1261,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         @endif
     </div>
 
-</div>
+
 
 <script>
     (() => {
         const triggerRequestedPrint = () => {
-            const target = new URLSearchParams(window.location.search).get('print');
+            const params = new URLSearchParams(window.location.search);
+            const target = params.get('print');
             if (!['label', 'bill'].includes(target)) {
                 return;
             }
 
-            const key = `${window.location.pathname}?print=${target}`;
+            const withCvck = params.get('cvck');
+            const key = `${window.location.pathname}?${params.toString()}`;
             if (document.body.dataset.orderAutoPrint === key) {
                 return;
             }
@@ -1350,6 +1286,11 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     return;
                 }
 
+                if (['0', '1'].includes(withCvck)) {
+                    $wire.printBill(withCvck === '1');
+                    return;
+                }
+
                 document.querySelector('[data-print-bill-trigger]')?.click();
             });
         };
@@ -1358,3 +1299,5 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         setTimeout(triggerRequestedPrint, 0);
     })();
 </script>
+
+</div>

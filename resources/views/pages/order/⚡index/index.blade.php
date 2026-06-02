@@ -5,9 +5,38 @@
     data-capabilities='@json($capabilities)'
 >
     @include('pages.order.⚡index.partials.header')
-    @include('pages.order.⚡index.partials.bulk-actions')
+    @if (! ($capabilities['isSaleUser'] ?? false))
+        @include('pages.order.⚡index.partials.bulk-actions')
+    @endif
     @include('pages.order.⚡index.partials.filter-panel')
     @include('pages.order.⚡index.partials.table')
+
+    <flux:modal.trigger name="order-index-print-bill-confirm">
+        <button type="button" class="hidden" data-order-print-bill-trigger></button>
+    </flux:modal.trigger>
+
+    <flux:modal name="order-index-print-bill-confirm" class="min-w-[22rem]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">Print Bill</flux:heading>
+                <flux:subheading>Bạn có cần in kèm công văn cam kết nội dung hàng xuất không?</flux:subheading>
+            </div>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close>
+                    <flux:button type="button" variant="ghost">Hủy</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button type="button" variant="filled" data-order-print-bill-cvck="0">Không kèm CVCK</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button type="button" variant="primary" data-order-print-bill-cvck="1">In kèm CVCK</flux:button>
+                </flux:modal.close>
+            </div>
+        </div>
+    </flux:modal>
+
+    <iframe id="order-print-frame" class="pointer-events-none fixed h-0 w-0 border-0 opacity-0" title="Order print renderer" aria-hidden="true"></iframe>
 </div>
 
 @push('styles')
@@ -626,6 +655,33 @@
                 const selected = new Set();
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 let customerRequestId = 0;
+                let pendingPrintUrl = '';
+
+                const printOrder = (url, target, withCvck = null) => {
+                    const frame = document.getElementById('order-print-frame');
+                    if (!frame || !url) return;
+
+                    const printUrl = new URL(url, window.location.origin);
+                    printUrl.searchParams.set('print', target);
+
+                    if (withCvck === null) {
+                        printUrl.searchParams.delete('cvck');
+                    } else {
+                        printUrl.searchParams.set('cvck', withCvck ? '1' : '0');
+                    }
+
+                    frame.src = printUrl.toString();
+                };
+
+                document.querySelectorAll('[data-order-print-bill-cvck]').forEach((button) => {
+                    if (button.dataset.ready === 'true') return;
+
+                    button.dataset.ready = 'true';
+                    button.addEventListener('click', () => {
+                        printOrder(pendingPrintUrl, 'bill', button.dataset.orderPrintBillCvck === '1');
+                        pendingPrintUrl = '';
+                    });
+                });
 
                 window.TomSelectHelper?.init(root);
 
@@ -665,46 +721,86 @@
                         emptyTable: emptyStateHtml(),
                         zeroRecords: emptyStateHtml('Không tìm thấy order phù hợp', 'Thử đổi từ khóa tìm kiếm hoặc nới rộng bộ lọc để xem thêm dữ liệu.'),
                     },
-                    columns: [
-                        { data: 'check', orderable: false, searchable: false },
-                        { data: 'order_code', name: 'id_bill',orderable: false, searchable: false },
-                        { data: 'status_badge', name: 'bill_status', orderable: false, searchable: false },
-                        { data: 'dates', name: 'created_at', orderable: false, searchable: false },
-                        { data: 'assignee', orderable: false, searchable: false },
-                        { data: 'sender_info', orderable: false, searchable: false },
-                        { data: 'receiver_info', orderable: false, searchable: false },
-                        { data: 'receiver_address', orderable: false, searchable: false },
-                        { data: 'service_info', orderable: false, searchable: false },
-                        { data: 'receiver_country', orderable: false, searchable: false },
-                        { data: 'agency_info', orderable: false, searchable: false },
-                        { data: 'package_info', orderable: false, searchable: false },
-                        { data: 'sale_total', orderable: false, searchable: false },
-                        { data: 'cost_total', orderable: false, searchable: false },
-                        { data: 'profit_total', orderable: false, searchable: false },
-                        { data: 'payment_client', orderable: false, searchable: false },
-                        { data: 'payment_partner', orderable: false, searchable: false },
-                        { data: 'actions', orderable: false, searchable: false },
-                    ],
-                    columnDefs: [
-                        { targets: 0, width: '52px' },
-                        { targets: 1, width: '180px' },
-                        { targets: 2, width: '150px' },
-                        { targets: 3, width: '170px' },
-                        { targets: 4, width: '130px' },
-                        { targets: 5, width: '300px' },
-                        { targets: 6, width: '300px' },
-                        { targets: 7, width: '320px' },
-                        { targets: 8, width: '240px' },
-                        { targets: 9, width: '140px' },
-                        { targets: 10, width: '220px' },
-                        { targets: 11, width: '110px' },
-                        { targets: 12, width: '180px' },
-                        { targets: 13, width: '190px' },
-                        { targets: 14, width: '130px' },
-                        { targets: 15, width: '200px' },
-                        { targets: 16, width: '190px' },
-                        { targets: 17, width: 'auto' },
-                    ],
+                    columns: (() => {
+                        const col = (data, name) => ({ data, ...(name ? { name } : {}), orderable: false, searchable: false });
+
+                        // Cột chung đầu bảng
+                        const head = [
+                            col('order_code', 'id_bill'),
+                            col('status_badge', 'bill_status'),
+                            col('dates', 'created_at'),
+                            col('assignee'),
+                            col('sender_info'),
+                            col('receiver_info'),
+                            col('receiver_address'),
+                            col('service_info'),
+                            col('receiver_country'),
+                        ];
+
+                        if (capabilities.isSaleUser) {
+                            return [
+                                ...head,
+                                col('package_info'),
+                                col('sale_total'),
+                                col('sale_commission'),
+                                col('payment_client'),
+                                col('actions'),
+                            ];
+                        }
+
+                        // Admin / manager / ketoan
+                        return [
+                            col('check'),
+                            ...head,
+                            col('agency_info'),
+                            col('package_info'),
+                            col('sale_total'),
+                            col('cost_total'),
+                            col('profit_total'),
+                            col('payment_client'),
+                            col('payment_partner'),
+                            col('actions'),
+                        ];
+                    })(),
+                    columnDefs: (() => {
+                        if (capabilities.isSaleUser) {
+                            return [
+                                { targets: 1, width: '180px' },
+                                { targets: 2, width: '150px' },
+                                { targets: 3, width: '170px' },
+                                { targets: 4, width: '250px' },
+                                { targets: 5, width: '250px' },
+                                { targets: 6, width: '280px' },
+                                { targets: 7, width: '150px' },
+                                { targets: 8, width: '150px' },
+                                { targets: 9, width: '100px' },
+                                { targets: 10, width: '100px' },
+                                { targets: 11, width: '130px' },
+                                { targets: 12, width: '130px' },
+                                { targets: 13, width: '100px' },
+                            ];
+                        }
+                        return [
+                            { targets: 0, width: '52px' },
+                            { targets: 1, width: '180px' },
+                            { targets: 2, width: '150px' },
+                            { targets: 3, width: '170px' },
+                            { targets: 4, width: '190px' },
+                            { targets: 5, width: '280px' },
+                            { targets: 6, width: '280px' },
+                            { targets: 7, width: '320px' },
+                            { targets: 8, width: '240px' },
+                            { targets: 9, width: '140px' },
+                            { targets: 10, width: '150px' },
+                            { targets: 11, width: '100px' },
+                            { targets: 12, width: '130px' },
+                            { targets: 13, width: '130px' },
+                            { targets: 14, width: '200px' },
+                            { targets: 15, width: '200px' },
+                            { targets: 16, width: '190px' },
+                            { targets: 17, width: 'auto' },
+                        ];
+                    })(),
                 });
 
                 const updateBulkState = () => {
@@ -871,6 +967,20 @@
                 });
 
                 tableEl.addEventListener('click', (event) => {
+                    const printButton = event.target.closest('[data-order-print]');
+                    if (printButton) {
+                        const target = printButton.dataset.orderPrint;
+                        const url = printButton.dataset.orderPrintUrl;
+
+                        if (target === 'bill') {
+                            pendingPrintUrl = url;
+                            document.querySelector('[data-order-print-bill-trigger]')?.click();
+                        } else {
+                            printOrder(url, 'label');
+                        }
+                        return;
+                    }
+
                     const cancelButton = event.target.closest('[data-order-cancel]');
                     if (cancelButton) {
                         const id = cancelButton.dataset.orderCancel;

@@ -286,11 +286,14 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         </div>
     </section>
 
-    <section class="grid gap-4 xl:grid-cols-3">
-        <x-ranking-panel title="Top sale" :items="data_get($report, 'rankings.sales', [])" />
+    <livewire:dashboard.sale-statistics :filters="$filters" lazy />
+
+    <section class="grid gap-4 xl:grid-cols-2">
         <x-ranking-panel title="Top CTV / khách hàng" :items="data_get($report, 'rankings.customers', [])" />
         <x-ranking-panel title="Top dịch vụ" :items="data_get($report, 'rankings.services', [])" />
     </section>
+
+    <livewire:dashboard.country-service-statistics :filters="$filters" lazy />
 
     <section class="grid gap-4 xl:grid-cols-2">
         <x-attention-panel title="Đơn đã giao chưa ghi nhận thanh toán" :items="data_get($report, 'attention.unpaidDeliveredOrders', [])" value-key="amount" date-key="created_at" />

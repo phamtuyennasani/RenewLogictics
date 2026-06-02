@@ -72,7 +72,6 @@ class SystemStatisticsService
                 'invoiceStatuses' => $this->invoiceStatusChart($incomeInvoices),
             ],
             'rankings' => [
-                'sales' => $this->topSales($orders),
                 'customers' => $this->topCustomers($orders),
                 'services' => $this->topServices($orders),
             ],
@@ -378,21 +377,6 @@ class SystemStatisticsService
                 'color' => $this->chartColor($status->value),
             ])
             ->filter(fn (array $item) => $item['value'] > 0)
-            ->values()
-            ->all();
-    }
-
-    protected function topSales(Collection $orders): array
-    {
-        return $orders->whereNotNull('id_sale')
-            ->groupBy('id_sale')
-            ->map(fn (Collection $items) => [
-                'label' => $this->userLabel($items->first()->sale),
-                'count' => $items->count(),
-                'amount' => $items->sum(fn (Order $order) => $this->moneyValue(data_get($order->payment_cuocban, 'total_tongcuoc', 0))),
-            ])
-            ->sortByDesc('amount')
-            ->take(5)
             ->values()
             ->all();
     }

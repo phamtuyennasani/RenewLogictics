@@ -203,7 +203,9 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
 
     <flux:modal name="pickup-details" class="w-full max-w-5xl" @close="$wire.closeDetails()">
         @if($this->selectedPickup)
-            @php($selectedPickup = $this->selectedPickup)
+            @php
+                $selectedPickup = $this->selectedPickup;
+            @endphp
             <div class="space-y-5">
                 <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
@@ -257,6 +259,38 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
                     </div>
                 </div>
 
+                {{-- Pickup Location Map + Routing --}}
+                @php
+                    $pickupLat = data_get($selectedPickup->info_khachhang, 'pickup_lat');
+                    $pickupLng = data_get($selectedPickup->info_khachhang, 'pickup_lng');
+                @endphp
+                <div class="rounded-lg border border-neutral-200 p-4" wire:ignore>
+                    <div class="mb-3 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-neutral-900">Bản đồ vị trí lấy hàng</h3>
+                            <p class="text-xs text-neutral-500" id="pickup-detail-map-status">
+                                @if($pickupLat && $pickupLng)
+                                    Tọa độ: {{ $pickupLat }}, {{ $pickupLng }}
+                                @else
+                                    Chưa có tọa độ lưu trữ
+                                @endif
+                            </p>
+                        </div>
+                        <button type="button" id="pickup-direction-btn"
+                            class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                            data-lat="{{ $pickupLat }}" data-lng="{{ $pickupLng }}">
+                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                            Chỉ đường
+                        </button>
+                    </div>
+                    <div id="pickup-detail-map" style="height: 350px; border-radius: 8px; z-index: 0;"
+                         data-pickup-lat="{{ $pickupLat }}" data-pickup-lng="{{ $pickupLng }}"
+                         data-pickup-address="{{ data_get($selectedPickup->info_khachhang, 'address', '') }}"></div>
+                    <div id="pickup-route-info" class="mt-2 hidden rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+                        <p class="text-sm font-semibold text-blue-800" id="pickup-route-text"></p>
+                    </div>
+                </div>
+
                 <div class="overflow-hidden rounded-lg border border-neutral-200">
                     <div class="border-b border-neutral-100 px-4 py-3">
                         <h3 class="text-sm font-semibold text-neutral-900">Đơn hàng trong Pickup</h3>
@@ -301,4 +335,201 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             </div>
         @endif
     </flux:modal>
+    {{-- Leaflet.js for Pickup Detail Map + Routing --}}
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 </div>
+
+<script>
+//<![CDATA[
+(function() {
+    let detailMap = null;
+    let detailMarker = null;
+    let shipperMarker = null;
+    let routeLine = null;
+
+    function initDetailMap() {
+        const mapEl = document.getElementById('pickup-detail-map');
+        if (!mapEl || detailMap) return;
+        if (mapEl.offsetParent === null) return;
+
+        const lat = parseFloat(mapEl.dataset.pickupLat);
+        const lng = parseFloat(mapEl.dataset.pickupLng);
+        const hasCoords = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+
+        const center = hasCoords ? [lat, lng] : [10.7769, 106.7009];
+        const zoom = hasCoords ? 16 : 12;
+
+        detailMap = L.map('pickup-detail-map').setView(center, zoom);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(detailMap);
+
+        setTimeout(() => detailMap.invalidateSize(), 300);
+
+        if (hasCoords) {
+            detailMarker = L.marker([lat, lng]).addTo(detailMap)
+                .bindPopup('<b>Điểm lấy hàng</b><br>' + (mapEl.dataset.pickupAddress || ''))
+                .openPopup();
+        } else {
+            // Try geocode from address
+            const address = mapEl.dataset.pickupAddress;
+            if (address) {
+                geocodeForDetail(address);
+            }
+        }
+
+        // Direction button
+        const dirBtn = document.getElementById('pickup-direction-btn');
+        if (dirBtn) {
+            dirBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                getDirections();
+            });
+        }
+    }
+
+    function geocodeForDetail(address) {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ', Vietnam')}&limit=1&countrycodes=vn`;
+        fetch(url, { headers: { 'Accept-Language': 'vi' } })
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lng = parseFloat(data[0].lon);
+                if (detailMap) {
+                    detailMarker = L.marker([lat, lng]).addTo(detailMap)
+                        .bindPopup('<b>Điểm lấy hàng</b><br>' + address)
+                        .openPopup();
+                    detailMap.setView([lat, lng], 16);
+                    // Update button data
+                    const btn = document.getElementById('pickup-direction-btn');
+                    if (btn) { btn.dataset.lat = lat; btn.dataset.lng = lng; }
+                    const statusEl = document.getElementById('pickup-detail-map-status');
+                    if (statusEl) statusEl.textContent = 'Vị trí ước lượng từ địa chỉ';
+                }
+            }
+        })
+        .catch(() => {});
+    }
+
+    function getDirections() {
+        const btn = document.getElementById('pickup-direction-btn');
+        const destLat = parseFloat(btn?.dataset.lat);
+        const destLng = parseFloat(btn?.dataset.lng);
+
+        if (isNaN(destLat) || isNaN(destLng) || destLat === 0) {
+            const statusEl = document.getElementById('pickup-detail-map-status');
+            if (statusEl) statusEl.textContent = 'Chưa có tọa độ điểm lấy hàng.';
+            return;
+        }
+
+        const statusEl = document.getElementById('pickup-detail-map-status');
+        if (statusEl) statusEl.textContent = 'Đang lấy vị trí của bạn...';
+
+        if (!navigator.geolocation) {
+            if (statusEl) statusEl.textContent = 'Trình duyệt không hỗ trợ GPS.';
+            openGoogleMapsNavigation(destLat, destLng);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                const shipperLat = pos.coords.latitude;
+                const shipperLng = pos.coords.longitude;
+                if (statusEl) statusEl.textContent = 'Đang tìm đường đi...';
+                fetchRoute(shipperLat, shipperLng, destLat, destLng);
+            },
+            function(err) {
+                if (statusEl) statusEl.textContent = 'Không lấy được vị trí. Mở Google Maps...';
+                openGoogleMapsNavigation(destLat, destLng);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    function fetchRoute(fromLat, fromLng, toLat, toLng) {
+        // Add shipper marker
+        if (detailMap) {
+            if (shipperMarker) detailMap.removeLayer(shipperMarker);
+            shipperMarker = L.marker([fromLat, fromLng], {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div style="background:#3b82f6;color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:bold;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);">🚚</div>',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16]
+                })
+            }).addTo(detailMap).bindPopup('Vị trí của bạn');
+        }
+
+        const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
+
+        fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            const statusEl = document.getElementById('pickup-detail-map-status');
+            if (data.code !== 'Ok' || !data.routes || !data.routes.length) {
+                if (statusEl) statusEl.textContent = 'Không tìm được đường đi. Thử Google Maps.';
+                openGoogleMapsNavigation(toLat, toLng);
+                return;
+            }
+
+            const route = data.routes[0];
+            const distKm = (route.distance / 1000).toFixed(1);
+            const durationMin = Math.round(route.duration / 60);
+
+            // Draw route
+            if (detailMap) {
+                if (routeLine) detailMap.removeLayer(routeLine);
+                const coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+                routeLine = L.polyline(coords, {
+                    color: '#3b82f6',
+                    weight: 5,
+                    opacity: 0.8
+                }).addTo(detailMap);
+                detailMap.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+            }
+
+            // Show route info
+            if (statusEl) statusEl.textContent = `Khoảng cách: ${distKm} km — Thời gian: ~${durationMin} phút`;
+            const routeInfo = document.getElementById('pickup-route-info');
+            const routeText = document.getElementById('pickup-route-text');
+            if (routeInfo && routeText) {
+                routeText.textContent = `🚚 ${distKm} km — ~${durationMin} phút lái xe`;
+                routeInfo.classList.remove('hidden');
+            }
+        })
+        .catch(() => {
+            const statusEl = document.getElementById('pickup-detail-map-status');
+            if (statusEl) statusEl.textContent = 'Lỗi tìm đường. Mở Google Maps...';
+            openGoogleMapsNavigation(toLat, toLng);
+        });
+    }
+
+    function openGoogleMapsNavigation(lat, lng) {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank');
+    }
+
+    // Observe modal visibility
+    const observer = new MutationObserver(() => {
+        const mapEl = document.getElementById('pickup-detail-map');
+        if (mapEl && mapEl.offsetParent !== null && !detailMap) {
+            setTimeout(initDetailMap, 250);
+        }
+        // Cleanup when modal closes
+        if (detailMap && (!mapEl || mapEl.offsetParent === null)) {
+            detailMap.remove();
+            detailMap = null;
+            detailMarker = null;
+            shipperMarker = null;
+            routeLine = null;
+        }
+    });
+
+    observer.observe(document.body, { attributes: true, subtree: true, childList: true });
+    document.addEventListener('livewire:navigated', () => {
+        detailMap = null; detailMarker = null; shipperMarker = null; routeLine = null;
+    });
+})();
+</script>

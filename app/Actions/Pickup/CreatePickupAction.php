@@ -44,7 +44,10 @@ class CreatePickupAction
                     'chiphi_cong' => (float) ($data['labor_cost'] ?? 0),
                     'chinhanhnhanhang' => $data['branch_id'] ?? null,
                 ],
-                'info_khachhang' => $data['sender_snapshot'],
+                'info_khachhang' => array_merge($data['sender_snapshot'], array_filter([
+                    'pickup_lat' => $data['pickup_lat'] ?? null,
+                    'pickup_lng' => $data['pickup_lng'] ?? null,
+                ])),
             ]);
 
             $pickup->orders()->attach($lockedOrder->id, [

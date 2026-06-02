@@ -219,11 +219,12 @@
                 <section class="debt-filter-section">
                     <div class="debt-filter-section-heading">
                         <div>
-                            <h3>Đối tượng</h3>
-                            <p>Nhân sự phụ trách và khách hàng cần thu</p>
+                            <h3>{{ $isSaleUser ? 'Khách hàng / CTV' : 'Đối tượng' }}</h3>
+                            <p>{{ $isSaleUser ? 'Lọc theo khách hàng / CTV của bạn' : 'Nhân sự phụ trách và khách hàng cần thu' }}</p>
                         </div>
                     </div>
-                    <div class="debt-filter-grid debt-filter-grid-2">
+                    <div class="debt-filter-grid{{ !$isSaleUser ? ' debt-filter-grid-2' : '' }}">
+                        @if (!$isSaleUser)
                         <div class="debt-filter-field">
                             <label class="debt-filter-label">Sale phụ trách</label>
                             <select
@@ -238,6 +239,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
 
                         <div class="debt-filter-field">
                             <label class="debt-filter-label">Khách hàng / CTV</label>
@@ -310,6 +312,7 @@
                         </div>
                     </div>
                     <div class="grid gap-4 p-6 md:grid-cols-2">
+                        @if (!$isSaleUser)
                         <div class="debt-create-field">
                             <label class="debt-create-label">Sale phụ trách</label>
                             <select
@@ -325,8 +328,11 @@
                             </select>
                             @error('createSaleId') <p class="text-xs font-medium text-red-600">{{ $message }}</p> @enderror
                         </div>
+                    @else
+                        <input type="hidden" data-debt-create-field="createSaleId" value="{{ $createSaleId }}">
+                    @endif
 
-                        <div class="debt-create-field">
+                        <div class="debt-create-field {{ $isSaleUser ? 'md:col-span-2' : '' }}">
                             <label class="debt-create-label">Khách hàng / CTV</label>
                             <select
                                 wire:key="create-customer-{{ $createSaleId ?: 'all' }}-{{ $createCustomerId ?: 'empty' }}"
@@ -611,7 +617,6 @@
                 document.getElementById('debts-reset-filter')?.addEventListener('click', () => {
                     document.querySelectorAll('[data-debt-filter], #debts-search').forEach((el) => el.value = '');
                     setTomSelectValue('status', '');
-                    setTomSelectValue('saleId', '');
                     setTomSelectValue('customerId', '');
                     loadCustomersBySale('');
                     setFilterDate('fromDate', defaultDates.fromDate);

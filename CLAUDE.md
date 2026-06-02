@@ -1,17 +1,92 @@
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **RenewLogictics** (5595 symbols, 10788 relationships, 269 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze --skip-agents-md` in terminal first.
 
 ## Always Do
 
 - **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+
 - **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+
 - **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+
 - When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+
 - When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
+
+## Context Management
+
+### Purpose
+
+Large code investigations, debugging sessions, and refactors can consume context rapidly. To preserve reasoning quality and prevent context exhaustion, context must be compacted proactively.
+
+### Rules
+
+- **MUST monitor conversation context usage continuously.**
+- **MUST execute `/compact` immediately when context reaches 50% or higher.**
+- **MUST NOT continue large analysis, debugging, refactoring, implementation, or planning work above the 50% threshold without compacting first.**
+- Prefer proactive compaction rather than waiting for context exhaustion.
+- Before beginning a new implementation batch, verify context usage and compact if necessary.
+- **MUST execute `/compact` before any task expected to modify more than 3 files.**
+- **MUST execute `/compact` before starting a new feature after finishing a previous feature.**
+
+### After Compaction
+
+After running `/compact`, provide a concise status summary containing:
+
+- Current objective
+- Completed work
+- Files changed
+- Symbols changed
+- Execution flows affected
+- Validation completed
+- Remaining work
+- Open risks
+
+### Required Status Format
+
+```text
+Context Compacted
+
+Current Objective:
+- <objective>
+
+Completed:
+- <completed items>
+
+Files Changed:
+- <files>
+
+Symbols Changed:
+- <symbols>
+
+Affected Flows:
+- <flows>
+
+Validation:
+- <validation results>
+
+Remaining:
+- <remaining tasks>
+
+Risks:
+- <known risks>
+```
+
+### Priority
+
+This rule has the same operational priority as:
+
+- Impact Analysis
+- Batch Validation
+- Change Detection
+
+Context compaction is considered mandatory maintenance and should be performed before context quality degrades.
+
 ## Work in Small Batches
 
 ### Purpose
@@ -107,6 +182,7 @@ For refactors:
 8. Final Verification
 
 Never perform a large refactor in one pass when it can be executed safely in multiple batches.
+
 ## Never Do
 
 - NEVER edit a function, class, or method without first running `gitnexus_impact` on it.

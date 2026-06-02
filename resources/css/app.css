@@ -748,3 +748,89 @@ textarea.debt-create-control {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
+
+.order-label-print-area,
+.order-bill-print-area {
+    display: none;
+}
+
+@media print {
+    @page label {
+        size: A6 portrait;
+        margin: 0;
+    }
+
+    @page bill {
+        size: A4 portrait;
+        margin: 8mm;
+    }
+
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+    }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    body[data-print-target="label"] .order-label-print-area,
+    body[data-print-target="label"] .order-label-print-area *,
+    body[data-print-target="bill"] .order-bill-print-area,
+    body[data-print-target="bill"] .order-bill-print-area * {
+        visibility: visible !important;
+    }
+
+    body[data-print-target="label"] .order-label-print-area,
+    body[data-print-target="bill"] .order-bill-print-area {
+        display: block !important;
+        position: absolute;
+        inset: 0 auto auto 0;
+        background: #fff;
+    }
+
+    body[data-print-target="label"] .order-label-print-area {
+        width: 105mm;
+    }
+
+    body[data-print-target="bill"] .order-bill-print-area {
+        width: 194mm;
+    }
+
+    .order-label-page {
+        box-sizing: border-box;
+        width: 105mm;
+        height: 148mm;
+        page: label;
+        padding: 7mm;
+        overflow: hidden;
+        page-break-after: always;
+        break-after: page;
+        color: #111827;
+        font-family: "Segoe UI", Tahoma, "Arial Unicode MS", Arial, sans-serif;
+    }
+
+    .order-label-page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    .order-bill-page {
+        box-sizing: border-box;
+        width: 194mm;
+        min-height: 281mm;
+        page: bill;
+        page-break-after: always;
+        break-after: page;
+        color: #111827;
+        font-family: "Segoe UI", Tahoma, "Arial Unicode MS", Arial, sans-serif;
+        font-size: 11px;
+    }
+
+    .order-bill-page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+    }
+}

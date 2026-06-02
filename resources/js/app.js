@@ -7,6 +7,7 @@ import Chart from 'chart.js/auto';
 import { registerTomSelectNavigation } from './tom-select-helper';
 import { Fancybox } from '@fancyapps/ui';
 import '@fancyapps/ui/dist/fancybox/fancybox.css';
+import './pickup-create-map';
 
 window.TomSelect = TomSelect;
 window.flatpickr = flatpickr;

@@ -44,20 +44,25 @@
             <section class="order-filter-section">
                 <div class="order-filter-section-heading">
                     <div>
-                        <h3>Phụ trách</h3>
-                        <p>Sale và khách hàng / CTV</p>
+                        <h3>{{ $capabilities['isSaleUser'] ? 'Khách hàng / CTV' : 'Phụ trách' }}</h3>
+                        <p>{{ $capabilities['isSaleUser'] ? 'Lọc theo khách hàng / CTV của bạn' : 'Sale và khách hàng / CTV' }}</p>
                     </div>
                 </div>
-                <div class="order-filter-section-grid order-filter-section-grid-2">
+                <div class="order-filter-section-grid{{ !$capabilities['isSaleUser'] ? ' order-filter-section-grid-2' : '' }}">
+                    @if (!$capabilities['isSaleUser'])
                     <div class="order-filter-field">
                         <label class="order-filter-label">Sale phụ trách</label>
                         <select data-order-filter="saleId" data-placeholder="Tất cả nhân sự" class="tomselectEml order-filter-tomselect">
                             <option value="">Tất cả nhân sự</option>
                             @foreach ($sales as $sale)
-                                <option value="{{ $sale['id'] }}">{{ $sale['label'] }}</option>
+                                <option value="{{ $sale['id'] }}" {{ (string) $sale['id'] === ($filters['saleId'] ?? '') ? 'selected' : '' }}>{{ $sale['label'] }}</option>
                             @endforeach
                         </select>
                     </div>
+                    @endif
+                    @if ($capabilities['isSaleUser'])
+                    <input type="hidden" data-order-filter="saleId" value="{{ $filters['saleId'] ?? '' }}">
+                    @endif
                     <div class="order-filter-field">
                         <label class="order-filter-label">Khách hàng / CTV</label>
                         <select data-order-filter="customerId" data-placeholder="Tất cả khách hàng" class="tomselectEml order-filter-tomselect">

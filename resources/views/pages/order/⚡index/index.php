@@ -91,6 +91,7 @@ new class extends Component
 
         $this->customers = User::query()
             ->whereHas('roles', fn ($q) => $q->where('name', 'ctv'))
+            ->when($user->hasRole('sale'), fn ($q) => $q->where('id_sale', $user->id))
             ->orderBy('fullname')
             ->get(['id', 'fullname', 'username', 'code'])
             ->map(fn (User $customer) => [
@@ -144,7 +145,13 @@ new class extends Component
             'canShip' => $user->hasAnyRole(['admin', 'manager', 'cs']),
             'canSeeFinance' => $user->hasAnyRole(['admin', 'manager', 'ketoan']),
             'canSeeExtraFilters' => $user->hasAnyRole(['admin', 'cs']),
+            'isSaleUser' => $user->hasRole('sale'),
+            'currentSaleId' => $user->hasRole('sale') ? $user->id : null,
         ];
+
+        if ($user->hasRole('sale')) {
+            $this->filters['saleId'] = (string) $user->id;
+        }
     }
 
     public function resetFilters(): void

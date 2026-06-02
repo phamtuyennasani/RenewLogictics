@@ -45,13 +45,17 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
     public int $paymentTermDays = 7;
     public ?string $note = null;
 
+    public bool $isSaleUser = false;
+
     public function mount(): void
     {
         $user = auth()->user();
 
+        $this->isSaleUser = $user->hasRole('sale');
         $this->fromDate ??= now()->subDays(30)->format('Y-m-d');
         $this->toDate ??= now()->format('Y-m-d');
-        $this->createSaleId ??= $user->hasRole('sale') ? $user->id : null;
+        $this->saleId = $this->isSaleUser ? $user->id : null;
+        $this->createSaleId ??= $this->isSaleUser ? $user->id : null;
         $this->createCustomerId ??= $user->hasRole('ctv') ? $user->id : null;
         $this->createFromDate ??= now()->subDays(30)->format('Y-m-d');
         $this->createToDate ??= now()->format('Y-m-d');
@@ -176,9 +180,10 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
 
     public function resetFilters(): void
     {
+        $user = auth()->user();
         $this->keyword = '';
         $this->status = '';
-        $this->saleId = null;
+        $this->saleId = $user->hasRole('sale') ? $user->id : null;
         $this->customerId = null;
         $this->fromDate = now()->subDays(30)->format('Y-m-d');
         $this->toDate = now()->format('Y-m-d');

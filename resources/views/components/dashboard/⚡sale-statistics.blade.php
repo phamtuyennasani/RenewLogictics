@@ -1,0 +1,276 @@
+<?php
+
+use App\Services\Reports\SaleStatisticsService;
+use Livewire\Attributes\Reactive;
+use Livewire\Component;
+
+new class extends Component {
+    #[Reactive]
+    public array $filters = [];
+
+    public array $report = [];
+    public string $metric = 'revenue';
+
+    public function mount(SaleStatisticsService $statistics): void
+    {
+        $this->loadReport($statistics);
+    }
+
+    public function updatedFilters(): void
+    {
+        $this->loadReport(app(SaleStatisticsService::class));
+    }
+
+    public function placeholder(): string
+    {
+        return <<<'HTML'
+            <section class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+                <div class="h-6 w-56 animate-pulse rounded bg-neutral-100"></div>
+                <div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+                    <div class="space-y-3">
+                        <div class="h-16 animate-pulse rounded-xl bg-neutral-100"></div>
+                        <div class="h-16 animate-pulse rounded-xl bg-neutral-100"></div>
+                        <div class="h-16 animate-pulse rounded-xl bg-neutral-100"></div>
+                    </div>
+                    <div class="h-64 animate-pulse rounded-xl bg-neutral-100"></div>
+                </div>
+            </section>
+        HTML;
+    }
+
+    public function money(mixed $value): string
+    {
+        return number_format((float) $value, 0, ',', '.').' đ';
+    }
+
+    public function number(mixed $value, int $decimals = 0): string
+    {
+        return number_format((float) $value, $decimals, ',', '.');
+    }
+
+    public function setMetric(string $metric): void
+    {
+        if (in_array($metric, ['revenue', 'chargedWeight', 'orderCount'], true)) {
+            $this->metric = $metric;
+        }
+    }
+
+    public function ranking(): array
+    {
+        $ranking = collect(data_get($this->report, 'ranking', []))
+            ->sortByDesc(fn (array $sale) => $this->metricValue($sale))
+            ->values();
+        $max = max(1, (float) $ranking->max(fn (array $sale) => $this->metricValue($sale)));
+
+        return $ranking
+            ->map(fn (array $sale, int $index) => $sale + [
+                'rank' => $index + 1,
+                'metricShare' => round(($this->metricValue($sale) * 100) / $max, 1),
+            ])
+            ->all();
+    }
+
+    public function podium(): array
+    {
+        return collect($this->ranking())
+            ->take(3)
+            ->sortBy(fn (array $sale) => match ($sale['rank']) {
+                2 => 1,
+                1 => 2,
+                default => 3,
+            })
+            ->values()
+            ->all();
+    }
+
+    public function metricLabel(): string
+    {
+        return match ($this->metric) {
+            'chargedWeight' => 'cân nặng tính phí',
+            'orderCount' => 'số lượng đơn',
+            default => 'doanh thu',
+        };
+    }
+
+    public function metricDisplay(array $sale): string
+    {
+        return match ($this->metric) {
+            'chargedWeight' => $this->number($sale['chargedWeight'] ?? 0, 2).' KG',
+            'orderCount' => $this->number($sale['orderCount'] ?? 0).' đơn',
+            default => $this->money($sale['revenue'] ?? 0),
+        };
+    }
+
+    protected function loadReport(SaleStatisticsService $statistics): void
+    {
+        $this->report = $statistics->report(auth()->user(), $this->filters);
+    }
+
+    protected function metricValue(array $sale): float
+    {
+        return (float) ($sale[$this->metric] ?? 0);
+    }
+};
+?>
+
+@php
+    $ranking = $this->ranking();
+    $podium = $this->podium();
+@endphp
+
+<section class="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
+    <div class="border-b border-neutral-100 bg-gradient-to-r from-primary-50 via-white to-white px-5 py-5 lg:px-6">
+        <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">Sales Performance</p>
+                <h2 class="mt-1 text-xl font-bold text-neutral-950">Thống kê danh sách sale</h2>
+                <p class="mt-1 text-sm text-neutral-500">Xếp hạng theo {{ $this->metricLabel() }} trong khoảng lọc hiện tại.</p>
+            </div>
+            <div class="inline-flex w-full rounded-xl border border-neutral-200 bg-white p-1 shadow-sm sm:w-auto">
+                @foreach ([
+                    'revenue' => ['Doanh thu', 'banknotes'],
+                    'chargedWeight' => ['Cân nặng', 'cube'],
+                    'orderCount' => ['Số lượng đơn', 'clipboard-document-list'],
+                ] as $value => [$label, $icon])
+                    <button
+                        type="button"
+                        wire:click="setMetric('{{ $value }}')"
+                        wire:loading.attr="disabled"
+                        @class([
+                            'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition sm:flex-none',
+                            'bg-primary-600 text-white shadow-sm' => $metric === $value,
+                            'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900' => $metric !== $value,
+                        ])
+                    >
+                        <flux:icon :name="$icon" class="size-4" />
+                        {{ $label }}
+                    </button>
+                @endforeach
+            </div>
+        </div>
+    </div>
+
+    <div class="grid gap-px border-b border-neutral-100 bg-neutral-100 sm:grid-cols-3">
+        <div class="bg-white px-5 py-3">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Sale hoạt động</p>
+            <p class="mt-1 text-lg font-bold text-neutral-950">{{ $this->number(data_get($report, 'summary.sales', 0)) }}</p>
+        </div>
+        <div class="bg-white px-5 py-3">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Tổng đơn hàng</p>
+            <p class="mt-1 text-lg font-bold text-neutral-950">{{ $this->number(data_get($report, 'summary.orders', 0)) }}</p>
+        </div>
+        <div class="bg-white px-5 py-3">
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Tổng doanh thu</p>
+            <p class="mt-1 text-lg font-bold text-primary-700">{{ $this->money(data_get($report, 'summary.revenue', 0)) }}</p>
+        </div>
+    </div>
+
+    <div class="grid xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div class="overflow-x-auto">
+            <table class="min-w-[760px] w-full text-sm">
+                <thead class="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-400">
+                    <tr>
+                        <th class="px-5 py-3 font-semibold">Sale</th>
+                        <th class="px-4 py-3 text-right font-semibold">SL đơn hàng</th>
+                        <th class="px-4 py-3 text-right font-semibold">Cân nặng</th>
+                        <th class="px-5 py-3 text-right font-semibold">Doanh thu</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-neutral-100">
+                    @forelse ($ranking as $sale)
+                        <tr class="group transition hover:bg-primary-50/50">
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
+                                        {{ $sale['rank'] }}
+                                    </span>
+                                    <div class="min-w-0">
+                                        <p class="truncate font-bold text-neutral-900">{{ $sale['name'] }}</p>
+                                        <p class="mt-0.5 text-xs font-medium text-neutral-400">{{ $sale['code'] ?: 'Chưa có mã sale' }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-right font-semibold text-neutral-700">{{ $this->number($sale['orderCount']) }} đơn</td>
+                            <td class="px-4 py-3 text-right text-neutral-500">
+                                {{ $this->number($sale['grossWeight'], 2) }}
+                                <span class="text-neutral-300">/</span>
+                                <span class="font-semibold text-primary-600">{{ $this->number($sale['chargedWeight'], 2) }} KG</span>
+                            </td>
+                            <td class="px-5 py-3 text-right">
+                                <p class="font-bold text-primary-700">{{ $this->money($sale['revenue']) }}</p>
+                                <div class="ml-auto mt-1.5 h-1.5 w-28 overflow-hidden rounded-full bg-neutral-100">
+                                    <div class="h-full rounded-full bg-primary-500 transition-all duration-300" style="width: {{ max(3, $sale['metricShare']) }}%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4" class="px-5 py-12 text-center text-neutral-500">Chưa có dữ liệu sale trong khoảng lọc.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <aside class="border-t border-neutral-100 bg-neutral-50/70 p-5 xl:border-l xl:border-t-0">
+            <div class="text-center">
+                <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">Top 3 nổi bật</p>
+                <h3 class="mt-1 text-lg font-bold text-neutral-950">Bảng vàng {{ $this->metricLabel() }}</h3>
+            </div>
+
+            @if ($podium !== [])
+                <div class="mt-6 flex h-64 items-end justify-center gap-3">
+                    @foreach ($podium as $sale)
+                        @php
+                            $height = match ($sale['rank']) {
+                                1 => 'h-44',
+                                2 => 'h-36',
+                                default => 'h-28',
+                            };
+                            $tone = match ($sale['rank']) {
+                                1 => 'from-primary-600 to-primary-500',
+                                2 => 'from-sky-500 to-sky-400',
+                                default => 'from-indigo-500 to-indigo-400',
+                            };
+                            $avatarTone = match ($sale['rank']) {
+                                1 => 'from-primary-700 to-primary-500',
+                                2 => 'from-sky-600 to-cyan-400',
+                                default => 'from-indigo-600 to-violet-400',
+                            };
+                        @endphp
+                        <div class="flex min-w-0 flex-1 flex-col items-center">
+                            <div class="relative z-10" x-data="{ imageFailed: false }">
+                                <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-br {{ $avatarTone }} text-xs font-extrabold tracking-wide text-white shadow-md">
+                                    @if ($sale['avatar'])
+                                        <img
+                                            x-show="!imageFailed"
+                                            x-on:error="imageFailed = true"
+                                            src="{{ $sale['avatar'] }}"
+                                            alt="{{ $sale['name'] }}"
+                                            class="h-full w-full object-cover"
+                                        >
+                                    @endif
+                                    <span @if ($sale['avatar']) x-show="imageFailed" x-cloak @endif>{{ $sale['initials'] }}</span>
+                                </div>
+                                <span class="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-[10px] font-bold text-white">{{ $sale['rank'] }}</span>
+                            </div>
+                            <div class="-mt-2 flex w-full flex-col justify-end rounded-t-xl bg-gradient-to-b {{ $tone }} px-2 pb-3 pt-5 text-center text-white shadow-lg {{ $height }}">
+                                <p class="text-[11px] font-semibold opacity-80">{{ $this->number($sale['orderCount']) }} đơn</p>
+                                <p class="mt-1 truncate text-xs font-bold">{{ $this->metricDisplay($sale) }}</p>
+                            </div>
+                            <p class="mt-2 w-full truncate text-center text-xs font-bold text-neutral-700">{{ $sale['shortName'] }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="mt-6 rounded-xl border border-dashed border-neutral-200 bg-white px-4 py-12 text-center text-sm text-neutral-500">
+                    Chưa đủ dữ liệu để hiển thị top 3.
+                </div>
+            @endif
+
+            <div class="mt-5 rounded-xl border border-primary-100 bg-primary-50 px-3 py-2 text-center text-xs font-semibold text-primary-700">
+                Đang xếp hạng theo {{ $this->metricLabel() }}
+            </div>
+        </aside>
+    </div>
+</section>
