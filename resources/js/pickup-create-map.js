@@ -1,8 +1,10 @@
-const LEAFLET_CSS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-const LEAFLET_JS_URL = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+const VIETMAP_GL_VERSION = '6.0.1';
+const VIETMAP_GL_CSS_URL = `https://unpkg.com/@vietmap/vietmap-gl-js@${VIETMAP_GL_VERSION}/dist/vietmap-gl.css`;
+const VIETMAP_GL_JS_URL = `https://unpkg.com/@vietmap/vietmap-gl-js@${VIETMAP_GL_VERSION}/dist/vietmap-gl.js`;
 const MAP_ELEMENT_ID = 'pickup-create-map';
+const DEFAULT_FOCUS = '10.7769,106.7009';
 
-let leafletPromise = null;
+let vietmapPromise = null;
 let map = null;
 let marker = null;
 let observer = null;
@@ -25,42 +27,59 @@ function getPickupComponent() {
         : null;
 }
 
-function ensureLeaflet() {
-    if (window.L) return Promise.resolve(window.L);
-    if (leafletPromise) return leafletPromise;
+function ensureVietmap() {
+    if (window.vietmapgl) return Promise.resolve(window.vietmapgl);
+    if (vietmapPromise) return vietmapPromise;
 
-    if (!document.querySelector(`link[href="${LEAFLET_CSS_URL}"]`)) {
+    if (!document.querySelector(`link[href="${VIETMAP_GL_CSS_URL}"]`)) {
         const stylesheet = document.createElement('link');
         stylesheet.rel = 'stylesheet';
-        stylesheet.href = LEAFLET_CSS_URL;
+        stylesheet.href = VIETMAP_GL_CSS_URL;
         stylesheet.crossOrigin = '';
         document.head.appendChild(stylesheet);
     }
 
-    leafletPromise = new Promise((resolve, reject) => {
-        const existingScript = document.querySelector(`script[src="${LEAFLET_JS_URL}"]`);
+    vietmapPromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector(`script[src="${VIETMAP_GL_JS_URL}"]`);
         const script = existingScript ?? document.createElement('script');
 
-        script.addEventListener('load', () => resolve(window.L), { once: true });
+        script.addEventListener('load', () => {
+            if (window.vietmapgl) {
+                resolve(window.vietmapgl);
+                return;
+            }
+
+            reject(new Error('VietMap GL loaded but window.vietmapgl is missing.'));
+        }, { once: true });
         script.addEventListener('error', reject, { once: true });
 
         if (!existingScript) {
-            script.src = LEAFLET_JS_URL;
+            script.src = VIETMAP_GL_JS_URL;
             script.crossOrigin = '';
             document.head.appendChild(script);
+        } else if (window.vietmapgl) {
+            resolve(window.vietmapgl);
         }
     }).catch((error) => {
-        leafletPromise = null;
-        updateStatus('Khong tai duoc ban do. Vui long thu lai.');
+        vietmapPromise = null;
+        updateStatus('Khong tai duoc ban do VietMap. Vui long thu lai.');
         throw error;
     });
 
-    return leafletPromise;
+    return vietmapPromise;
 }
 
 function scheduleSetup(delay = 0) {
     clearTimeout(setupTimeout);
     setupTimeout = setTimeout(setupMap, delay);
+}
+
+function getTileApiKey() {
+    return import.meta.env.VITE_VIETMAP_API_KEY_TITLE;
+}
+
+function getGeocodeApiKey() {
+    return import.meta.env.VITE_VIETMAP_API_KEY;
 }
 
 async function setupMap() {
@@ -69,27 +88,54 @@ async function setupMap() {
     if (!mapElement || map || mapElement.offsetParent === null) return;
 
     try {
-        await ensureLeaflet();
+        await ensureVietmap();
     } catch {
         return;
     }
 
     if (!document.body.contains(mapElement) || mapElement.offsetParent === null || map) return;
 
-    map = window.L.map(mapElement).setView([10.7769, 106.7009], 12);
+    const tileApiKey = getTileApiKey();
 
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
+    if (!tileApiKey) {
+        updateStatus('Chua cau hinh VITE_VIETMAP_API_KEY_TITLE');
+        return;
+    }
 
-    map.on('click', ({ latlng }) => {
-        placeMarker(latlng.lat, latlng.lng);
-        updateStatus('\u0110\u00e3 ch\u1ecdn v\u1ecb tr\u00ed th\u1ee7 c\u00f4ng');
+    map = new window.vietmapgl.Map({
+        container: mapElement,
+        style: `https://maps.vietmap.vn/maps/styles/tm/style.json?apikey=${tileApiKey}`,
+        center: [106.7009, 10.7769],
+        zoom: 12,
     });
 
-    bindGeocodeButton();
-    setTimeout(() => map?.invalidateSize(), 300);
+    map.on('load', () => {
+        updateStatus('Đã tải bản đồ. Hay click trên bản đồ để chọn vị trí.');
+        bindGeocodeButton();
+        setTimeout(() => map?.resize(), 300);
+    });
+
+    map.on('error', ({ error }) => {
+        const message = error?.message || '';
+
+        if (
+            message.includes('401') ||
+            message.includes('403') ||
+            message.includes('423') ||
+            message.toLowerCase().includes('apikey') ||
+            message.toLowerCase().includes('limited')
+        ) {
+            updateStatus('VietMap API key chua co quyen Tilemap hoac dang bi gioi han.');
+            return;
+        }
+
+        updateStatus('Khong tai duoc tile ban do VietMap. Vui long kiem tra key va ket noi mang.');
+    });
+
+    map.on('click', ({ lngLat }) => {
+        placeMarker(lngLat.lat, lngLat.lng);
+        updateStatus('Da chon vi tri thu cong');
+    });
 
     clearTimeout(geocodeTimeout);
     geocodeTimeout = setTimeout(geocodeAddress, 500);
@@ -110,18 +156,43 @@ function bindGeocodeButton() {
 function placeMarker(lat, lng) {
     if (!map) return;
 
+    const el = document.createElement('div');
+    el.className = 'pickup-marker';
+    el.style.cssText = `
+        width: 32px;
+        height: 32px;
+        background: #dc2626;
+        border: 3px solid white;
+        border-radius: 50% 50% 50% 0;
+        transform: rotate(-45deg);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        cursor: grab;
+    `;
     if (marker) {
-        marker.setLatLng([lat, lng]);
+        marker.setLngLat([lng, lat]);
     } else {
-        marker = window.L.marker([lat, lng], { draggable: true }).addTo(map);
-        marker.on('dragend', (event) => {
-            const position = event.target.getLatLng();
-            syncCoordinates(position.lat, position.lng);
-            updateStatus('\u0110\u00e3 di chuy\u1ec3n marker');
+        marker = new window.vietmapgl.Marker({ element: el, draggable: true })
+            .setLngLat([lng, lat])
+            .addTo(map);
+
+        el.addEventListener('mousedown', () => {
+            el.style.cursor = 'grabbing';
+        });
+        marker.on('dragstart', () => {
+            updateStatus('Dang di chuyen marker...');
+        });
+        marker.on('drag', () => {
+            const lngLat = marker.getLngLat();
+            syncCoordinates(lngLat.lat, lngLat.lng);
+        });
+
+        marker.on('dragend', () => {
+            const lngLat = marker.getLngLat();
+            syncCoordinates(lngLat.lat, lngLat.lng);
+            updateStatus('Da di chuyen marker');
         });
     }
-
-    map.setView([lat, lng], 16);
+    map.flyTo({ center: [lng, lat], zoom: 16 });
     syncCoordinates(lat, lng);
 }
 
@@ -140,7 +211,75 @@ function updateStatus(text) {
     if (status) status.textContent = text;
 }
 
-function geocodeAddress() {
+function normalizeGeocodeResults(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    if (Array.isArray(payload?.results)) return payload.results;
+
+    return payload ? [payload] : [];
+}
+
+function getGeocodeCoordinate(result) {
+    const lat = parseFloat(result?.lat ?? result?.location?.lat);
+    const lng = parseFloat(result?.lng ?? result?.lon ?? result?.location?.lng ?? result?.location?.lon);
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+
+    return { lat, lng };
+}
+
+function getGeocodeLabel(result, fallback) {
+    return result?.display || result?.display_name || result?.name || result?.address || fallback;
+}
+
+function getGeocodeRefId(result) {
+    return result?.ref_id || result?.refid || result?.data_new?.ref_id || result?.data_old?.ref_id || null;
+}
+
+async function fetchPlaceByRefId(refId) {
+    const geocodeApiKey = getGeocodeApiKey();
+
+    if (!geocodeApiKey || !refId) return null;
+
+    try {
+        const response = await fetch(
+            `https://maps.vietmap.vn/api/place/v4?apikey=${geocodeApiKey}&refid=${encodeURIComponent(refId)}`,
+            { headers: { Accept: 'application/json' } }
+        );
+
+        if (!response.ok) return null;
+
+        return response.json();
+    } catch {
+        return null;
+    }
+}
+
+async function reverseGeocode(lat, lng) {
+    const geocodeApiKey = getGeocodeApiKey();
+
+    if (!geocodeApiKey) {
+        updateStatus('Chua cau hinh VITE_VIETMAP_API_KEY');
+        return null;
+    }
+
+    try {
+        const response = await fetch(
+            `https://maps.vietmap.vn/api/reverse/v4?apikey=${geocodeApiKey}&lat=${lat}&lng=${lng}&display_type=5`,
+            { headers: { Accept: 'application/json' } }
+        );
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+
+        return data;
+    } catch {
+        return null;
+    }
+}
+
+async function geocodeAddress() {
     const component = getPickupComponent();
     const componentRoot = getPickupComponentRoot();
 
@@ -155,37 +294,59 @@ function geocodeAddress() {
     const fullAddress = [address, wardName, cityName, 'Vietnam'].filter(Boolean).join(', ');
 
     if (!address && !cityName) {
-        updateStatus('Ch\u01b0a c\u00f3 \u0111\u1ecba ch\u1ec9 \u0111\u1ec3 t\u00ecm');
+        updateStatus('Chưa có địa chỉ để tìm kiếm. Hay click trên bản đồ để chọn.');
         return;
     }
 
-    updateStatus('\u0110ang t\u00ecm ki\u1ebfm v\u1ecb tr\u00ed...');
+    updateStatus('Đang tìm kiếm vị trí...');
 
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddress)}&limit=1&countrycodes=vn`, {
-        headers: { 'Accept-Language': 'vi' },
-    })
-        .then((response) => response.json())
-        .then((results) => {
-            if (!results?.length) {
-                updateStatus('Kh\u00f4ng t\u00ecm th\u1ea5y v\u1ecb tr\u00ed. H\u00e3y click tr\u00ean b\u1ea3n \u0111\u1ed3 \u0111\u1ec3 ch\u1ecdn.');
-                return;
-            }
+    const geocodeApiKey = getGeocodeApiKey();
 
-            placeMarker(parseFloat(results[0].lat), parseFloat(results[0].lon));
-            updateStatus(`\u0110\u00e3 t\u00ecm th\u1ea5y: ${results[0].display_name.substring(0, 60)}...`);
-        })
-        .catch(() => {
-            updateStatus('L\u1ed7i khi t\u00ecm v\u1ecb tr\u00ed. H\u00e3y click tr\u00ean b\u1ea3n \u0111\u1ed3 \u0111\u1ec3 ch\u1ecdn.');
+    if (!geocodeApiKey) {
+        updateStatus('Chưa cấu hình VITE_VIETMAP_API_KEY');
+        return;
+    }
+
+    try {
+        const response = await fetch(`https://maps.vietmap.vn/api/search/v4?apikey=${geocodeApiKey}&text=${encodeURIComponent(fullAddress)}&focus=${DEFAULT_FOCUS}&display_type=5`, {
+            headers: { Accept: 'application/json' },
         });
+
+        if (!response.ok) throw new Error('API error');
+
+        const results = normalizeGeocodeResults(await response.json());
+
+        if (!results || results.length === 0) {
+            updateStatus('Không tìm thấy vị trí. Hay click trên bản đồ để chọn.');
+            return;
+        }
+
+        const first = results[0];
+        const refId = getGeocodeRefId(first);
+        const place = await fetchPlaceByRefId(refId);
+        const coordinate = getGeocodeCoordinate(place) || getGeocodeCoordinate(first);
+
+        if (!coordinate) {
+            updateStatus('Không lấy được tọa độ từ VietMap Place. Hay click trên bản đồ để chọn.');
+            return;
+        }
+
+        placeMarker(coordinate.lat, coordinate.lng);
+        updateStatus(`Đã tìm thấy: ${getGeocodeLabel(place || first, fullAddress).substring(0, 60)}...`);
+    } catch {
+        updateStatus('Lỗi khi tìm vị trí. Hay click trên bản đồ để chọn.');
+    }
 }
 
 function cleanupMap() {
     clearTimeout(setupTimeout);
     clearTimeout(geocodeTimeout);
 
-    map?.remove();
-    map = null;
-    marker = null;
+    if (map) {
+        map.remove();
+        map = null;
+        marker = null;
+    }
 }
 
 function handleDomChange() {
@@ -203,7 +364,12 @@ function handleDomChange() {
         return;
     }
 
-    if (!map) scheduleSetup();
+    if (!map) {
+        scheduleSetup();
+        return;
+    }
+
+    requestAnimationFrame(() => map?.resize());
 }
 
 function init() {

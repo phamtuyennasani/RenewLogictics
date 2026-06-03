@@ -11,6 +11,7 @@
 /.phpunit.cache
 /.vscode
 /.claude
+/.agents
 /.gitnexus
 /.zed
 /auth.json
@@ -18,12 +19,13 @@
 /public/build
 /public/hot
 /public/storage
-
+/config/license_guard.php
 /public_html/build
 /public_html/hot
 /public_html/storage
 /packages
 /storage/*.key
+/storage/framework
 /storage/pail
 /vendor
 _ide_helper.php

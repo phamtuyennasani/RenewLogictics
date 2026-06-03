@@ -1,10 +1,10 @@
 {
     "host": "logictics.local",
-    "license_hash": "b655c3553de2d4989828d5acd3927eec4af0b8be2b6ef87eb06469f2a368547b",
-    "license_id": "7203698b0ed8bfad",
+    "license_hash": "e422644a078630b19ebe13964bb024580ae9649e35653788c32e4e197a525dce",
+    "license_id": "c54e236a433e3a29",
     "domains": [
         "logictics.local"
     ],
-    "valid_until": 1780511585,
+    "valid_until": 1780565995,
     "status": "valid"
 }

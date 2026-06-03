@@ -69,7 +69,13 @@
       "Bash(composer dump-autoload *)",
       "Bash(LICENSE_KEY=INVALID php artisan route:list)",
       "Bash(echo \"exit=$?\")",
-      "Bash(php -l routes/web.php)"
+      "Bash(php -l routes/web.php)",
+      "WebFetch(domain:maps.vietmap.vn)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -sI \"https://unpkg.com/@vietmap/vietmap-gl-js/dist/vietmap-gl.js\")",
+      "Bash(curl -sI \"https://unpkg.com/@vietmap/vietmap-gl-js/dist/vietmap-gl.css\")",
+      "Bash(curl -sI \"https://unpkg.com/@vietmap/vietmap-gl-js@7.0.0-pre.1/dist/vietmap-gl.js\")"
     ]
   }
 }
