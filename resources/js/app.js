@@ -8,6 +8,7 @@ import { registerTomSelectNavigation } from './tom-select-helper';
 import { Fancybox } from '@fancyapps/ui';
 import '@fancyapps/ui/dist/fancybox/fancybox.css';
 import './pickup-create-map';
+import './shipper-pickup-route-map';
 
 window.TomSelect = TomSelect;
 window.flatpickr = flatpickr;

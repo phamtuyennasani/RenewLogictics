@@ -15,7 +15,7 @@
 
 return [
     // Public key Ed25519 (base64) — chỉ dùng để verify, an toàn để lộ.
-    'public_key' => 'TiyrBHHdajUkvmKOKKGOed9ja0ZYDymNHFXiLJ267Ak=',
+    'public_key' => 'gCMOn1JvA9pv82lDih7CYYj1dusLfHwF3qfXtIjaQtw=',
 
     // Mã sản phẩm (tùy chọn) — chỉ để hiển thị/đối chiếu.
     'product' => 'hethong-laravel',

@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>{{ $title ?? 'Shipper — ' . config('system.name', 'VAU TRANS') }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -108,6 +109,19 @@
     </flux:toast.group>
 
     @livewireScripts
+    @php
+        $__vietmapOptions = data_get(\App\Models\Setting::first(), 'options', []);
+        $__vietmapTileKey = $__vietmapOptions['vietmap_tile_api_key'] ?? '';
+        $__vietmapGeocodeKey = $__vietmapOptions['vietmap_geocode_api_key'] ?? '';
+    @endphp
+    @if($__vietmapTileKey || $__vietmapGeocodeKey)
+    <script>
+        window.__VIETMAP_CONFIG__ = {
+            tileApiKey: @json($__vietmapTileKey),
+            geocodeApiKey: @json($__vietmapGeocodeKey),
+        };
+    </script>
+    @endif
     @vite(['resources/js/app.js'])
     @fluxScripts
     @stack('scripts')
