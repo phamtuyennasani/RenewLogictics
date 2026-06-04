@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Services\Reports\SystemStatisticsService;
 use Livewire\Attributes\Layout;

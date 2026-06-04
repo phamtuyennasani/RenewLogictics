@@ -110,6 +110,8 @@ Route::middleware('auth')->group(function () {
     // --- Shipper Mobile Pickup ---
     Route::livewire('/shipper/pickups', 'pages::pickups.shipper')->name('shipper.pickups')
         ->middleware('can:pickups.index');
+    Route::livewire('/shipper/thong-bao', 'pages::notifications.shipper')->name('shipper.notifications')
+        ->middleware('can:notifications.view');
     Route::livewire('/shipper/profile', 'pages::taikhoan.shipper')->name('shipper.profile');
 
     // --- OPS Mobile Scan ---
@@ -247,10 +249,13 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/{slug}', 'pages::chinhsach.edit')->name('show');
     })->middleware('can:chinhsach.index');
 
+    Route::livewire('/cai-dat/thong-bao', 'pages::settings.thongbao')
+        ->name('settings.thongbao')
+        ->middleware('can:notifications.view');
+
     // --- Cấu hình ---
     Route::prefix('cai-dat')->name('settings.')->group(function () {
         Route::livewire('/', 'pages::settings.index')->name('index')->middleware('can:settings.admin');
-        Route::livewire('/thong-bao', 'pages::settings.thongbao')->name('thongbao');
         Route::livewire('/logo', 'pages::settings.logo')->name('logo')->middleware('can:settings.admin');
         Route::livewire('/favicon', 'pages::settings.favicon')->name('favicon')->middleware('can:settings.admin');
         Route::livewire('/banner', 'pages::settings.banner')->name('banner')->middleware('can:settings.admin');

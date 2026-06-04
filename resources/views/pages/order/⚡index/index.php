@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\OrderStatusEnum;
+use App\Enums\PickupStatusEnum;
 use App\Models\News;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,7 @@ new class extends Component
         'agencyId' => '',
         'airlineId' => '',
         'transitPartnerId' => '',
+        'pickupStatus' => '',
     ];
 
     public array $pageSizes = [10, 25, 50, 100];
@@ -35,6 +37,7 @@ new class extends Component
     public array $agencies = [];
     public array $airlines = [];
     public array $transitPartners = [];
+    public array $pickupStatusOptions = [];
     public array $capabilities = [];
     public array $routes = [];
 
@@ -76,6 +79,14 @@ new class extends Component
 
         $this->specialStatusOptions = collect($this->statusOptions)
             ->filter(fn (array $status) => $status['isSpecial'])
+            ->values()
+            ->all();
+
+        $this->pickupStatusOptions = collect(PickupStatusEnum::cases())
+            ->map(fn (PickupStatusEnum $status) => [
+                'value' => $status->value,
+                'label' => $status->label(),
+            ])
             ->values()
             ->all();
 

@@ -338,6 +338,7 @@ class SystemStatisticsService
         $grouped = $orders->groupBy(fn (Order $order) => $order->created_at?->toDateString());
 
         return $this->dateBuckets($dateRange)->map(fn (string $date) => [
+            'date' => $date,
             'label' => CarbonImmutable::parse($date)->format('d/m'),
             'orders' => $grouped->get($date, collect())->count(),
             'saleTotal' => $grouped->get($date, collect())

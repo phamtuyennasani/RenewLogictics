@@ -426,6 +426,10 @@
             .order-filter-section-grid-3 {
                 grid-template-columns: repeat(3, minmax(0, 1fr));
             }
+
+            .order-filter-section-grid-4 {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
         }
 
         .order-filter-field {
@@ -656,6 +660,7 @@
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 let customerRequestId = 0;
                 let pendingPrintUrl = '';
+                let appliedStatus = field('status')?.value || '';
 
                 const printOrder = (url, target, withCvck = null) => {
                     const frame = document.getElementById('order-print-frame');
@@ -687,6 +692,7 @@
 
                 const filters = () => ({
                     status: field('status')?.value || '',
+                    pickupStatus: field('pickupStatus')?.value || '',
                     fromDate: field('fromDate')?.value || '',
                     toDate: field('toDate')?.value || '',
                     saleId: field('saleId')?.value || '',
@@ -766,7 +772,7 @@
                         if (capabilities.isSaleUser) {
                             return [
                                 { targets: 1, width: '180px' },
-                                { targets: 2, width: '150px' },
+                                { targets: 2, width: '200px' },
                                 { targets: 3, width: '170px' },
                                 { targets: 4, width: '250px' },
                                 { targets: 5, width: '250px' },
@@ -783,7 +789,7 @@
                         return [
                             { targets: 0, width: '52px' },
                             { targets: 1, width: '180px' },
-                            { targets: 2, width: '150px' },
+                            { targets: 2, width: '200px' },
                             { targets: 3, width: '170px' },
                             { targets: 4, width: '190px' },
                             { targets: 5, width: '280px' },
@@ -806,6 +812,24 @@
                 const updateBulkState = () => {
                     document.querySelectorAll('[data-selected-count]').forEach((el) => el.textContent = selected.size);
                     document.querySelectorAll('[data-delete-cancelled]').forEach((el) => el.disabled = selected.size === 0 || !capabilities.canDeleteCancelled);
+                    const currentStatus = appliedStatus;
+                    const allowedBulkStatusByFilter = {
+                        da_xac_nhan: 'da_nhan_hang',
+                        da_nhan_hang: 'duyet_xuat_hang',
+                        duyet_xuat_hang: 'dang_phat_hang',
+                    };
+                    const allowedBulkStatus = allowedBulkStatusByFilter[currentStatus] || '';
+
+                    document.querySelectorAll('[data-bulk-status]').forEach((button) => {
+                        const status = button.dataset.bulkStatus || '';
+                        const isSequentialAction = ['da_nhan_hang', 'duyet_xuat_hang', 'dang_phat_hang'].includes(status);
+
+                        if (isSequentialAction) {
+                            button.disabled = selected.size === 0 || status !== allowedBulkStatus;
+                        } else {
+                            button.disabled = selected.size === 0;
+                        }
+                    });
                 };
 
                 const setSpecialStatusPanel = (open) => {
@@ -821,6 +845,7 @@
                 };
 
                 const reload = () => {
+                    appliedStatus = field('status')?.value || '';
                     selected.clear();
                     document.getElementById('orders-check-all').checked = false;
                     updateBulkState();
@@ -889,7 +914,7 @@
 
                 document.querySelectorAll('[data-status-tab]').forEach((button) => {
                     button.addEventListener('click', () => {
-                        field('status').value = button.dataset.statusTab || '';
+                        setTomSelectValue('status', button.dataset.statusTab || '');
                         document.querySelectorAll('[data-status-tab]').forEach((tab) => tab.dataset.active = 'false');
                         button.dataset.active = 'true';
                         if (button.dataset.statusTab === '') {
@@ -917,6 +942,7 @@
                     setTomSelectValue('agencyId', '');
                     setTomSelectValue('airlineId', '');
                     setTomSelectValue('transitPartnerId', '');
+                    setTomSelectValue('pickupStatus', '');
                     loadCustomersBySale('');
                     setFilterDate('fromDate', defaultDates.fromDate);
                     setFilterDate('toDate', defaultDates.toDate);

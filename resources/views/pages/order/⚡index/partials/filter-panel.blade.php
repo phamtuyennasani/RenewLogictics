@@ -82,7 +82,7 @@
                         <p>Trạng thái, dịch vụ và chi nhánh</p>
                     </div>
                 </div>
-                <div class="order-filter-section-grid order-filter-section-grid-3">
+                <div class="order-filter-section-grid order-filter-section-grid-4">
                     <div class="order-filter-field">
                         <label class="order-filter-label">Trạng thái xử lý</label>
                         <select data-order-filter="status" data-placeholder="Tất cả trạng thái" class="tomselectEml order-filter-tomselect">
@@ -107,6 +107,15 @@
                             <option value="">Tất cả chi nhánh</option>
                             @foreach ($branches as $branch)
                                 <option value="{{ $branch['id'] }}">{{ $branch['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="order-filter-field">
+                        <label class="order-filter-label">Tr&#7841;ng th&#225;i Pickup</label>
+                        <select data-order-filter="pickupStatus" data-placeholder="T&#7845;t c&#7843; tr&#7841;ng th&#225;i Pickup" class="tomselectEml order-filter-tomselect">
+                            <option value="">T&#7845;t c&#7843; tr&#7841;ng th&#225;i Pickup</option>
+                            @foreach ($pickupStatusOptions as $status)
+                                <option value="{{ $status['value'] }}">{{ $status['label'] }}</option>
                             @endforeach
                         </select>
                     </div>

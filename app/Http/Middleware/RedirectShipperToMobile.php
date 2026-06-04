@@ -20,6 +20,7 @@ class RedirectShipperToMobile
      */
     protected array $allowedRoutes = [
         'shipper.pickups',
+        'shipper.notifications',
         'shipper.profile',
         'profile',
         'logout',

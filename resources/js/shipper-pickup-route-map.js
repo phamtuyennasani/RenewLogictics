@@ -10,6 +10,7 @@ let routeMap = null;
 let shipperMarker = null;
 let pickupMarker = null;
 let activePickup = null;
+let routeButtonsBound = false;
 
 function getTileApiKey() {
     return window.__VIETMAP_CONFIG__?.tileApiKey || import.meta.env.VITE_VIETMAP_API_KEY_TITLE;
@@ -561,10 +562,16 @@ async function showRoute(button) {
 }
 
 function bindRouteButtons() {
-    document.querySelectorAll('[data-shipper-route-button]').forEach((button) => {
-        if (button.dataset.shipperRouteBound === 'true') return;
-        button.dataset.shipperRouteBound = 'true';
-        button.addEventListener('click', () => showRoute(button));
+    if (routeButtonsBound) return;
+
+    routeButtonsBound = true;
+    document.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) return;
+
+        const button = event.target.closest('[data-shipper-route-button]');
+        if (!button || button.disabled) return;
+
+        showRoute(button);
     });
 }
 
@@ -607,4 +614,5 @@ function init() {
 
 document.addEventListener('DOMContentLoaded', init);
 document.addEventListener('livewire:navigated', init);
-document.addEventListener('livewire:updated', bindRouteButtons);
+document.addEventListener('livewire:updated', init);
+init();

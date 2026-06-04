@@ -98,9 +98,20 @@ class OrderDataTableController extends Controller
         };
         abort_unless($request->user()->hasAnyRole($allowedRoles), 403);
 
+        $requiredPreviousStatus = match ($status) {
+            OrderStatusEnum::DA_NHAN_HANG => OrderStatusEnum::DA_XAC_NHAN,
+            OrderStatusEnum::DUYET_XUAT_HANG => OrderStatusEnum::DA_NHAN_HANG,
+            OrderStatusEnum::DANG_PHAT_HANG => OrderStatusEnum::DUYET_XUAT_HANG,
+            default => null,
+        };
+
         $count = 0;
         foreach ($this->query($request, includeStatus: false)->whereIn('orders.id', $data['ids'])->get() as $order) {
             if ($status === OrderStatusEnum::HUY && ! $this->canCancelOrDelete($order)) {
+                continue;
+            }
+
+            if ($requiredPreviousStatus && $order->bill_status !== $requiredPreviousStatus) {
                 continue;
             }
 
@@ -218,6 +229,7 @@ class OrderDataTableController extends Controller
     protected function query(Request $request, bool $includeStatus = true): Builder
     {
         $user = $request->user();
+        $pickupStatus = PickupStatusEnum::tryFrom((string) $request->input('pickupStatus'));
 
         return Order::query()
             ->with([
@@ -252,6 +264,7 @@ class OrderDataTableController extends Controller
             ->when($request->filled('agencyId'), fn ($q) => $q->where('service->id_daily', $request->integer('agencyId')))
             ->when($request->filled('airlineId'), fn ($q) => $q->where('service->id_hangbay', $request->integer('airlineId')))
             ->when($request->filled('transitPartnerId'), fn ($q) => $q->where('service->id_doitac_chungchuyen', $request->integer('transitPartnerId')))
+            ->when($pickupStatus, fn ($q) => $q->whereHas('pickups', fn ($pickup) => $pickup->where('pickup.status', $pickupStatus->value)))
             ->when(filled($request->input('search.value')), function ($q) use ($request) {
                 $keyword = '%'.trim((string) $request->input('search.value')).'%';
                 $q->where(function ($sub) use ($keyword) {

@@ -5,7 +5,10 @@
       "Bash(dir /s /b \"h:\\\\laragon\\\\www\\\\Hethong\\\\hethong-laravel\\\\database\")",
       "Bash(dir /s /b \"h:\\\\laragon\\\\www\\\\Hethong\\\\hethong-laravel\\\\routes\")",
       "Bash(dir /s /b \"h:\\\\laragon\\\\www\\\\Hethong\\\\hethong-laravel\\\\resources\")",
-      "Bash(dir /s /b \"h:\\\\laragon\\\\www\\\\Hethong\\\\hethong-laravel\\\\app\\\\Livewire\")"
+      "Bash(dir /s /b \"h:\\\\laragon\\\\www\\\\Hethong\\\\hethong-laravel\\\\app\\\\Livewire\")",
+      "mcp__plugin_context-mode_context-mode__ctx_doctor",
+      "mcp__gitnexus__context",
+      "mcp__gitnexus__query"
     ]
   }
 }

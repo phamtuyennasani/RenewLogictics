@@ -123,6 +123,11 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'manager', 'ketoan', 'cs']);
         });
 
+        // Gate for notification list — all internal roles can view notifications for their role.
+        Gate::define('notifications.view', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'ketoan', 'cs', 'sale', 'ops', 'ctv', 'shipper']);
+        });
+
         // Gate for settings children — admin only (logo, favicon, banner, he-thong, social, company)
         Gate::define('settings.admin', function ($user) {
             return $user->hasRole('admin');

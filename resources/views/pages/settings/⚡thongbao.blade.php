@@ -11,7 +11,7 @@ new class extends Component {
 
     public function mount(): void
     {
-        abort_unless(\Gate::allows('settings.index'), 403);
+        abort_unless(\Gate::allows('notifications.view'), 403);
     }
 
     public bool $showModal = false;
@@ -189,8 +189,15 @@ new class extends Component {
     #[\Livewire\Attributes\Computed]
     public function items()
     {
+        $role = auth()->user()->roles->first()?->name;
+        $canManageNotifications = $this->isAdmin() || $this->canCreate();
+
         return News::with(['user', 'user.roles'])
             ->where('type', 'thongbao')
+            ->when(! $canManageNotifications, function ($query) use ($role) {
+                $query->where('status', 'active')
+                    ->whereJsonContains('options2->roles', $role);
+            })
             ->orderByDesc('created_at')
             ->paginate(15);
     }

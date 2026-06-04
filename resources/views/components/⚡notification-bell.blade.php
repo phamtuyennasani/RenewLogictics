@@ -248,7 +248,7 @@ $accentHex = config('theme.accent.hex', '#0ea5e9');
         {{-- Footer --}}
         @if ($this->unreadCount > 0)
             <div class="px-4 py-2.5 border-t border-neutral-100 bg-neutral-50">
-                <a href="{{ route('settings.thongbao') }}" wire:navigate @click="open = false"
+                <a href="{{ route(auth()->user()?->hasRole('shipper') ? 'shipper.notifications' : 'settings.thongbao') }}" wire:navigate @click="open = false"
                    class="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors">
                     Xem tất cả thông báo
                 </a>

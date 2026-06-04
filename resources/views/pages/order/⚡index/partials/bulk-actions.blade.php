@@ -32,6 +32,7 @@
                     <button
                         type="button"
                         data-delete-cancelled
+                        disabled
                         class="inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 text-center text-sm font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-45"
                     >
                         <flux:icon.trash class="size-4 shrink-0" />
@@ -44,7 +45,8 @@
                     <button
                         type="button"
                         data-bulk-status="{{ $action['status'] }}"
-                        class="{{ $status['textClass'] ?? 'text-neutral-700' }} {{ isset($status['bgClass']) ? 'hover:'.$status['bgClass'] : 'hover:bg-neutral-100' }} inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-center text-sm font-medium transition hover:border-transparent"
+                        disabled
+                        class="{{ $status['textClass'] ?? 'text-neutral-700' }} {{ isset($status['bgClass']) ? 'hover:'.$status['bgClass'] : 'hover:bg-neutral-100' }} inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-transparent px-3 py-2 text-center text-sm font-medium transition hover:border-transparent disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-neutral-200 disabled:hover:bg-transparent"
                     >
                         <flux:icon :icon="$action['icon']" class="size-4 shrink-0" />
                         <span class="truncate">{{ $action['label'] }}</span>

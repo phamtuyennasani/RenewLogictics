@@ -16,7 +16,7 @@
             <colgroup>
                 @if ($isSaleUser)
                     <col style="width: 180px;">
-                    <col style="width: 150px;">
+                    <col style="width: 200px;">
                     <col style="width: 170px;">
                     <col style="width: 250px;">
                     <col style="width: 250px;">
@@ -32,7 +32,7 @@
                 @else
                     <col style="width: 52px;">
                     <col style="width: 180px;">
-                    <col style="width: 150px;">
+                    <col style="width: 200px;">
                     <col style="width: 170px;">
                     <col style="width: 190px;">
                     <col style="width: 280px;">
