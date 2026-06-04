@@ -4,6 +4,7 @@ use App\Actions\Pickup\TransitionPickupStatusAction;
 use App\Enums\PickupStatusEnum;
 use App\Models\News;
 use App\Models\Pickup;
+use App\Models\User;
 use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -20,6 +21,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
     public ?string $fromDate = null;
     public ?string $toDate = null;
     public ?int $selectedPickupId = null;
+    public ?int $selectedShipperId = null;
 
     public function mount(): void
     {
@@ -69,12 +71,14 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
     public function openDetails(int $pickupId): void
     {
         $this->selectedPickupId = $pickupId;
+        $this->selectedShipperId = $this->selectedPickup?->id_shipper;
         Flux::modal('pickup-details')->show();
     }
 
     public function closeDetails(): void
     {
         $this->selectedPickupId = null;
+        $this->selectedShipperId = null;
     }
 
     public function updateStatus(string $status): void
@@ -90,6 +94,36 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         }
 
         Flux::toast(heading: 'Đã cập nhật Pickup', text: 'Trạng thái phiếu Pickup đã được cập nhật.', variant: 'success');
+    }
+
+    public function reassignShipper(): void
+    {
+        abort_unless(auth()->user()?->hasAnyRole(['admin', 'ops', 'manager']), 403);
+
+        $pickup = $this->selectedPickup;
+        abort_unless($pickup, 404);
+
+        if ($pickup->status !== PickupStatusEnum::DA_HUY) {
+            Flux::toast(heading: 'Không thể gán lại', text: 'Chỉ gán lại shipper cho phiếu Pickup đã hủy.', variant: 'warning');
+            return;
+        }
+
+        $shipper = User::query()
+            ->whereKey($this->selectedShipperId)
+            ->whereHas('roles', fn ($query) => $query->where('name', 'shipper'))
+            ->first();
+
+        if (! $shipper) {
+            Flux::toast(heading: 'Thiếu shipper', text: 'Vui lòng chọn shipper hợp lệ.', variant: 'warning');
+            return;
+        }
+
+        $pickup->forceFill([
+            'id_shipper' => $shipper->id,
+            'status' => PickupStatusEnum::MOI_TAO_PICKUP,
+        ])->save();
+
+        Flux::toast(heading: 'Đã gán lại shipper', text: 'Pickup đã chuyển về trạng thái Mới tạo.', variant: 'success');
     }
 
     public function getSelectedPickupProperty(): ?Pickup
@@ -116,6 +150,15 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         $id = data_get($this->selectedPickup?->info_pickup, 'chinhanhnhanhang');
 
         return $id ? News::query()->find($id) : null;
+    }
+
+    public function getPickupShippersProperty()
+    {
+        return User::query()
+            ->whereHas('roles', fn ($query) => $query->where('name', 'shipper'))
+            ->orderBy('fullname')
+            ->orderBy('username')
+            ->get(['id', 'fullname', 'username']);
     }
 };
 ?>
@@ -234,6 +277,26 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
                         <p class="mt-2 text-2xl font-semibold text-neutral-900">{{ number_format((float) $selectedPickup->total_c_weight, 2, ',', '.') }} kg</p>
                     </div>
                 </div>
+
+                @if($selectedPickup->status === PickupStatusEnum::DA_HUY && auth()->user()?->hasAnyRole(['admin', 'ops', 'manager']))
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                            <div class="flex-1">
+                                <label class="text-xs font-semibold uppercase text-amber-700">Gán lại shipper</label>
+                                <select wire:model="selectedShipperId" class="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm text-neutral-900 focus:border-amber-500 focus:outline-none">
+                                    <option value="">Chọn shipper mới</option>
+                                    @foreach($this->pickupShippers as $shipper)
+                                        <option value="{{ $shipper->id }}">{{ $shipper->fullname ?: $shipper->username }}</option>
+                                    @endforeach
+                                </select>
+                                <p class="mt-1 text-xs text-amber-700">Khi lưu, Pickup sẽ chuyển về trạng thái Mới tạo để shipper mới tiếp nhận.</p>
+                            </div>
+                            <flux:button type="button" wire:click="reassignShipper" wire:loading.attr="disabled" variant="primary">
+                                Cập nhật shipper
+                            </flux:button>
+                        </div>
+                    </div>
+                @endif
 
                 <div class="grid gap-5 lg:grid-cols-2">
                     <div class="rounded-lg border border-neutral-200 p-4">

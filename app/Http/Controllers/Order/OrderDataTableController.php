@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Order;
 
 use App\Actions\Order\RecordTrackingHistoryAction;
 use App\Enums\OrderStatusEnum;
+use App\Enums\PickupStatusEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\User;
@@ -21,7 +22,15 @@ class OrderDataTableController extends Controller
         $response = DataTables::eloquent($this->query($request))
             ->addColumn('check', fn (Order $order) => '<label class="order-checkbox relative mx-auto flex w-fit cursor-pointer select-none items-center justify-center"><input type="checkbox" class="order-check peer sr-only" value="'.$order->id.'"><span class="flex h-[18px] w-[18px] items-center justify-center rounded-md border border-neutral-300 bg-white transition peer-checked:border-primary-600 peer-checked:bg-primary-600 peer-hover:border-primary-400"></span><svg class="pointer-events-none absolute hidden h-3 w-3 text-white peer-checked:block" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.5l5 5 10-11" /></svg></label>')
             ->addColumn('order_code', fn (Order $order) => view('pages.order.⚡index.partials.index.order-code', compact('order'))->render())
-            ->addColumn('status_badge', fn (Order $order) => '<span class="inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold '.($order->bill_status?->color() ?? 'bg-neutral-100 text-neutral-700').'">'.e($order->bill_status?->label() ?? 'Chưa rõ').'</span>')
+            ->addColumn('status_badge', fn (Order $order) => view('pages.order.⚡index.partials.index.status-pickup', [
+                'order' => $order,
+                'visiblePickupStatuses' => [
+                    PickupStatusEnum::MOI_TAO_PICKUP,
+                    PickupStatusEnum::DA_XAC_NHAN,
+                    PickupStatusEnum::PICKUP_DANG_LAY,
+                    PickupStatusEnum::PICKUP_DA_LAY,
+                ],
+            ])->render())
             ->addColumn('dates', fn (Order $order) => view('pages.order.⚡index.partials.index.dates', compact('order'))->render())
             ->addColumn('assignee', fn (Order $order) => view('pages.order.⚡index.partials.index.assignee', compact('order'))->render())
             ->addColumn('sender_info', fn (Order $order) => view('pages.order.⚡index.partials.index.contact', ['data' => $order->sender])->render())
@@ -228,6 +237,7 @@ class OrderDataTableController extends Controller
                 'congNoDetails.congNo:id,uuid,sohoadon,status',
                 'congNoDaiLyDetails:id,id_order,id_congno_daily,created_at',
                 'congNoDaiLyDetails.congNoDaiLy:id,uuid,sohoadon,status',
+                'pickups:id,ma_pickup,status',
             ])
             ->when($user->hasRole('sale'), fn ($q) => $q->where('id_sale', $user->id))
             ->when($user->hasRole('ctv'), fn ($q) => $q->where('id_customer', $user->id))
