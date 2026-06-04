@@ -110,6 +110,7 @@ Route::middleware('auth')->group(function () {
     // --- Shipper Mobile Pickup ---
     Route::livewire('/shipper/pickups', 'pages::pickups.shipper')->name('shipper.pickups')
         ->middleware('can:pickups.index');
+    Route::livewire('/shipper/profile', 'pages::taikhoan.shipper')->name('shipper.profile');
 
     // --- OPS Mobile Scan ---
     Route::livewire('/mobile/scan', 'pages::scan.mobile')->name('mobile.scan')

@@ -77,7 +77,7 @@
                                 <p class="text-sm font-semibold text-neutral-900 truncate">{{ auth()->user()?->fullname ?? auth()->user()?->username }}</p>
                                 <p class="text-xs text-neutral-500 mt-0.5">{{ \App\Enums\RoleEnum::label(auth()->user()?->roles->first()?->name) }}</p>
                             </div>
-                            <a href="{{ route('profile') }}"
+                            <a href="{{ route('shipper.profile') }}"
                                wire:navigate
                                class="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
                                 <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

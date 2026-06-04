@@ -20,6 +20,7 @@ class RedirectShipperToMobile
      */
     protected array $allowedRoutes = [
         'shipper.pickups',
+        'shipper.profile',
         'profile',
         'logout',
         'login',
@@ -30,7 +31,7 @@ class RedirectShipperToMobile
      */
     protected array $allowedPrefixes = [
         'shipper/',
-        'livewire/',
+        'livewire',
         'api/',
         'ho-so',
         'logout',
@@ -38,14 +39,16 @@ class RedirectShipperToMobile
 
     public function handle(Request $request, Closure $next): Response
     {
-        $user = $request->user();
+        $path = ltrim($request->path(), '/');
 
-        if (! $user || ! $user->hasRole('shipper')) {
+        // Cho phép Livewire internal requests (AJAX/update/upload)
+        if ($request->header('X-Livewire') || str_starts_with($path, 'livewire')) {
             return $next($request);
         }
 
-        // Cho phép Livewire internal requests (AJAX/update)
-        if ($request->header('X-Livewire')) {
+        $user = $request->user();
+
+        if (! $user || ! $user->hasRole('shipper')) {
             return $next($request);
         }
 
@@ -56,7 +59,6 @@ class RedirectShipperToMobile
         }
 
         // Cho phép các URI prefix trong whitelist
-        $path = ltrim($request->path(), '/');
         foreach ($this->allowedPrefixes as $prefix) {
             if (str_starts_with($path, $prefix)) {
                 return $next($request);
