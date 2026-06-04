@@ -140,7 +140,7 @@ $accentHex = config('theme.accent.hex', '#0ea5e9');
 
 <div x-data="{ open: false }" @click.outside="open = false" class="relative" wire:poll.60s>
     {{-- Bell Button --}}
-    <button @click="open = !open" class="relative p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 transition-colors">
+    <button @click="open = !open" class="relative flex h-10 w-10 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-primary-50 hover:text-primary-700">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
@@ -161,11 +161,11 @@ $accentHex = config('theme.accent.hex', '#0ea5e9');
          x-transition:leave="transition ease-in duration-100"
          x-transition:leave-start="opacity-100 scale-100 translate-y-0"
          x-transition:leave-end="opacity-0 scale-95 -translate-y-1"
-         class="absolute right-0 mt-2 w-96 bg-white rounded-xl border border-neutral-200 shadow-lg overflow-hidden z-50">
+         class="fixed left-4 right-4 top-[4.5rem] max-h-[calc(100vh-5.5rem)] bg-white rounded-2xl border border-neutral-200 shadow-xl overflow-hidden z-50 sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 sm:max-w-96 sm:max-h-none sm:rounded-xl">
 
         {{-- Header --}}
-        <div class="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
-            <h4 class="text-sm font-semibold text-neutral-900">
+        <div class="px-4 py-3 border-b border-neutral-100 flex items-center justify-between gap-3">
+            <h4 class="min-w-0 text-sm font-semibold text-neutral-900">
                 Thông báo
                 @if ($this->unreadCount > 0)
                     <span class="text-xs font-normal text-neutral-500">({{ $this->unreadCount }} chưa đọc)</span>
@@ -173,14 +173,14 @@ $accentHex = config('theme.accent.hex', '#0ea5e9');
             </h4>
             @if ($this->unreadCount > 0)
                 <button wire:click="markAllAsRead" @click="open = false"
-                        class="text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors">
+                        class="shrink-0 whitespace-nowrap text-xs text-primary-600 hover:text-primary-700 font-medium transition-colors">
                     Đọc tất cả
                 </button>
             @endif
         </div>
 
         {{-- List --}}
-        <div class="max-h-96 overflow-y-auto">
+        <div class="max-h-[calc(100vh-12rem)] overflow-y-auto sm:max-h-96">
             @if ($isAdmin)
                 @forelse ($this->notifications as $groupName => $items)
                     <div class="border-b border-neutral-100 last:border-b-0">

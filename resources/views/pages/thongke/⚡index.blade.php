@@ -36,7 +36,11 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
 
     public function resetFilters(): void
     {
-        $scope = $this->report['scope'] ?? ['canUseSaleFilter' => true, 'canUseCustomerFilter' => true];
+        $scope = $this->report['scope'] ?? [
+            'canUseSaleFilter' => true,
+            'canUseCustomerFilter' => true,
+            'canUseAgencyFilter' => true,
+        ];
 
         $this->filters = [
             'fromDate' => now()->subDays(30)->toDateString(),
@@ -56,6 +60,10 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
             $this->filters['customerId'] = '';
         }
 
+        if (! $scope['canUseAgencyFilter']) {
+            $this->filters['agencyId'] = '';
+        }
+
         $this->refreshReport(app(SystemStatisticsService::class));
     }
 
@@ -63,6 +71,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
     {
         $this->report = $statistics->report(auth()->user(), $this->filters);
         $this->dispatch('system-order-timeline-updated', data: data_get($this->report, 'charts.orderTimeline', []));
+        $this->dispatch('system-statistics-filters-synced', filters: $this->filters);
     }
 
     public function money(mixed $value): string
@@ -108,14 +117,30 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         </div>
     </section>
 
-    <section class="grid gap-3 rounded-lg border border-neutral-200 bg-white p-3 shadow-sm md:grid-cols-2 xl:grid-cols-7">
-        <flux:input type="date" label="Từ ngày" wire:model.live="filters.fromDate" />
-        <flux:input type="date" label="Đến ngày" wire:model.live="filters.toDate" />
+    <section class="system-filter-grid rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+        <label class="system-filter-field system-date-picker-field" wire:ignore>
+            <span class="system-filter-label">Từ ngày</span>
+            <span class="system-date-control">
+                <svg class="system-date-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M8 2.75v3.5M16 2.75v3.5M4.75 9.25h14.5M6.75 4.75h10.5a2.5 2.5 0 0 1 2.5 2.5v10a2.5 2.5 0 0 1-2.5 2.5H6.75a2.5 2.5 0 0 1-2.5-2.5v-10a2.5 2.5 0 0 1 2.5-2.5Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <input type="text" value="{{ $filters['fromDate'] }}" data-system-date-picker data-livewire-model="filters.fromDate" class="system-filter-control system-date-input" autocomplete="off" />
+            </span>
+        </label>
+        <label class="system-filter-field system-date-picker-field" wire:ignore>
+            <span class="system-filter-label">Đến ngày</span>
+            <span class="system-date-control">
+                <svg class="system-date-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M8 2.75v3.5M16 2.75v3.5M4.75 9.25h14.5M6.75 4.75h10.5a2.5 2.5 0 0 1 2.5 2.5v10a2.5 2.5 0 0 1-2.5 2.5H6.75a2.5 2.5 0 0 1-2.5-2.5v-10a2.5 2.5 0 0 1 2.5-2.5Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <input type="text" value="{{ $filters['toDate'] }}" data-system-date-picker data-livewire-model="filters.toDate" class="system-filter-control system-date-input" autocomplete="off" />
+            </span>
+        </label>
 
         @if (data_get($report, 'scope.canUseSaleFilter'))
-            <label class="block">
-                <span class="mb-1 block text-sm font-medium text-neutral-700">Sale</span>
-                <select wire:model.live="filters.saleId" class="h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800">
+            <label class="system-filter-field">
+                <span class="system-filter-label">Sale</span>
+                <select wire:model.live="filters.saleId" class="system-filter-control">
                     <option value="">Tất cả sale</option>
                     @foreach ($options['sales'] ?? [] as $sale)
                         <option value="{{ $sale['id'] }}">{{ $sale['label'] }}</option>
@@ -125,46 +150,48 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         @endif
 
         @if (data_get($report, 'scope.canUseCustomerFilter'))
-            <label class="block">
-                <span class="mb-1 block text-sm font-medium text-neutral-700">CTV / Khách hàng</span>
-                <select wire:model.live="filters.customerId" class="h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800">
+            <label class="system-filter-field" wire:ignore>
+                <span class="system-filter-label">CTV / Khách hàng</span>
+                <select data-placeholder="Tất cả CTV" data-livewire-model="filters.customerId" class="system-filter-control tomselectEml system-filter-tomselect">
                     <option value="">Tất cả CTV</option>
                     @foreach ($options['customers'] ?? [] as $customer)
-                        <option value="{{ $customer['id'] }}">{{ $customer['label'] }}</option>
+                        <option value="{{ $customer['id'] }}" @selected((string) $filters['customerId'] === (string) $customer['id'])>{{ $customer['label'] }}</option>
                     @endforeach
                 </select>
             </label>
         @endif
 
-        <label class="block">
-            <span class="mb-1 block text-sm font-medium text-neutral-700">Dịch vụ</span>
-            <select wire:model.live="filters.serviceId" class="h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800">
+        <label class="system-filter-field" wire:ignore>
+            <span class="system-filter-label">Dịch vụ</span>
+            <select data-placeholder="Tất cả dịch vụ" data-livewire-model="filters.serviceId" class="system-filter-control tomselectEml system-filter-tomselect">
                 <option value="">Tất cả dịch vụ</option>
                 @foreach ($options['services'] ?? [] as $service)
-                    <option value="{{ $service['id'] }}">{{ $service['label'] }}</option>
+                    <option value="{{ $service['id'] }}" @selected((string) $filters['serviceId'] === (string) $service['id'])>{{ $service['label'] }}</option>
                 @endforeach
             </select>
         </label>
 
-        <label class="block">
-            <span class="mb-1 block text-sm font-medium text-neutral-700">Chi nhánh</span>
-            <select wire:model.live="filters.branchId" class="h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800">
+        <label class="system-filter-field" wire:ignore>
+            <span class="system-filter-label">Chi nhánh</span>
+            <select data-placeholder="Tất cả chi nhánh" data-livewire-model="filters.branchId" class="system-filter-control tomselectEml system-filter-tomselect">
                 <option value="">Tất cả chi nhánh</option>
                 @foreach ($options['branches'] ?? [] as $branch)
-                    <option value="{{ $branch['id'] }}">{{ $branch['label'] }}</option>
+                    <option value="{{ $branch['id'] }}" @selected((string) $filters['branchId'] === (string) $branch['id'])>{{ $branch['label'] }}</option>
                 @endforeach
             </select>
         </label>
 
-        <label class="block">
-            <span class="mb-1 block text-sm font-medium text-neutral-700">Đại lý</span>
-            <select wire:model.live="filters.agencyId" class="h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800">
-                <option value="">Tất cả đại lý</option>
-                @foreach ($options['agencies'] ?? [] as $agency)
-                    <option value="{{ $agency['id'] }}">{{ $agency['label'] }}</option>
-                @endforeach
-            </select>
-        </label>
+        @if (data_get($report, 'scope.canUseAgencyFilter'))
+            <label class="system-filter-field">
+                <span class="system-filter-label">Đại lý</span>
+                <select wire:model.live="filters.agencyId" class="system-filter-control">
+                    <option value="">Tất cả đại lý</option>
+                    @foreach ($options['agencies'] ?? [] as $agency)
+                        <option value="{{ $agency['id'] }}">{{ $agency['label'] }}</option>
+                    @endforeach
+                </select>
+            </label>
+        @endif
     </section>
 
     <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -210,11 +237,6 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                 </div>
             </div>
 
-            <div class="mt-3 grid grid-cols-2 gap-2 text-xs text-neutral-500 sm:grid-cols-4">
-                @foreach (collect($orderTimeline)->take(4) as $point)
-                    <span>{{ $point['label'] }}: <strong class="text-neutral-800">{{ $this->number($point['orders'] ?? 0) }}</strong> đơn</span>
-                @endforeach
-            </div>
         </div>
 
         <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
@@ -306,10 +328,139 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
 @once
     @push('styles')
         <style>
-            #system-statistics-page select:focus {
+            #system-statistics-page .system-filter-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+                gap: 1rem;
+                align-items: end;
+            }
+
+            @media (min-width: 1280px) {
+                #system-statistics-page .system-filter-grid {
+                    grid-template-columns: repeat(6, minmax(0, 1fr));
+                }
+            }
+
+            #system-statistics-page .system-filter-field {
+                display: flex;
+                min-width: 0;
+                flex-direction: column;
+                gap: 0.45rem;
+            }
+
+            #system-statistics-page .system-filter-label {
+                min-height: 1.25rem;
+                color: #404040;
+                font-size: 0.8125rem;
+                font-weight: 700;
+                line-height: 1.25rem;
+            }
+
+            #system-statistics-page .system-filter-control {
+                height: 2.75rem;
+                width: 100%;
+                min-width: 0;
+                border-radius: 0.75rem;
+                border: 1px solid #e5e5e5;
+                background-color: #fff;
+                padding: 0 0.875rem;
+                color: #262626;
+                font-size: 0.875rem;
+                line-height: 1.25rem;
+                transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+            }
+
+            #system-statistics-page .system-filter-control:hover {
+                border-color: #d4d4d4;
+                background-color: #fafafa;
+            }
+
+            #system-statistics-page .system-filter-control:focus {
                 border-color: #2563eb;
                 box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
                 outline: none;
+            }
+
+            #system-statistics-page .system-date-picker-field {
+                position: relative;
+            }
+
+            #system-statistics-page .system-date-control {
+                position: relative;
+                display: block;
+                width: 100%;
+            }
+
+            #system-statistics-page .system-date-icon {
+                pointer-events: none;
+                position: absolute;
+                right: 0.875rem;
+                top: 50%;
+                z-index: 2;
+                height: 1rem;
+                width: 1rem;
+                transform: translateY(-50%);
+                color: #737373;
+            }
+
+            #system-statistics-page .system-date-picker-field .flatpickr-wrapper {
+                display: block;
+                width: 100%;
+            }
+
+            #system-statistics-page .system-date-picker-field .flatpickr-input {
+                width: 100%;
+                padding-left: 0.875rem;
+                padding-right: 2.5rem;
+            }
+
+            #system-statistics-page .system-date-picker-field .flatpickr-calendar.static {
+                position: absolute;
+                top: calc(100% + 0.5rem);
+                left: 0;
+                z-index: 60;
+            }
+
+            #system-statistics-page .system-filter-field .ts-wrapper {
+                width: 100%;
+                min-width: 0;
+            }
+
+            #system-statistics-page .system-filter-field .ts-wrapper.system-filter-control {
+                height: auto;
+                border: 0;
+                border-radius: 0;
+                background: transparent;
+                padding: 0;
+                box-shadow: none;
+            }
+
+            #system-statistics-page .system-filter-field .ts-control {
+                display: flex;
+                align-items: center;
+                width: 100%;
+                height: 2.75rem;
+                min-height: 2.75rem;
+                border-radius: 0.75rem;
+                border: 1px solid #e5e5e5;
+                background-color: #fff;
+                padding: 0.55rem 2.25rem 0.55rem 0.875rem;
+                color: #262626;
+                font-size: 0.875rem;
+                box-shadow: none;
+            }
+
+            #system-statistics-page .system-filter-field .ts-wrapper.focus .ts-control {
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
+            }
+
+            #system-statistics-page .system-filter-field .ts-dropdown {
+                border-color: #e5e5e5;
+                border-radius: 0.75rem;
+                overflow: hidden;
+                font-size: 0.875rem;
+                box-shadow: 0 16px 32px rgb(15 23 42 / 0.14);
             }
         </style>
     @endpush
@@ -318,6 +469,84 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         <script>
             (() => {
                 let chart = null;
+                let filterRetryCount = 0;
+
+                const filterRoot = () => document.getElementById('system-statistics-page');
+                const livewireComponent = () => {
+                    const componentEl = filterRoot()?.closest('[wire\\:id]');
+                    const componentId = componentEl?.getAttribute('wire:id');
+
+                    return componentId && window.Livewire?.find ? window.Livewire.find(componentId) : null;
+                };
+
+                const setLivewireFilter = (model, value) => {
+                    livewireComponent()?.set(model, value || '', true);
+                };
+
+                const initSystemFilters = () => {
+                    const root = filterRoot();
+                    if (!root) return;
+
+                    if (!window.flatpickr || !window.TomSelectHelper) {
+                        if (filterRetryCount < 20) {
+                            filterRetryCount++;
+                            setTimeout(initSystemFilters, 100);
+                        }
+                        return;
+                    }
+
+                    root.querySelectorAll('input[data-system-date-picker]').forEach((input) => {
+                        if (input._flatpickr) return;
+
+                        window.flatpickr(input, {
+                            dateFormat: 'Y-m-d',
+                            altInput: true,
+                            altFormat: 'd/m/Y',
+                            allowInput: true,
+                            defaultDate: input.value || null,
+                            static: true,
+                            position: 'below left',
+                            positionElement: input,
+                            disableMobile: true,
+                            clickOpens: true,
+                            onChange: (_selectedDates, dateStr) => {
+                                setLivewireFilter(input.dataset.livewireModel, dateStr);
+                            },
+                            onClose: (_selectedDates, dateStr) => {
+                                setLivewireFilter(input.dataset.livewireModel, dateStr);
+                            },
+                        });
+                    });
+
+                    window.TomSelectHelper.init(root);
+                };
+
+                const syncSystemFilters = (filters = {}) => {
+                    const root = filterRoot();
+                    if (!root) return;
+
+                    root.querySelectorAll('input[data-system-date-picker]').forEach((input) => {
+                        const key = input.dataset.livewireModel?.split('.').pop();
+                        const value = filters[key] || '';
+
+                        if (input._flatpickr) {
+                            input._flatpickr.setDate(value || null, false);
+                        } else {
+                            input.value = value;
+                        }
+                    });
+
+                    root.querySelectorAll('select.system-filter-tomselect').forEach((select) => {
+                        const key = select.dataset.livewireModel?.split('.').pop();
+                        const value = filters[key] || '';
+
+                        if (select.tomselect) {
+                            select.tomselect.setValue(value, true);
+                        } else {
+                            select.value = value;
+                        }
+                    });
+                };
 
                 const chartOptions = {
                     responsive: true,
@@ -448,8 +677,16 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     chart.update();
                 }
 
-                document.addEventListener('DOMContentLoaded', () => render());
-                document.addEventListener('livewire:navigated', () => render());
+                document.addEventListener('DOMContentLoaded', () => {
+                    initSystemFilters();
+                    render();
+                });
+                document.addEventListener('livewire:navigated', () => {
+                    filterRetryCount = 0;
+                    initSystemFilters();
+                    render();
+                });
+                window.addEventListener('system-statistics-filters-synced', (event) => syncSystemFilters(event.detail?.filters || {}));
                 window.addEventListener('system-order-timeline-updated', (event) => render(event.detail?.data || []));
             })();
         </script>

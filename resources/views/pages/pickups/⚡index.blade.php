@@ -242,7 +242,6 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
                             <div><dt class="text-xs font-medium uppercase text-neutral-500">Ngày hẹn</dt><dd class="mt-1 text-neutral-900">{{ data_get($selectedPickup->info_pickup, 'ngayhen') ? \Carbon\Carbon::parse(data_get($selectedPickup->info_pickup, 'ngayhen'))->format('d/m/Y H:i') : '-' }}</dd></div>
                             <div><dt class="text-xs font-medium uppercase text-neutral-500">Phương tiện</dt><dd class="mt-1 text-neutral-900">{{ $this->selectedVehicle?->namevi ?: '-' }}</dd></div>
                             <div><dt class="text-xs font-medium uppercase text-neutral-500">Chi nhánh nhận hàng</dt><dd class="mt-1 text-neutral-900">{{ $this->selectedBranch?->namevi ?: '-' }}</dd></div>
-                            <div><dt class="text-xs font-medium uppercase text-neutral-500">Chi phí công</dt><dd class="mt-1 text-neutral-900">{{ number_format((float) data_get($selectedPickup->info_pickup, 'chiphi_cong', 0), 0, ',', '.') }} đ</dd></div>
                             <div class="sm:col-span-2"><dt class="text-xs font-medium uppercase text-neutral-500">Ghi chú</dt><dd class="mt-1 whitespace-pre-line text-neutral-900">{{ $selectedPickup->note ?: '-' }}</dd></div>
                         </dl>
                     </div>

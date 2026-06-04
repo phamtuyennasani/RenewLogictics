@@ -15,6 +15,7 @@ use App\Models\Ward;
 use App\Enums\OrderStatusEnum;
 use App\Support\OrderAccess;
 use Flux\Flux;
+use Illuminate\Validation\Rule;
 use Picqer\Barcode\Renderers\SvgRenderer;
 use Picqer\Barcode\Types\TypeCode128;
 
@@ -273,9 +274,22 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
     public function canCreatePickup(): bool
     {
         return ! $this->order->lock_order
-            && $this->order->bill_status === OrderStatusEnum::DA_XAC_NHAN
-            && auth()->user()->hasAnyRole(['admin', 'cs', 'sale', 'ops'])
+            && in_array($this->order->bill_status, [OrderStatusEnum::MOI_TAO, OrderStatusEnum::DA_XAC_NHAN], true)
+            && auth()->user()->hasAnyRole(['admin', 'cs', 'sale', 'ops', 'ctv', 'manager'])
             && ! $this->currentPickup();
+    }
+
+    public function getPickupShippersProperty(): \Illuminate\Database\Eloquent\Collection
+    {
+        return User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'shipper'))
+            ->orderBy('fullname')
+            ->get(['id', 'fullname', 'username']);
+    }
+
+    public function canSelectShipperForPickup(): bool
+    {
+        return auth()->user()->hasAnyRole(['admin', 'ops', 'cs', 'manager']);
     }
 
     public function openPickupModal(): void
@@ -293,17 +307,18 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             'id_city' => data_get($sender, 'id_city', data_get($sender, 'city_id')),
             'id_ward' => data_get($sender, 'id_ward', data_get($sender, 'ward_id')),
             'vehicle_id' => null,
-            'scheduled_at' => now()->format('Y-m-d\TH:i'),
+            'scheduled_at' => now()->format('Y-m-d H:i'),
             'packages_count' => (int) $this->order->packages->sum('number_of_package'),
             'total_weight' => (float) $this->order->packages->sum('c_weight'),
-            'labor_cost' => 0,
             'branch_id' => data_get($this->order->service ?? [], 'id_chinhanh_nhanhang'),
             'note' => '',
             'pickup_lat' => null,
             'pickup_lng' => null,
+            'shipper_id' => null,
         ];
 
         Flux::modal('create-pickup')->show();
+        $this->dispatch('pickup-modal-opened');
     }
 
     public function updatedPickupFormIdCity(): void
@@ -329,9 +344,9 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 'pickupForm.scheduled_at' => 'required|date',
                 'pickupForm.packages_count' => 'nullable|integer|min:0',
                 'pickupForm.total_weight' => 'nullable|numeric|min:0',
-                'pickupForm.labor_cost' => 'nullable|numeric|min:0',
                 'pickupForm.branch_id' => 'nullable|exists:news,id',
                 'pickupForm.note' => 'nullable|string|max:1000',
+                'pickupForm.shipper_id' => ['nullable', Rule::exists((new User())->getTable(), 'id')],
             ], [
                 'pickupForm.vehicle_id.required' => 'Vui lòng chọn phương tiện.',
             ])['pickupForm'];
@@ -371,11 +386,11 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 'scheduled_at' => $data['scheduled_at'],
                 'packages_count' => (int) ($data['packages_count'] ?? 0),
                 'total_weight' => (float) ($data['total_weight'] ?? 0),
-                'labor_cost' => (float) ($data['labor_cost'] ?? 0),
                 'branch_id' => filled($data['branch_id'] ?? null) ? (int) $data['branch_id'] : null,
                 'note' => trim((string) ($data['note'] ?? '')),
                 'pickup_lat' => is_numeric($this->pickupForm['pickup_lat'] ?? null) ? (float) $this->pickupForm['pickup_lat'] : null,
                 'pickup_lng' => is_numeric($this->pickupForm['pickup_lng'] ?? null) ? (float) $this->pickupForm['pickup_lng'] : null,
+                'shipper_id' => $this->canSelectShipperForPickup() && filled($data['shipper_id'] ?? null) ? (int) $data['shipper_id'] : null,
             ], auth()->id());
         } catch (\Throwable $exception) {
             report($exception);
@@ -655,7 +670,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
 @endphp
 
 <div class="space-y-5">
-    
+
 
     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
@@ -815,7 +830,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
     </section>
 
     <flux:modal name="create-pickup" class="w-full max-w-5xl">
-        <form wire:submit="createPickup" class="space-y-5">
+        <form id="pickup-create-form" wire:submit="createPickup" class="space-y-5">
             <div>
                 <flux:heading size="lg">Tạo Pickup mới</flux:heading>
                 <flux:subheading>Thông tin người gửi được lấy từ đơn {{ $order->id_bill }}. Các chỉnh sửa bên dưới chỉ áp dụng cho phiếu Pickup.</flux:subheading>
@@ -847,9 +862,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     <flux:input wire:model="pickupForm.country" readonly />
                     @error('pickupForm.country') <flux:error>{{ $message }}</flux:error> @enderror
                 </flux:field>
-                <flux:field>
+                <flux:field class="pickup-create-field">
                     <flux:label>Tỉnh / Thành phố *</flux:label>
-                    <select wire:model.live="pickupForm.id_city" class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                    <select
+                        wire:model.live="pickupForm.id_city"
+                        data-livewire-model="pickupForm.id_city"
+                        data-placeholder="Chọn Tỉnh / Thành phố"
+                        class="tomselectEml pickup-create-select"
+                        autocomplete="off"
+                    >
                         <option value="">Chọn Tỉnh / Thành phố</option>
                         @foreach($this->pickupProvinces() as $province)
                             <option value="{{ $province->id }}">{{ $province->name }}</option>
@@ -857,9 +878,17 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     </select>
                     @error('pickupForm.id_city') <flux:error>{{ $message }}</flux:error> @enderror
                 </flux:field>
-                <flux:field>
+                <flux:field class="pickup-create-field" wire:key="pickup-ward-{{ $pickupForm['id_city'] ?? 'none' }}">
                     <flux:label>Phường / Xã *</flux:label>
-                    <select wire:model="pickupForm.id_ward" class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm" @disabled(empty($pickupForm['id_city']))>
+                    <select
+                        wire:model="pickupForm.id_ward"
+                        data-livewire-model="pickupForm.id_ward"
+                        data-livewire-live="false"
+                        data-placeholder="Chọn Phường / Xã"
+                        class="tomselectEml pickup-create-select"
+                        autocomplete="off"
+                        @disabled(empty($pickupForm['id_city']))
+                    >
                         <option value="">Chọn Phường / Xã</option>
                         @foreach($this->pickupWards() as $ward)
                             <option value="{{ $ward->id }}">{{ $ward->name }}</option>
@@ -872,9 +901,16 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     <flux:input wire:model="pickupForm.address" />
                     @error('pickupForm.address') <flux:error>{{ $message }}</flux:error> @enderror
                 </flux:field>
-                <flux:field>
+                <flux:field class="pickup-create-field">
                     <flux:label>Chọn phương tiện *</flux:label>
-                    <select wire:model="pickupForm.vehicle_id" class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                    <select
+                        wire:model="pickupForm.vehicle_id"
+                        data-livewire-model="pickupForm.vehicle_id"
+                        data-livewire-live="false"
+                        data-placeholder="Chọn Phương Tiện"
+                        class="tomselectEml pickup-create-select"
+                        autocomplete="off"
+                    >
                         <option value="">Chọn Phương Tiện</option>
                         @foreach($this->pickupVehicles() as $vehicle)
                             <option value="{{ $vehicle->id }}">{{ $vehicle->namevi }}</option>
@@ -884,9 +920,28 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 </flux:field>
                 <flux:field>
                     <flux:label>Ngày hẹn *</flux:label>
-                    <flux:input type="datetime-local" wire:model="pickupForm.scheduled_at" />
+                    <flux:input type="text" wire:model="pickupForm.scheduled_at" data-pickup-scheduled-picker autocomplete="off" />
                     @error('pickupForm.scheduled_at') <flux:error>{{ $message }}</flux:error> @enderror
                 </flux:field>
+                @if($this->canSelectShipperForPickup())
+                    <flux:field class="pickup-create-field">
+                        <flux:label>Shipper phụ trách</flux:label>
+                        <select
+                            wire:model="pickupForm.shipper_id"
+                            data-livewire-model="pickupForm.shipper_id"
+                            data-livewire-live="false"
+                            data-placeholder="Chọn shipper"
+                            class="tomselectEml pickup-create-select"
+                            autocomplete="off"
+                        >
+                            <option value="">Chọn shipper</option>
+                            @foreach($this->pickupShippers as $shipper)
+                                <option value="{{ $shipper->id }}">{{ $shipper->fullname ?: $shipper->username }}</option>
+                            @endforeach
+                        </select>
+                        @error('pickupForm.shipper_id') <flux:error>{{ $message }}</flux:error> @enderror
+                    </flux:field>
+                @endif
                 <flux:field>
                     <flux:label>Số lượng kiện</flux:label>
                     <flux:input type="number" min="0" wire:model="pickupForm.packages_count" />
@@ -897,14 +952,16 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     <flux:input type="number" min="0" step="0.01" wire:model="pickupForm.total_weight" />
                     @error('pickupForm.total_weight') <flux:error>{{ $message }}</flux:error> @enderror
                 </flux:field>
-                <flux:field>
-                    <flux:label>Chi phí công</flux:label>
-                    <flux:input type="number" min="0" step="1000" wire:model="pickupForm.labor_cost" />
-                    @error('pickupForm.labor_cost') <flux:error>{{ $message }}</flux:error> @enderror
-                </flux:field>
-                <flux:field>
+                <flux:field class="pickup-create-field">
                     <flux:label>Chi nhánh nhận hàng</flux:label>
-                    <select wire:model="pickupForm.branch_id" class="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm">
+                    <select
+                        wire:model="pickupForm.branch_id"
+                        data-livewire-model="pickupForm.branch_id"
+                        data-livewire-live="false"
+                        data-placeholder="Chọn chi nhánh nhận hàng"
+                        class="tomselectEml pickup-create-select"
+                        autocomplete="off"
+                    >
                         <option value="">Chọn chi nhánh nhận hàng</option>
                         @foreach($this->pickupBranches() as $branch)
                             <option value="{{ $branch->id }}">{{ $branch->namevi }}</option>
@@ -932,7 +989,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     </button>
                 </div>
                 <div id="pickup-create-map" style="height: 300px; border-radius: 8px; z-index: 0;"></div>
-                <p class="mt-2 text-xs text-neutral-400">Click trên bản đồ để chọn/thay đổi vị trí lấy hàng nếu tự động tìm không chính xác.</p>
+                <p class="mt-2 text-xs text-neutral-400">Kéo icon đến vị trí của bạn, nếu hệ thống nhận diện không chính xác.</p>
             </div>
 
             <div class="flex justify-end gap-2">
@@ -946,6 +1003,121 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             </div>
         </form>
     </flux:modal>
+
+    <style>
+        #pickup-create-form .pickup-create-field .ts-wrapper {
+            width: 100%;
+        }
+
+        #pickup-create-form .pickup-create-field .ts-wrapper.single .ts-control,
+        #pickup-create-form .pickup-create-field .ts-control {
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            height: 40px;
+            min-height: 40px;
+            border-color: rgb(229 229 229);
+            border-radius: 0.5rem;
+            padding: 0.375rem 2.25rem 0.375rem 0.75rem;
+            box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+
+        #pickup-create-form .pickup-create-field .ts-wrapper.focus .ts-control {
+            border-color: rgb(20 184 166);
+            box-shadow: 0 0 0 1px rgb(20 184 166);
+        }
+
+        #pickup-create-form .pickup-create-field .ts-control > input {
+            height: 1.25rem;
+            min-width: 0;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+        }
+
+        #pickup-create-form .pickup-create-field .ts-control .item,
+        #pickup-create-form .pickup-create-field .ts-control .items-placeholder {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+
+    @script
+    <script>
+        (() => {
+            let retryCount = 0;
+
+            const findComponent = (input) => {
+                const componentId = input.closest('[wire\\:id]')?.getAttribute('wire:id');
+
+                return componentId && window.Livewire?.find ? window.Livewire.find(componentId) : null;
+            };
+
+            const initPickupTomSelects = () => {
+                const form = document.getElementById('pickup-create-form');
+
+                if (!form || !window.TomSelectHelper) return;
+
+                window.TomSelectHelper.init(form);
+            };
+
+            const initPickupControls = () => {
+                initPickupTomSelects();
+
+                if (!window.flatpickr) {
+                    if (retryCount < 20) {
+                        retryCount++;
+                        setTimeout(initPickupControls, 100);
+                    }
+                    return;
+                }
+
+                document.querySelectorAll('[data-pickup-scheduled-picker]').forEach((target) => {
+                    const input = target.matches('input') ? target : target.querySelector('input');
+                    if (!input) return;
+                    if (input._flatpickr) return;
+
+                    window.flatpickr(input, {
+                        enableTime: true,
+                        time_24hr: true,
+                        dateFormat: 'Y-m-d H:i',
+                        altInput: true,
+                        altFormat: 'd/m/Y H:i',
+                        allowInput: true,
+                        defaultDate: input.value || null,
+                        disableMobile: true,
+                        position: 'below left',
+                        positionElement: input,
+                        onChange: (_selectedDates, dateStr) => {
+                            findComponent(input)?.set('pickupForm.scheduled_at', dateStr || null);
+                        },
+                        onClose: (_selectedDates, dateStr) => {
+                            findComponent(input)?.set('pickupForm.scheduled_at', dateStr || null);
+                        },
+                    });
+                });
+            };
+
+            document.addEventListener('DOMContentLoaded', initPickupControls);
+            document.addEventListener('livewire:navigated', initPickupControls);
+            document.addEventListener('modal-open', () => setTimeout(initPickupControls, 50));
+            $wire.on('pickup-modal-opened', () => setTimeout(initPickupControls, 75));
+
+            document.addEventListener('livewire:initialized', () => {
+                window.Livewire?.hook?.('morph.updated', ({ el }) => {
+                    if (el?.id === 'pickup-create-form' || el?.closest?.('#pickup-create-form')) {
+                        setTimeout(initPickupControls, 50);
+                    }
+                });
+            });
+
+            initPickupControls();
+        })();
+    </script>
+    @endscript
 
     <flux:modal name="edit-tracking" class="w-full max-w-lg">
         <form wire:submit="saveTracking" class="space-y-6">

@@ -2,6 +2,7 @@ const VIETMAP_GL_VERSION = '6.0.1';
 const VIETMAP_GL_CSS_URL = `https://unpkg.com/@vietmap/vietmap-gl-js@${VIETMAP_GL_VERSION}/dist/vietmap-gl.css`;
 const VIETMAP_GL_JS_URL = `https://unpkg.com/@vietmap/vietmap-gl-js@${VIETMAP_GL_VERSION}/dist/vietmap-gl.js`;
 const MAP_ELEMENT_ID = 'pickup-create-map';
+const CENTER_PIN_BUTTON_ID = 'pickup-center-pin-btn';
 const DEFAULT_FOCUS = '10.7769,106.7009';
 
 let vietmapPromise = null;
@@ -10,9 +11,22 @@ let marker = null;
 let observer = null;
 let setupTimeout = null;
 let geocodeTimeout = null;
+let mapDragActive = false;
+let suppressNextClick = false;
+
+function suppressClickAfterDrag() {
+    suppressNextClick = true;
+    setTimeout(() => {
+        suppressNextClick = false;
+    }, 250);
+}
 
 function getMapElement() {
     return document.getElementById(MAP_ELEMENT_ID);
+}
+
+function getCenterPinButton() {
+    return document.getElementById(CENTER_PIN_BUTTON_ID);
 }
 
 function getPickupComponentRoot() {
@@ -75,11 +89,72 @@ function scheduleSetup(delay = 0) {
 }
 
 function getTileApiKey() {
-    return import.meta.env.VITE_VIETMAP_API_KEY_TITLE;
+    return window.__VIETMAP_CONFIG__?.tileApiKey || import.meta.env.VITE_VIETMAP_API_KEY_TITLE;
 }
 
 function getGeocodeApiKey() {
-    return import.meta.env.VITE_VIETMAP_API_KEY;
+    return window.__VIETMAP_CONFIG__?.geocodeApiKey || import.meta.env.VITE_VIETMAP_API_KEY;
+}
+
+function createVietmapRasterStyle(apiKey) {
+    return {
+        version: 8,
+        sources: {
+            'vietmap-raster': {
+                type: 'raster',
+                tiles: [
+                    `https://maps.vietmap.vn/maps/tiles/st/{z}/{x}/{y}.png?apikey=${apiKey}`,
+                ],
+                tileSize: 256,
+                attribution: '© VietMap',
+            },
+        },
+        layers: [
+            {
+                id: 'vietmap-raster',
+                type: 'raster',
+                source: 'vietmap-raster',
+            },
+        ],
+    };
+}
+
+function getVietmapStreetStyleUrl(apiKey) {
+    return `https://maps.vietmap.vn/maps/styles/tm/style.json?apikey=${apiKey}`;
+}
+
+function getVietmapTrafficStyleUrl(apiKey) {
+    return `https://maps.vietmap.vn/maps/styles/tf/style.json?apikey=${apiKey}`;
+}
+
+async function addTrafficOverlay(apiKey) {
+    if (!map) return;
+
+    try {
+        const response = await fetch(getVietmapTrafficStyleUrl(apiKey), {
+            headers: { Accept: 'application/json' },
+        });
+
+        if (!response.ok) return;
+
+        const trafficStyle = await response.json();
+        const sources = trafficStyle?.sources || {};
+        const layers = Array.isArray(trafficStyle?.layers) ? trafficStyle.layers : [];
+
+        Object.entries(sources).forEach(([sourceId, source]) => {
+            if (!map.getSource(sourceId)) {
+                map.addSource(sourceId, source);
+            }
+        });
+
+        layers.forEach((layer) => {
+            if (layer?.id && !map.getLayer(layer.id)) {
+                map.addLayer(layer);
+            }
+        });
+    } catch {
+        updateStatus('Khong tai duoc lop giao thong VietMap.');
+    }
 }
 
 async function setupMap() {
@@ -104,15 +179,29 @@ async function setupMap() {
 
     map = new window.vietmapgl.Map({
         container: mapElement,
-        style: `https://maps.vietmap.vn/maps/styles/tm/style.json?apikey=${tileApiKey}`,
-        center: [106.7009, 10.7769],
-        zoom: 12,
+        style: getVietmapStreetStyleUrl(tileApiKey),
+        center: [106.66817068179284, 10.803866192772915],
+        zoom: 9,
     });
-
+    map.addControl(new vietmapgl.NavigationControl());
+    map.addControl(
+        new vietmapgl.GeolocateControl({
+            positionOptions: {
+                enableHighAccuracy: true
+            },
+            trackUserLocation: true
+        })
+    );
     map.on('load', () => {
-        updateStatus('Đã tải bản đồ. Hay click trên bản đồ để chọn vị trí.');
+        updateStatus('Đã tải bản đồ. Kéo bản đồ đến vị trí lấy hàng, sau đó bấm Ghim tâm bản đồ nếu tự động tìm không chính xác.');
         bindGeocodeButton();
+        bindCenterPinButton();
+        map?.dragPan?.enable();
+        map?.touchZoomRotate?.enable();
         setTimeout(() => map?.resize(), 300);
+    });
+    map.on('load', () => {
+        addTrafficOverlay(tileApiKey);
     });
 
     map.on('error', ({ error }) => {
@@ -132,13 +221,17 @@ async function setupMap() {
         updateStatus('Khong tai duoc tile ban do VietMap. Vui long kiem tra key va ket noi mang.');
     });
 
-    map.on('click', ({ lngLat }) => {
-        placeMarker(lngLat.lat, lngLat.lng);
-        updateStatus('Da chon vi tri thu cong');
+    map.on('dragstart', () => {
+        mapDragActive = true;
+    });
+
+    map.on('dragend', () => {
+        mapDragActive = false;
+        suppressClickAfterDrag();
     });
 
     clearTimeout(geocodeTimeout);
-    geocodeTimeout = setTimeout(geocodeAddress, 500);
+   geocodeTimeout = setTimeout(geocodeAddress, 500);
 }
 
 function bindGeocodeButton() {
@@ -153,25 +246,149 @@ function bindGeocodeButton() {
     });
 }
 
+function bindCenterPinButton() {
+    const mapElement = getMapElement();
+
+    if (!mapElement || getCenterPinButton()) return;
+
+    mapElement.style.position = 'relative';
+
+    const button = document.createElement('button');
+    button.id = CENTER_PIN_BUTTON_ID;
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Ghim tâm bản đồ');
+    button.title = 'Ghim tâm bản đồ';
+    button.innerHTML = `
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;background:#0f766e;color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.28);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0Z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        </span>
+        <span style="white-space:nowrap;">Ghim tâm</span>
+    `;
+    button.textContent = 'Ghim tâm bản đồ';
+    button.innerHTML = `
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:linear-gradient(135deg,#0f766e,#14b8a6);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.28),0 8px 18px rgba(20,184,166,.28);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0Z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        </span>
+        <span style="white-space:nowrap;">Ghim tÃ¢m</span>
+    `;
+    button.setAttribute('aria-label', 'Ghim tâm bản đồ');
+    button.title = 'Ghim tâm bản đồ';
+    button.querySelector('span:last-child')?.replaceChildren(document.createTextNode('Ghim tâm'));
+    button.style.cssText = `
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        z-index: 10;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 40px;
+        border: 1px solid rgba(15, 118, 110, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #0f766e;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0;
+        line-height: 1;
+        padding: 6px 13px 6px 6px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12);
+        transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, border-color 140ms ease;
+    `;
+
+    button.addEventListener('mouseenter', () => {
+        button.style.background = '#ffffff';
+        button.style.borderColor = 'rgba(15, 118, 110, 0.32)';
+        button.style.boxShadow = '0 16px 34px rgba(15, 23, 42, 0.22), 0 1px 2px rgba(15, 23, 42, 0.14)';
+        button.style.transform = 'translateY(-1px)';
+    });
+    button.addEventListener('mouseleave', () => {
+        button.style.background = 'rgba(255, 255, 255, 0.92)';
+        button.style.borderColor = 'rgba(15, 118, 110, 0.18)';
+        button.style.boxShadow = '0 12px 30px rgba(15, 23, 42, 0.18), 0 1px 2px rgba(15, 23, 42, 0.12)';
+        button.style.transform = 'translateY(0)';
+    });
+    button.addEventListener('mousedown', () => {
+        button.style.transform = 'translateY(0) scale(0.98)';
+    });
+    button.addEventListener('mouseup', () => {
+        button.style.transform = 'translateY(-1px) scale(1)';
+    });
+
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (!map || mapDragActive || suppressNextClick) return;
+
+        const center = map.getCenter();
+        placeMarker(center.lat, center.lng);
+        updateStatus('Đã ghim vị trí trung tâm bản đồ. Kéo marker nếu cần điều chỉnh vị trí chính xác hơn.');
+    });
+
+    mapElement.appendChild(button);
+}
+
 function placeMarker(lat, lng) {
     if (!map) return;
 
     const el = document.createElement('div');
     el.className = 'pickup-marker';
     el.style.cssText = `
-        width: 32px;
-        height: 32px;
-        background: #dc2626;
-        border: 3px solid white;
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        position: relative;
+        width: 44px;
+        height: 54px;
         cursor: grab;
+        transform: translateY(-4px);
+        filter: drop-shadow(0 14px 18px rgba(15, 23, 42, 0.28));
+    `;
+    el.innerHTML = `
+        <span style="
+            position:absolute;
+            left:50%;
+            bottom:2px;
+            width:30px;
+            height:10px;
+            border-radius:999px;
+            background:rgba(15,23,42,.18);
+            transform:translateX(-50%);
+            filter:blur(3px);
+        "></span>
+        <span style="
+            position:absolute;
+            left:50%;
+            top:2px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            width:42px;
+            height:42px;
+            border:3px solid #fff;
+            border-radius:50% 50% 50% 12px;
+            background:linear-gradient(135deg,#ef4444,#dc2626 52%,#991b1b);
+            color:#fff;
+            transform:translateX(-50%) rotate(-45deg);
+            box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 24px rgba(220,38,38,.36);
+        ">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(45deg);">
+                <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0Z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        </span>
     `;
     if (marker) {
         marker.setLngLat([lng, lat]);
     } else {
-        marker = new window.vietmapgl.Marker({ element: el, draggable: true })
+        marker = new window.vietmapgl.Marker({ element: el, draggable: true, anchor: 'bottom' })
             .setLngLat([lng, lat])
             .addTo(map);
 
@@ -179,17 +396,16 @@ function placeMarker(lat, lng) {
             el.style.cursor = 'grabbing';
         });
         marker.on('dragstart', () => {
-            updateStatus('Dang di chuyen marker...');
-        });
-        marker.on('drag', () => {
-            const lngLat = marker.getLngLat();
-            syncCoordinates(lngLat.lat, lngLat.lng);
+            mapDragActive = true;
+            updateStatus('Đang di chuyển marker...');
         });
 
         marker.on('dragend', () => {
             const lngLat = marker.getLngLat();
+            mapDragActive = false;
+            suppressClickAfterDrag();
             syncCoordinates(lngLat.lat, lngLat.lng);
-            updateStatus('Da di chuyen marker');
+            updateStatus('Đã di chuyển marker');
         });
     }
     map.flyTo({ center: [lng, lat], zoom: 16 });
@@ -259,7 +475,7 @@ async function reverseGeocode(lat, lng) {
     const geocodeApiKey = getGeocodeApiKey();
 
     if (!geocodeApiKey) {
-        updateStatus('Chua cau hinh VITE_VIETMAP_API_KEY');
+        updateStatus('Chưa cấu hình VITE_VIETMAP_API_KEY');
         return null;
     }
 
@@ -294,7 +510,7 @@ async function geocodeAddress() {
     const fullAddress = [address, wardName, cityName, 'Vietnam'].filter(Boolean).join(', ');
 
     if (!address && !cityName) {
-        updateStatus('Chưa có địa chỉ để tìm kiếm. Hay click trên bản đồ để chọn.');
+        updateStatus('Chưa có địa chỉ để tìm kiếm. Kéo bản đồ rồi bấm Ghim tạm bản đồ để chọn.');
         return;
     }
 
@@ -317,7 +533,7 @@ async function geocodeAddress() {
         const results = normalizeGeocodeResults(await response.json());
 
         if (!results || results.length === 0) {
-            updateStatus('Không tìm thấy vị trí. Hay click trên bản đồ để chọn.');
+            updateStatus('Không tìm thấy vị trí. Kéo bản đồ rồi bấm Ghim tạm bản đồ để chọn.');
             return;
         }
 
@@ -327,20 +543,21 @@ async function geocodeAddress() {
         const coordinate = getGeocodeCoordinate(place) || getGeocodeCoordinate(first);
 
         if (!coordinate) {
-            updateStatus('Không lấy được tọa độ từ VietMap Place. Hay click trên bản đồ để chọn.');
+            updateStatus('Không lấy được tọa độ từ VietMap Place. Kéo bản đồ rồi bấm Ghim tạm bản đồ để chọn.');
             return;
         }
 
         placeMarker(coordinate.lat, coordinate.lng);
         updateStatus(`Đã tìm thấy: ${getGeocodeLabel(place || first, fullAddress).substring(0, 60)}...`);
     } catch {
-        updateStatus('Lỗi khi tìm vị trí. Hay click trên bản đồ để chọn.');
+        updateStatus('Lỗi khi tìm vị trí. Kéo bản đồ rồi bấm Ghim tạm bản đồ để chọn.');
     }
 }
 
 function cleanupMap() {
     clearTimeout(setupTimeout);
     clearTimeout(geocodeTimeout);
+    getCenterPinButton()?.remove();
 
     if (map) {
         map.remove();
@@ -349,13 +566,21 @@ function cleanupMap() {
     }
 }
 
-function handleDomChange() {
+function handleDomChange(mutations = []) {
     const mapElement = getMapElement();
 
     if (!mapElement) {
         cleanupMap();
         observer?.disconnect();
         observer = null;
+        return;
+    }
+
+    if (
+        map &&
+        mutations.length > 0 &&
+        mutations.every((mutation) => mapElement === mutation.target || mapElement.contains(mutation.target))
+    ) {
         return;
     }
 
@@ -368,6 +593,8 @@ function handleDomChange() {
         scheduleSetup();
         return;
     }
+
+    if (mapDragActive) return;
 
     requestAnimationFrame(() => map?.resize());
 }

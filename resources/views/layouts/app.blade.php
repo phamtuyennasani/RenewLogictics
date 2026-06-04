@@ -111,6 +111,19 @@
     </flux:toast.group>
     @endpersist
     @livewireScripts
+    @php
+        $__vietmapOptions = data_get(\App\Models\Setting::first(), 'options', []);
+        $__vietmapTileKey = $__vietmapOptions['vietmap_tile_api_key'] ?? '';
+        $__vietmapGeocodeKey = $__vietmapOptions['vietmap_geocode_api_key'] ?? '';
+    @endphp
+    @if($__vietmapTileKey || $__vietmapGeocodeKey)
+    <script>
+        window.__VIETMAP_CONFIG__ = {
+            tileApiKey: @json($__vietmapTileKey),
+            geocodeApiKey: @json($__vietmapGeocodeKey),
+        };
+    </script>
+    @endif
     @vite(['resources/js/app.js'])
     @fluxScripts
     @stack('scripts')

@@ -21,8 +21,8 @@ class CreatePickupAction
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($lockedOrder->bill_status !== OrderStatusEnum::DA_XAC_NHAN) {
-                throw new RuntimeException('Chỉ được tạo Pickup cho đơn đã xác nhận.');
+            if (! in_array($lockedOrder->bill_status, [OrderStatusEnum::MOI_TAO, OrderStatusEnum::DA_XAC_NHAN], true)) {
+                throw new RuntimeException('Chỉ được tạo Pickup cho đơn Mới tạo hoặc Đã xác nhận.');
             }
 
             if ($lockedOrder->pickups()->exists()) {
@@ -38,10 +38,10 @@ class CreatePickupAction
                 'status' => PickupStatusEnum::MOI_TAO_PICKUP,
                 'numb' => (int) ($data['packages_count'] ?? $lockedOrder->pickup_packages_count ?? 0),
                 'note' => $data['note'] ?? null,
+                'id_shipper' => $data['shipper_id'] ?? null,
                 'info_pickup' => [
                     'id_phuongtien' => $data['vehicle_id'] ?? null,
                     'ngayhen' => $data['scheduled_at'] ?? null,
-                    'chiphi_cong' => (float) ($data['labor_cost'] ?? 0),
                     'chinhanhnhanhang' => $data['branch_id'] ?? null,
                 ],
                 'info_khachhang' => array_merge($data['sender_snapshot'], array_filter([

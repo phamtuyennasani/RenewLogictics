@@ -21,7 +21,14 @@ class TransitionPickupStatusAction
                 throw new RuntimeException('Không thể chuyển Pickup từ '.$lockedPickup->status->label().' sang '.$status->label().'.');
             }
 
-            $lockedPickup->update(['status' => $status]);
+            $updateData = ['status' => $status];
+
+            // Khi shipper hủy pickup → remove id_shipper để ops/admin gán shipper mới
+            if ($status === PickupStatusEnum::DA_HUY) {
+                $updateData['id_shipper'] = null;
+            }
+
+            $lockedPickup->update($updateData);
 
             return $lockedPickup->fresh();
         });

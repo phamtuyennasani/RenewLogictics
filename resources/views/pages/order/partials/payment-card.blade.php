@@ -22,7 +22,7 @@
                 <flux:label>{{ $priceLabel }}</flux:label>
                 <flux:input
                     type="text"
-                    wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $priceKey }}"
+                    wire:model.blur="payment.{{ $group }}.{{ $priceKey }}"
                     :disabled="$readonly"
                     placeholder=""
                     mask:dynamic="$money($input, '.', ',', 0)"
@@ -177,7 +177,7 @@
                                         <flux:input
                                             type="text"
                                             required
-                                            wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.so_tien"
+                                            wire:model.blur="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.so_tien"
                                             :disabled="$readonly"
                                             placeholder=""
                                             :class:input="$inputClass"
@@ -233,7 +233,7 @@
                                         <flux:input
                                             type="text"
                                             required
-                                            wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.price"
+                                            wire:model.blur="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.price"
                                             :disabled="$readonly"
                                             placeholder=""
                                             :class:input="$inputClass"
@@ -289,7 +289,7 @@
                                     <flux:input
                                         type="text"
                                         required
-                                        wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.soluong"
+                                        wire:model.blur="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.soluong"
                                         :disabled="$readonly"
                                         placeholder=""
                                         :class:input="$inputClass"
@@ -302,7 +302,7 @@
                                     <flux:input
                                         type="text"
                                         required
-                                        wire:model.live.debounce.300ms="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.price"
+                                        wire:model.blur="payment.{{ $group }}.{{ $bucketKey }}.{{ $index }}.price"
                                         :disabled="$readonly"
                                         placeholder=""
                                         :class:input="$inputClass"

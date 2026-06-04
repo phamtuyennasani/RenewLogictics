@@ -21,6 +21,10 @@ class SystemStatisticsService
     public function report(User $user, array $filters = []): array
     {
         $scope = $this->scopeFor($user);
+        if (! $scope['canUseAgencyFilter']) {
+            $filters['agencyId'] = '';
+        }
+
         $dateRange = $this->dateRange($filters);
 
         $orders = $this->ordersQuery($user, $filters, $dateRange)
@@ -123,7 +127,7 @@ class SystemStatisticsService
             'customers' => $customers,
             'services' => $this->newsOptions($news->get('dichvuchinh', collect())),
             'branches' => $this->newsOptions($news->get('chinhanh', collect())),
-            'agencies' => $this->newsOptions($news->get('daily', collect())),
+            'agencies' => $scope['canUseAgencyFilter'] ? $this->newsOptions($news->get('daily', collect())) : [],
         ];
     }
 
@@ -131,12 +135,14 @@ class SystemStatisticsService
     {
         $isSale = $this->hasRole($user, ['sale', 'SALE']);
         $isCtv = $this->hasRole($user, ['ctv', 'CTV']);
+        $isOps = $this->hasRole($user, ['ops', 'OPS']);
 
         return [
             'type' => $isSale ? 'sale' : ($isCtv ? 'ctv' : 'all'),
             'label' => $isSale ? 'Dữ liệu sale của tôi' : ($isCtv ? 'Dữ liệu CTV của tôi' : 'Toàn hệ thống'),
             'canUseSaleFilter' => ! $isSale && ! $isCtv,
             'canUseCustomerFilter' => ! $isCtv,
+            'canUseAgencyFilter' => ! $isSale && ! $isCtv && ! $isOps,
             'canSeeFinance' => ! $isSale && ! $isCtv,
         ];
     }

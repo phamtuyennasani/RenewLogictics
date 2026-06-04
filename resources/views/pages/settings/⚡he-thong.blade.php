@@ -11,6 +11,9 @@ new class extends Component
 {
     public string $tab = 'payment';
 
+    public string $vietmapTileApiKey = '';
+    public string $vietmapGeocodeApiKey = '';
+
     /** @var array<string, bool> [providerKey => enabled] */
     public array $paymentEnabled = [];
 
@@ -106,6 +109,9 @@ new class extends Component
         $this->smtpPassword = $options['smtp_password'] ?? '';
         $this->smtpFromEmail = $options['smtp_from_email'] ?? '';
         $this->smtpFromName = $options['smtp_from_name'] ?? '';
+
+        $this->vietmapTileApiKey = $options['vietmap_tile_api_key'] ?? '';
+        $this->vietmapGeocodeApiKey = $options['vietmap_geocode_api_key'] ?? '';
     }
 
     public function save(): void
@@ -239,6 +245,9 @@ new class extends Component
         $options['smtp_password'] = $this->smtpPassword;
         $options['smtp_from_email'] = $this->smtpFromEmail;
         $options['smtp_from_name'] = $this->smtpFromName;
+
+        $options['vietmap_tile_api_key'] = $this->vietmapTileApiKey;
+        $options['vietmap_geocode_api_key'] = $this->vietmapGeocodeApiKey;
 
         $setting->update(['options' => $options]);
 
@@ -438,11 +447,12 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
     </div>
 
     <div class="overflow-x-auto rounded-lg border border-neutral-200 bg-white p-1 shadow-sm">
-        <div class="grid min-w-max grid-cols-3 gap-1 sm:min-w-0">
+        <div class="grid min-w-max grid-cols-4 gap-1 sm:min-w-0">
             @foreach ([
                 ['key' => 'payment', 'label' => 'Thanh toán', 'icon' => 'credit-card'],
                 ['key' => 'invoice', 'label' => 'Hóa đơn', 'icon' => 'receipt-percent'],
                 ['key' => 'email', 'label' => 'Email', 'icon' => 'envelope'],
+                ['key' => 'map', 'label' => 'Bản đồ', 'icon' => 'map-pin'],
             ] as $t)
             <button
                 wire:click="$set('tab', '{{ $t['key'] }}')"
@@ -462,6 +472,9 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                         @break
                     @case('receipt-percent')
                         <flux:icon.receipt-percent class="size-4" />
+                        @break
+                    @case('map-pin')
+                        <flux:icon.map-pin class="size-4" />
                         @break
                 @endswitch
                 {{ $t['label'] }}
@@ -888,6 +901,44 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                 <flux:input wire:model="smtpFromName" placeholder="RenewLogictics" />
                             </flux:field>
                         </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        @if($tab === 'map')
+            <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+                <div class="flex items-center gap-3 border-b border-neutral-100 px-5 py-5 sm:px-6">
+                    <span class="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
+                        <flux:icon.map-pin class="size-5" />
+                    </span>
+                    <div>
+                        <h2 class="text-base font-black tracking-normal text-neutral-950">VietMap API</h2>
+                        <p class="mt-1 text-sm font-medium text-neutral-500">Cấu hình API key cho bản đồ VietMap — dùng để hiển thị bản đồ và tìm kiếm địa chỉ khi tạo pickup.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-5 p-5 sm:p-6">
+                    <div class="rounded-lg border border-sky-100 bg-sky-50 px-4 py-3">
+                        <p class="text-xs font-medium leading-5 text-sky-800">
+                            Đăng ký API key tại <a href="https://maps.vietmap.vn" target="_blank" class="font-bold underline">maps.vietmap.vn</a>.
+                            Hệ thống cần 2 key: <strong>Tile API Key</strong> (hiển thị bản đồ) và <strong>Geocode API Key</strong> (tìm kiếm / reverse geocode địa chỉ).
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <flux:field>
+                            <flux:label badge="Bắt buộc">Tile API Key</flux:label>
+                            <flux:input wire:model="vietmapTileApiKey" placeholder="Nhập VietMap Tile API Key" />
+                            <flux:description>Dùng để hiển thị bản đồ (Tilemap, Street Style, Traffic).</flux:description>
+                            @error('vietmapTileApiKey') <flux:error>{{ $message }}</flux:error> @enderror
+                        </flux:field>
+                        <flux:field>
+                            <flux:label badge="Bắt buộc">Geocode API Key</flux:label>
+                            <flux:input wire:model="vietmapGeocodeApiKey" placeholder="Nhập VietMap Geocode API Key" />
+                            <flux:description>Dùng để tìm kiếm địa chỉ, reverse geocode tọa độ.</flux:description>
+                            @error('vietmapGeocodeApiKey') <flux:error>{{ $message }}</flux:error> @enderror
+                        </flux:field>
                     </div>
                 </div>
             </div>

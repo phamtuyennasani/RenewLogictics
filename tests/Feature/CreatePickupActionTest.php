@@ -43,6 +43,7 @@ class CreatePickupActionTest extends TestCase
             $table->id();
             $table->string('ma_pickup')->unique();
             $table->unsignedInteger('id_user')->nullable();
+            $table->unsignedInteger('id_shipper')->nullable();
             $table->timestamp('ngay_tao')->nullable();
             $table->decimal('total_weight', 12, 2)->default(0);
             $table->decimal('total_c_weight', 12, 2)->default(0);
@@ -99,7 +100,7 @@ class CreatePickupActionTest extends TestCase
             ],
             'vehicle_id' => 10,
             'scheduled_at' => '2026-05-31 15:31:00',
-            'labor_cost' => 150000,
+            'shipper_id' => 7,
         ], 99);
 
         $this->assertStringStartsWith('PICK', $pickup->ma_pickup);
@@ -108,14 +109,16 @@ class CreatePickupActionTest extends TestCase
         $this->assertSame(1, $pickup->orders()->count());
         $this->assertSame('3.50', $pickup->total_weight);
         $this->assertSame(2, $pickup->numb);
+        $this->assertSame(7, $pickup->id_shipper);
+        $this->assertNull(data_get($pickup->info_pickup, 'chiphi_cong'));
     }
 
-    public function test_it_rejects_an_order_that_is_not_confirmed(): void
+    public function test_it_rejects_an_order_that_cannot_be_picked_up(): void
     {
-        $order = $this->createOrder(OrderStatusEnum::MOI_TAO);
+        $order = $this->createOrder(OrderStatusEnum::DA_NHAN_HANG);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Chỉ được tạo Pickup cho đơn đã xác nhận.');
+        $this->expectExceptionMessage('Chỉ được tạo Pickup cho đơn Mới tạo hoặc Đã xác nhận.');
 
         CreatePickupAction::execute($order, [
             'sender_snapshot' => [],

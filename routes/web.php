@@ -279,4 +279,15 @@ Route::get('/theo-doi/{idbill}', fn ($idbill) => view('tracking.index', ['idbill
 /* ============================================================
    HOME — Redirect theo trạng thái login
    ============================================================ */
-Route::get('/', fn () => redirect()->route(Auth::check() ? 'dashboard' : 'login'))->name('home');
+Route::get('/', function () {
+    if (! Auth::check()) {
+        return redirect()->route('login');
+    }
+
+    // Shipper luôn vào giao diện mobile pickup
+    if (Auth::user()->hasRole('shipper')) {
+        return redirect()->route('shipper.pickups');
+    }
+
+    return redirect()->route('dashboard');
+})->name('home');
