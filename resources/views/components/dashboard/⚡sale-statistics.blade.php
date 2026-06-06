@@ -1,24 +1,15 @@
 <?php
 
 use App\Services\Reports\SaleStatisticsService;
-use Livewire\Attributes\Reactive;
 use Livewire\Component;
 
 new class extends Component {
-    #[Reactive]
-    public array $filters = [];
-
     public array $report = [];
     public string $metric = 'revenue';
 
     public function mount(SaleStatisticsService $statistics): void
     {
         $this->loadReport($statistics);
-    }
-
-    public function updatedFilters(): void
-    {
-        $this->loadReport(app(SaleStatisticsService::class));
     }
 
     public function placeholder(): string
@@ -103,7 +94,18 @@ new class extends Component {
 
     protected function loadReport(SaleStatisticsService $statistics): void
     {
-        $this->report = $statistics->report(auth()->user(), $this->filters);
+        // Luôn lấy dữ liệu tháng hiện tại (từ ngày 1 đến cuối tháng)
+        $filters = [
+            'fromDate' => now()->startOfMonth()->toDateString(),
+            'toDate' => now()->endOfMonth()->toDateString(),
+        ];
+
+        $this->report = $statistics->report(auth()->user(), $filters);
+    }
+
+    public function currentMonthLabel(): string
+    {
+        return now()->format('m/Y');
     }
 
     protected function metricValue(array $sale): float
@@ -123,8 +125,8 @@ new class extends Component {
         <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
                 <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">Sales Performance</p>
-                <h2 class="mt-1 text-xl font-bold text-neutral-950">Thống kê danh sách sale</h2>
-                <p class="mt-1 text-sm text-neutral-500">Xếp hạng theo {{ $this->metricLabel() }} trong khoảng lọc hiện tại.</p>
+                <h2 class="mt-1 text-xl font-bold text-neutral-950">Thống kê doanh số sale trong tháng {{ $this->currentMonthLabel() }}</h2>
+                <p class="mt-1 text-sm text-neutral-500">Xếp hạng theo {{ $this->metricLabel() }} trong tháng hiện tại.</p>
             </div>
             <div class="inline-flex w-full rounded-xl border border-neutral-200 bg-white p-1 shadow-sm sm:w-auto">
                 @foreach ([

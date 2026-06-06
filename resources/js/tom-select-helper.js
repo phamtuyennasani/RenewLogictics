@@ -54,6 +54,7 @@ function buildTomSelectOptions(select) {
     return {
         plugins: ['dropdown_input'],
         placeholder,
+        allowEmptyOption: true,
         render: {
             option: renderDefaultOption,
             item: renderItem,

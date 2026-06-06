@@ -52,10 +52,10 @@ enum PermissionEnum: string
     case CONGNO_DAILY_PAID   = 'congno_daily.paid';
 
     // ======================================================
-    // MODULE: THONGKE — Thống kê / Báo cáo
+    // MODULE: DASHBOARD — Thống kê / Báo cáo
     // ======================================================
-    case THONGKE_VIEW    = 'thongke.view';
-    case THONGKE_EXPORT  = 'thongke.export';
+    case DASHBOARD_VIEW    = 'dashboard.view';
+    case DASHBOARD_EXPORT  = 'dashboard.export';
 
     // ======================================================
     // MODULE: CUSTOMERS — Khách hàng
@@ -179,8 +179,8 @@ enum PermissionEnum: string
             self::CONGNO_DAILY_PAID    => 'Thanh toán công nợ đại lý',
 
             // Thống kê
-            self::THONGKE_VIEW   => 'Xem thống kê',
-            self::THONGKE_EXPORT => 'Xuất thống kê',
+            self::DASHBOARD_VIEW   => 'Xem thống kê',
+            self::DASHBOARD_EXPORT => 'Xuất thống kê',
 
             // Khách hàng
             self::CUSTOMERS_VIEW   => 'Xem khách hàng',

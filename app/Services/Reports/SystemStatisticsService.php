@@ -72,6 +72,7 @@ class SystemStatisticsService
             'charts' => [
                 'orderTimeline' => $this->orderTimeline($orders, $dateRange),
                 'revenueTimeline' => $this->revenueTimeline($orders, $dateRange),
+                'yearlyTimeline' => $this->yearlyTimeline($user, $filters, $dateRange),
                 'orderStatuses' => $this->orderStatusChart($orders),
                 'invoiceStatuses' => $this->invoiceStatusChart($incomeInvoices),
             ],
@@ -88,7 +89,7 @@ class SystemStatisticsService
         ];
     }
 
-    public function filterOptions(User $user): array
+    public function filterOptions(User $user, ?string $saleId = null): array
     {
         $scope = $this->scopeFor($user);
 
@@ -107,6 +108,7 @@ class SystemStatisticsService
             ->whereHas('roles', fn ($q) => $q->whereIn('name', ['ctv', 'CTV']))
             ->when($scope['type'] === 'sale', fn ($q) => $q->where('id_sale', $user->id))
             ->when($scope['type'] === 'ctv', fn ($q) => $q->whereKey($user->id))
+            ->when(filled($saleId) && $scope['canUseSaleFilter'], fn ($q) => $q->where('id_sale', $saleId))
             ->orderBy('fullname')
             ->get(['id', 'fullname', 'username', 'code'])
             ->map(fn (User $customer) => [
@@ -358,6 +360,55 @@ class SystemStatisticsService
             return [
                 'label' => CarbonImmutable::parse($date)->format('d/m'),
                 'value' => $dayOrders->sum(fn (Order $order) => $this->moneyValue(data_get($order->payment_cuocban, 'total_tongcuoc', 0))),
+            ];
+        })->values()->all();
+    }
+
+    protected function yearlyTimeline(User $user, array $filters, array $dateRange): array
+    {
+        $year = now()->year;
+        $yearFrom = CarbonImmutable::create($year, 1, 1)->startOfDay();
+        $yearTo = CarbonImmutable::create($year, 12, 31)->endOfDay();
+
+        $yearlyOrders = $this->ordersQuery($user, $filters, ['from' => $yearFrom, 'to' => $yearTo])
+            ->with([
+                'sale:id,fullname,username,code',
+                'customerAccount:id,fullname,username,code,options',
+            ])
+            ->get([
+                'id',
+                'id_bill',
+                'id_sale',
+                'id_customer',
+                'bill_status',
+                'service',
+                'payment_cuocban',
+                'payment_cuocvon',
+                'payment_loinhuan',
+                'customer_payment_status',
+                'created_at',
+                'updated_at',
+            ]);
+
+        $grouped = $yearlyOrders->groupBy(fn (Order $order) => $order->created_at?->month ?? 0);
+
+        $monthLabels = collect(range(1, 12))->map(fn ($m) => 'Th'.$m)->all();
+
+        return collect(range(1, 12))->map(function (int $month) use ($grouped, $year, $monthLabels): array {
+            $monthOrders = $grouped->get($month, collect());
+
+            $saleTotal = $monthOrders->sum(fn (Order $order) => $this->moneyValue(data_get($order->payment_cuocban, 'total_tongcuoc', 0)));
+            $costTotal = $monthOrders->sum(fn (Order $order) => $this->moneyValue(data_get($order->payment_cuocvon, 'total_tongcuoc', 0)));
+            $profit = $saleTotal - $costTotal;
+
+            return [
+                'month' => $month,
+                'year' => $year,
+                'label' => $monthLabels[$month - 1],
+                'orders' => $monthOrders->count(),
+                'saleTotal' => $saleTotal,
+                'costTotal' => $costTotal,
+                'profit' => $profit,
             ];
         })->values()->all();
     }

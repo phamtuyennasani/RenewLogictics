@@ -86,8 +86,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/global-search', GlobalSearchController::class)->name('api.global-search');
 
     // --- Dashboard ---
-    Route::livewire('/dashboard', 'pages::thongke.index')->name('dashboard')
-        ->middleware('can:thongke');
+    Route::livewire('/dashboard', 'pages::dashboard.index')->name('dashboard')
+        ->middleware('can:dashboard');
     // --- Đơn hàng ---
     Route::prefix('orders')->name('orders.')->group(function () {
         Route::livewire('/', 'pages::order.index')->name('index');
