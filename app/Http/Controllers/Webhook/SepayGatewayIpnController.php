@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
 use App\Models\SepayGatewayIpnLog;
+use App\Services\Payments\PaymentInvoiceMatcher;
 use App\Services\Providers\Sepay\SepayPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -64,6 +65,26 @@ class SepayGatewayIpnController extends Controller
             'transaction_id' => $payload['transaction']['id'] ?? null,
             'transaction_status' => $payload['transaction']['transaction_status'] ?? null,
         ]);
+
+        $gatewayLog = SepayGatewayIpnLog::query()
+            ->where('event_key', $eventKey)
+            ->latest('id')
+            ->first();
+
+        try {
+            app(PaymentInvoiceMatcher::class)->matchGatewayIpnPayment($payload, $gatewayLog);
+        } catch (Throwable $exception) {
+            Log::error('SePay gateway IPN matcher failed.', [
+                'message' => $exception->getMessage(),
+                'event_key' => $eventKey,
+            ]);
+
+            $gatewayLog?->forceFill([
+                'payload' => json_encode(array_merge((array) json_decode($gatewayLog->payload ?? '{}', true), [
+                    '_match_error' => $exception->getMessage(),
+                ]), JSON_UNESCAPED_UNICODE),
+            ])->save();
+        }
 
         return response()->json($sepay->successResponse());
     }

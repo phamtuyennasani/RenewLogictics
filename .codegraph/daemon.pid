@@ -1,6 +1,6 @@
 {
-  "pid": 13052,
+  "pid": 43673,
   "version": "0.9.9",
-  "socketPath": "\\\\.\\pipe\\codegraph-37b1d4b77d3f0e42",
-  "startedAt": 1780683362662
+  "socketPath": "/Users/phamtuyen/DataCode/Hethong/RenewLogictics/.codegraph/daemon.sock",
+  "startedAt": 1780720452283
 }

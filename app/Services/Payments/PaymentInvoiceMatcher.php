@@ -9,12 +9,12 @@ use App\Models\CongNoPayment;
 use App\Models\MoMoWebhookLog;
 use App\Models\VNPayWebhookLog;
 use App\Models\SepayWebhookLog;
+use App\Models\SepayGatewayIpnLog;
 use App\Services\Payments\Data\PaymentWebhookData;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
-
 class PaymentInvoiceMatcher
 {
     public function matchCustomerDebtPayment(array $payload, ?SepayWebhookLog $webhookLog = null): ?CongNoPayment
@@ -28,6 +28,35 @@ class PaymentInvoiceMatcher
             paidAt: Carbon::now(),
             raw: $payload,
             message: $payload['referenceCode'] ?? null,
+        );
+
+        return $this->matchWebhookPayment($webhook, $webhookLog);
+    }
+
+    public function matchGatewayIpnPayment(array $payload, SepayGatewayIpnLog $webhookLog): ?CongNoPayment
+    {
+        $notificationType = $payload['notification_type'] ?? null;
+        $orderStatus = $payload['order']['order_status'] ?? null;
+
+        if ($notificationType !== 'ORDER_PAID' || $orderStatus !== 'CAPTURED') {
+            $this->markWebhook($webhookLog, 'ignored', 'Gateway IPN is not a successful order payment. type=' . ($notificationType ?? 'null') . ', status=' . ($orderStatus ?? 'null'));
+
+            return null;
+        }
+
+        $invoiceNumber = $payload['order']['order_invoice_number'] ?? null;
+        $transactionId = (string) ($payload['transaction']['id'] ?? '');
+        $amount = (int) ($payload['transaction']['transaction_amount'] ?? 0);
+
+        $webhook = new PaymentWebhookData(
+            provider: 'sepay',
+            reference: $invoiceNumber,
+            amount: $amount,
+            status: 'paid',
+            providerTransactionId: $transactionId !== '' ? $transactionId : null,
+            paidAt: Carbon::now(),
+            raw: $payload,
+            message: $payload['order']['order_description'] ?? null,
         );
 
         return $this->matchWebhookPayment($webhook, $webhookLog);
@@ -66,7 +95,8 @@ class PaymentInvoiceMatcher
                 $invoice = CongNoPayment::query()
                     ->where(function ($query) use ($code) {
                         $query->where('payment_reference', $code)
-                            ->orWhere('qr_payment_code', $code);
+                            ->orWhere('qr_payment_code', $code)
+                            ->orWhere('ma_hoa_don', $code);
                     })
                     ->where('status', InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT->value)
                     ->lockForUpdate()
@@ -191,7 +221,7 @@ class PaymentInvoiceMatcher
         return null;
     }
 
-    protected function markWebhook(SepayWebhookLog|MoMoWebhookLog|VNPayWebhookLog|null $webhookLog, string $status, string $message, ?CongNoPayment $invoice = null): void
+    protected function markWebhook(SepayWebhookLog|MoMoWebhookLog|VNPayWebhookLog|SepayGatewayIpnLog|null $webhookLog, string $status, string $message, ?CongNoPayment $invoice = null): void
     {
         if (! $webhookLog) {
             return;
