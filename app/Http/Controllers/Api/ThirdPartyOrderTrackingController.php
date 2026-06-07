@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\News;
 use App\Models\Order;
+use App\Support\ThirdPartyOrderShippingHistory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,7 +20,12 @@ class ThirdPartyOrderTrackingController extends Controller
         ]);
 
         $order = Order::query()
-            ->with(['packages:id,id_order,c_weight,row_c_weight'])
+            ->with([
+                'packages:id,id_order,code,c_weight,row_c_weight,id_thamchieu,mathamchieu,package_delivery_status,package_delivered_at,package_delivery_synced_at',
+                'histories:id,id_order,action,content,thoigian,diadiem,trangthai,ghichu,created_at',
+                'shipmentLoadHistories' => fn ($query) => $query->select(['shipment_load_histories.id', 'shipment_load_histories.shipment_load_id', 'shipment_load_histories.id_user', 'shipment_load_histories.thoigian', 'shipment_load_histories.diadiem', 'shipment_load_histories.trangthai', 'shipment_load_histories.ghichu', 'shipment_load_histories.created_at']),
+                'shipmentLoadHistories.shipmentLoad:id,code',
+            ])
             ->where('id_bill', $validated['id_bill'])
             ->first();
 
@@ -60,6 +66,7 @@ class ThirdPartyOrderTrackingController extends Controller
                     'country' => data_get($receiver, 'country'),
                     'country_id' => data_get($receiver, 'country_id', data_get($receiver, 'id_country')),
                 ],
+                'shipping_history' => app(ThirdPartyOrderShippingHistory::class)->forOrder($order),
                 'service' => [
                     'main' => [
                         'id' => data_get($service, 'id_dichvu'),
