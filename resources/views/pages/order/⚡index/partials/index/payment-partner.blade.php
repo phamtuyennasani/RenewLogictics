@@ -31,7 +31,5 @@
             <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"></span>
             <span class="truncate">{{ $debt->sohoadon }}</span>
         </a>
-    @else
-        <span class="text-xs font-medium text-neutral-400">Chưa tạo công nợ</span>
     @endif
 </div>

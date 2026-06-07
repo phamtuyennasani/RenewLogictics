@@ -352,12 +352,31 @@ class InvoiceDataTableController extends Controller
 
     protected function summary(Request $request): array
     {
-        $items = $this->query($request, includeStatus: false)->get();
-        $activeItems = $items->filter(fn ($inv) => ! $inv->status?->isCancelled());
-        $total = (float) $activeItems->sum('amount');
-        $paid = (float) $activeItems->where('status', InvoicePaymentStatusEnum::DA_THANH_TOAN->value)->sum('amount');
-        $pending = (float) $activeItems->filter(fn ($inv) => $inv->status?->isOpen())->sum('amount');
-        $awaiting = (float) $activeItems->where('status', InvoicePaymentStatusEnum::CHO_DUYET->value)->sum('amount');
+        // Use DB aggregation instead of loading all records into memory
+        $baseQuery = $this->query($request, includeStatus: false);
+
+        // Total: all non-cancelled invoices
+        $total = (float) (clone $baseQuery)
+            ->where('status', '!=', InvoicePaymentStatusEnum::HUY->value)
+            ->sum('amount');
+
+        // Paid: DA_THANH_TOAN status
+        $paid = (float) (clone $baseQuery)
+            ->where('status', InvoicePaymentStatusEnum::DA_THANH_TOAN->value)
+            ->sum('amount');
+
+        // Awaiting: CHO_DUYET status
+        $awaiting = (float) (clone $baseQuery)
+            ->where('status', InvoicePaymentStatusEnum::CHO_DUYET->value)
+            ->sum('amount');
+
+        // Pending: all open statuses except CHO_DUYET (already counted in awaiting)
+        $pending = (float) (clone $baseQuery)
+            ->whereIn('status', InvoicePaymentStatusEnum::pendingValues())
+            ->where('status', '!=', InvoicePaymentStatusEnum::CHO_DUYET->value)
+            ->where('status', '!=', InvoicePaymentStatusEnum::DA_THANH_TOAN->value)
+            ->where('status', '!=', InvoicePaymentStatusEnum::HUY->value)
+            ->sum('amount');
 
         return [
             'total' => $total,
@@ -569,50 +588,12 @@ class InvoiceDataTableController extends Controller
             return response()->json(['message' => 'Không có quyền xác nhận thanh toán hóa đơn này.'], 403);
         }
 
-        DB::transaction(function () use ($invoice, $user) {
-            $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
-
-            if ($invoice->hasDirectOrder()) {
-                $order = Order::query()->whereKey($invoice->id_order)->lockForUpdate()->firstOrFail();
-
-                $locked->forceFill([
-                    'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
-                    'paid_at' => now(),
-                    'id_ketoan' => $user->id,
-                    'payment_confirmed_by' => $user->id,
-                ])->save();
-
-                $locked->writeStatusLog('cash_confirmed', InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, InvoicePaymentStatusEnum::DA_THANH_TOAN, $user->id);
-
-                $order->forceFill([
-                    'customer_payment_status' => DebtStatusEnum::DA_THANH_TOAN->value,
-                    'customer_paid_at' => now(),
-                ])->save();
-            } else {
-                $debt = CongNo::query()->whereKey($invoice->id_congno)->lockForUpdate()->firstOrFail();
-
-                $locked->forceFill([
-                    'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
-                    'paid_at' => now(),
-                    'id_ketoan' => $user->id,
-                    'payment_confirmed_by' => $user->id,
-                ])->save();
-
-                $locked->writeStatusLog('cash_confirmed', InvoicePaymentStatusEnum::DA_GUI_HOA_DON_TT, InvoicePaymentStatusEnum::DA_THANH_TOAN, $user->id);
-
-                $debt->syncPaidAmountFromPayments();
-                $debt->refresh();
-
-                $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
-                    ? DebtStatusEnum::DA_THANH_TOAN->value
-                    : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
-
-                $debt->orders()->update([
-                    'customer_payment_status' => $orderStatus,
-                    'customer_paid_at' => $orderStatus === DebtStatusEnum::DA_THANH_TOAN->value ? now() : null,
-                ]);
-            }
-        });
+        try {
+            $syncService = app(\App\Services\Invoice\InvoicePaymentSyncService::class);
+            $syncService->markPaidAndSync($invoice, $user, now(), ['action' => 'cash_confirmed']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response()->json(['message' => "Đã xác nhận thanh toán hóa đơn {$invoice->ma_hoa_don}."]);
     }
@@ -701,41 +682,12 @@ class InvoiceDataTableController extends Controller
             return response()->json(['message' => 'Chỉ admin mới có quyền xác nhận thanh toán cho hóa đơn ở trạng thái đã gửi yêu cầu.'], 403);
         }
 
-        DB::transaction(function () use ($invoice, $user) {
-            $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
-
-            $locked->forceFill([
-                'status' => InvoicePaymentStatusEnum::DA_THANH_TOAN->value,
-                'paid_at' => now(),
-                'id_ketoan' => $user->id,
-                'payment_confirmed_by' => $user->id,
-            ])->save();
-
-            $locked->writeStatusLog('admin_mark_paid', InvoicePaymentStatusEnum::DA_GUI_YEU_CAU_TT, InvoicePaymentStatusEnum::DA_THANH_TOAN, $user->id);
-
-            if ($invoice->hasDirectOrder()) {
-                $order = Order::query()->whereKey($invoice->id_order)->lockForUpdate()->firstOrFail();
-
-                $order->forceFill([
-                    'customer_payment_status' => DebtStatusEnum::DA_THANH_TOAN->value,
-                    'customer_paid_at' => now(),
-                ])->save();
-            } else {
-                $debt = CongNo::query()->whereKey($invoice->id_congno)->lockForUpdate()->firstOrFail();
-
-                $debt->syncPaidAmountFromPayments();
-                $debt->refresh();
-
-                $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
-                    ? DebtStatusEnum::DA_THANH_TOAN->value
-                    : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
-
-                $debt->orders()->update([
-                    'customer_payment_status' => $orderStatus,
-                    'customer_paid_at' => $orderStatus === DebtStatusEnum::DA_THANH_TOAN->value ? now() : null,
-                ]);
-            }
-        });
+        try {
+            $syncService = app(\App\Services\Invoice\InvoicePaymentSyncService::class);
+            $syncService->markPaidAndSync($invoice, $user, now(), ['action' => 'admin_mark_paid']);
+        } catch (\Throwable $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
 
         return response()->json(['message' => "Đã xác nhận thanh toán hóa đơn {$invoice->ma_hoa_don} (admin)."]);
     }

@@ -32,7 +32,7 @@ new class extends Component
     #[Computed]
     public function latestActivities(): Collection
     {
-        return $this->activities->take(5);
+        return $this->activities->take(4);
     }
 
     public function actorName(?object $actor): string
@@ -113,9 +113,9 @@ new class extends Component
             <h2 class="font-bold text-neutral-950">Lịch sử thao tác</h2>
             <p class="mt-1 text-sm text-neutral-500">Theo dõi người dùng đã thao tác trên công nợ.</p>
         </div>
-        @if($this->activities->isNotEmpty())
+        @if($this->activities->count() > 4)
             <flux:modal.trigger name="debt-activity-history-{{ $debt->id }}">
-                <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600" aria-label="Xem toàn bộ lịch sử thao tác">
+                <button type="button" class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600" aria-label="Xem chi tiết lịch sử thao tác">
                     <flux:icon.eye class="size-4" />
                 </button>
             </flux:modal.trigger>

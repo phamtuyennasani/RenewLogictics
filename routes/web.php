@@ -8,6 +8,7 @@ use App\Http\Controllers\CongNo\CongNoDaiLyDataTableController;
 use App\Http\Controllers\Api\GlobalSearchController;
 use App\Http\Controllers\Order\OrderDataTableController;
 use App\Services\Providers\Sepay\SepayPaymentService;
+use App\Http\Controllers\Payment\PaymentReturnController;
 use App\Livewire\Dashboard;
 use App\Livewire\Order;
 use App\Livewire\Login;
@@ -123,7 +124,7 @@ Route::middleware('auth')->group(function () {
         ->middleware('can:scan');
 
     // --- Packages / Tải hàng ---
-    Route::prefix('packages')->name('packages.')->group(function () {
+    Route::prefix('packages')->name('packages.')->middleware('feature:packages')->group(function () {
         Route::livewire('/', 'pages::packages.index')->name('index')->middleware('can:packages.view');
         Route::livewire('/create', 'pages::packages.create')->name('create')->middleware('can:packages.create');
         Route::livewire('/{load}', 'pages::packages.show')->name('show')->middleware('can:packages.view');
@@ -149,7 +150,7 @@ Route::middleware('auth')->group(function () {
     })->middleware('can:congno_daily.view');
 
     // --- Hóa đơn thu ---
-    Route::prefix('hoa-don-thu')->name('invoice.')->group(function () {
+    Route::prefix('hoa-don-thu')->name('invoice.')->middleware(['feature:invoice', 'can:invoice.index'])->group(function () {
         Route::livewire('/', 'pages::invoice.index')->name('index');
         Route::get('/datatable', App\Http\Controllers\Invoice\InvoiceDataTableController::class)->name('datatable');
         Route::post('/{id}/approve', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'approve'])->name('approve')->middleware('can:invoice.index');
@@ -163,7 +164,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/cancel', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'cancel'])->name('cancel')->middleware('can:invoice.index');
         Route::get('/sales', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'sales'])->name('sales');
         Route::get('/customers', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'customers'])->name('customers');
-    })->middleware('can:invoice.index');
+    });
 
     // --- Thống kê ---
     // --- Khách hàng ---
@@ -278,6 +279,11 @@ Route::middleware('auth')->group(function () {
 /* ============================================================
    PUBLIC ROUTES — Không cần đăng nhập
    ============================================================ */
+Route::get('/thanh-toan/{provider}/return', PaymentReturnController::class)
+    ->whereIn('provider', ['vnpay', 'momo'])
+    ->name('payment.return')
+    ->middleware('throttle:30,1');
+
 Route::get('/theo-doi/{idbill}', fn ($idbill) => view('tracking.index', ['idbill' => $idbill]))
     ->name('tracking')
     ->middleware('throttle:10,1');

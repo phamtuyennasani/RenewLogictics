@@ -57,10 +57,10 @@ enum InvoicePaymentStatusEnum: string
             self::CHO_DUYET => 1,
             self::DA_DUYET => 2,
             self::DA_GUI_HOA_DON_TT => 3,
-            self::KHONG_CHAP_NHAN => 3,
             self::DA_GUI_YEU_CAU_TT => 4,
-            self::DA_THANH_TOAN => 5,
-            self::HUY => 6,
+            self::KHONG_CHAP_NHAN => 5,
+            self::DA_THANH_TOAN => 6,
+            self::HUY => 7,
         };
     }
 

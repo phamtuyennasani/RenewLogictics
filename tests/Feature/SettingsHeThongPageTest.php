@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Models\Setting;
 use App\Services\EInvoices\EInvoiceProviderManager;
 use App\Services\Payments\PaymentProviderManager;
@@ -9,8 +10,12 @@ use App\Services\Providers\MoMo\MoMoPaymentService;
 use App\Services\Providers\Sepay\SepayEInvoiceService;
 use App\Services\Providers\Sepay\SepayPaymentService;
 use App\Services\Providers\VNPay\VNPayPaymentService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
 
 class SettingsHeThongPageTest extends TestCase
@@ -18,6 +23,8 @@ class SettingsHeThongPageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Gate::before(fn ($user = null, ?string $ability = null) => $ability === 'settings.admin' ? true : null);
 
         config([
             'payment_providers.drivers.sepay' => SepayPaymentService::class,
@@ -188,6 +195,30 @@ class SettingsHeThongPageTest extends TestCase
         $this->assertSame('ACC_123', $options['einvoice_sepay_provider_account_id']);
         $this->assertSame('01GTKT0/001', $options['einvoice_sepay_template_code']);
         $this->assertSame('C26TSE', $options['einvoice_sepay_invoice_series']);
+    }
+
+    public function test_invoice_routes_are_guarded_by_feature_middleware(): void
+    {
+        $invoiceRoutes = collect(Route::getRoutes()->getRoutesByName())
+            ->filter(fn ($route, string $name) => str_starts_with($name, 'invoice.'));
+
+        $this->assertNotEmpty($invoiceRoutes);
+
+        $invoiceRoutes->each(function ($route, string $name): void {
+            $this->assertContains('feature:invoice', $route->gatherMiddleware(), "Route {$name} must be feature guarded.");
+        });
+    }
+    public function test_disabled_feature_returns_not_found(): void
+    {
+        config(['features.items.invoice.available' => false]);
+
+        $this->expectException(NotFoundHttpException::class);
+
+        app(EnsureFeatureEnabled::class)->handle(
+            Request::create('/hoa-don-thu'),
+            fn () => response('ok'),
+            'invoice'
+        );
     }
 }
 

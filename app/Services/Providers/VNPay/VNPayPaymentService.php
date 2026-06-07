@@ -154,6 +154,7 @@ class VNPayPaymentService implements PaymentProvider
         $this->verifyIpnSignature($query);
 
         $responseCode = (string) ($query['vnp_ResponseCode'] ?? '-1');
+        $transactionStatus = (string) ($query['vnp_TransactionStatus'] ?? '-1');
         $transactionNo = (string) ($query['vnp_TransactionNo'] ?? '');
         $amount = (int) (($query['vnp_Amount'] ?? 0) / 100);
         $txnRef = isset($query['vnp_TxnRef']) ? (string) $query['vnp_TxnRef'] : null;
@@ -165,7 +166,7 @@ class VNPayPaymentService implements PaymentProvider
             provider: $this->key(),
             reference: $txnRef,
             amount: $amount,
-            status: $responseCode === '00' ? 'paid' : 'ignored',
+            status: $responseCode === '00' && $transactionStatus === '00' ? 'paid' : 'ignored',
             providerTransactionId: $transactionNo !== '' ? $transactionNo : null,
             paidAt: $payDate,
             raw: $query,
@@ -201,32 +202,25 @@ class VNPayPaymentService implements PaymentProvider
 
     public function signIpnPayload(array $params): string
     {
-        $signedFields = [
-            'vnp_Amount',
-            'vnp_BankCode',
-            'vnp_BankTranNo',
-            'vnp_CardType',
-            'vnp_OrderInfo',
-            'vnp_PayDate',
-            'vnp_ResponseDate',
-            'vnp_ResponseId',
-            'vnp_TmnCode',
-            'vnp_TransactionNo',
-            'vnp_TransactionStatus',
-            'vnp_TxnRef',
-            'vnp_Vlan',
-        ];
-
         $data = [];
-        foreach ($signedFields as $field) {
-            if (isset($params[$field]) && (string) $params[$field] !== '') {
-                $data[$field] = $params[$field];
-            } else {
-                $data[$field] = '';
+
+        foreach ($params as $key => $value) {
+            if (! str_starts_with((string) $key, 'vnp_')) {
+                continue;
             }
+
+            if (in_array($key, ['vnp_SecureHash', 'vnp_SecureHashType'], true)) {
+                continue;
+            }
+
+            if ($value === null || (string) $value === '') {
+                continue;
+            }
+
+            $data[$key] = $value;
         }
 
-        ksort($data);
+        ksort($data, SORT_STRING);
         $hashData = $this->buildHashData($data);
 
         return hash_hmac('sha512', $hashData, $this->requireConfig($this->hashSecret, 'VNPAY_HASH_SECRET'));

@@ -127,48 +127,34 @@ class PaymentInvoiceMatcher
                     return null;
                 }
 
-                $fromStatus = $invoice->status;
-                $invoice->status = InvoicePaymentStatusEnum::DA_THANH_TOAN;
-                $invoice->paid_at = $webhook->paidAt ?? Carbon::now();
-                $invoice->method = $invoice->method ?: 'online';
-                $invoice->payment_provider = $webhook->provider;
-                $invoice->provider_transaction_id = $transactionId ?: $invoice->provider_transaction_id;
-                $invoice->provider_payload = $webhook->raw ?: $invoice->provider_payload;
-                $invoice->sepay_transaction_id = $webhook->provider === 'sepay'
-                    ? ($transactionId ?: $invoice->sepay_transaction_id)
-                    : $invoice->sepay_transaction_id;
-                $invoice->reference = $webhook->message ?? $invoice->reference;
-                $invoice->save();
-                $invoice->writeStatusLog('webhook_paid', $fromStatus, InvoicePaymentStatusEnum::DA_THANH_TOAN, null, null, [
-                    'provider' => $webhook->provider,
-                    'provider_transaction_id' => $transactionId,
-                    'amount' => $amount,
-                    'reference' => $webhook->message,
-                ]);
+                // Prepare webhook-specific fields
+                $webhookFields = [
+                    'method' => $invoice->method ?: 'online',
+                    'payment_provider' => $webhook->provider,
+                    'provider_transaction_id' => $transactionId ?: $invoice->provider_transaction_id,
+                    'provider_payload' => $webhook->raw ?: $invoice->provider_payload,
+                    'reference' => $webhook->message ?? $invoice->reference,
+                ];
 
-                /** @var CongNo $debt */
-                $debt = $invoice->congNo()->lockForUpdate()->first();
-                if ($debt && method_exists($debt, 'syncPaidAmountFromPayments')) {
-                    $debt->syncPaidAmountFromPayments();
-                    $debt->refresh();
-
-                    $orderStatus = $debt->status === DebtStatusEnum::DA_THANH_TOAN
-                        ? DebtStatusEnum::DA_THANH_TOAN->value
-                        : DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value;
-
-                    $debt->orders()->update([
-                        'customer_payment_status' => $orderStatus,
-                        'customer_paid_at' => $orderStatus === DebtStatusEnum::DA_THANH_TOAN->value ? Carbon::now() : null,
-                    ]);
-                } elseif ($invoice->hasDirectOrder()) {
-                    $order = $invoice->order()->lockForUpdate()->first();
-                    if ($order) {
-                        $order->forceFill([
-                            'customer_payment_status' => DebtStatusEnum::DA_THANH_TOAN->value,
-                            'customer_paid_at' => $invoice->paid_at ?? Carbon::now(),
-                        ])->save();
-                    }
+                if ($webhook->provider === 'sepay') {
+                    $webhookFields['sepay_transaction_id'] = $transactionId ?: $invoice->sepay_transaction_id;
                 }
+
+                // Use InvoicePaymentSyncService to mark paid and sync
+                $syncService = app(\App\Services\Invoice\InvoicePaymentSyncService::class);
+                $syncService->markPaidAndSync(
+                    $invoice,
+                    null, // No user actor for webhook
+                    $webhook->paidAt ?? Carbon::now(),
+                    [
+                        'action' => 'webhook_paid',
+                        'provider' => $webhook->provider,
+                        'provider_transaction_id' => $transactionId,
+                        'amount' => $amount,
+                        'reference' => $webhook->message,
+                    ],
+                    $webhookFields
+                );
 
                 Log::info('Payment matcher: invoice marked paid', [
                     'invoice_id' => $invoice->id,
@@ -179,7 +165,7 @@ class PaymentInvoiceMatcher
 
                 $this->markWebhook($webhookLog, 'matched', 'Invoice marked paid from webhook.', $invoice);
 
-                return $invoice;
+                return $invoice->fresh();
             });
         } catch (Throwable $exception) {
             Log::error('Payment matcher failed', [

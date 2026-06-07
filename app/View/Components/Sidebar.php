@@ -2,6 +2,7 @@
 
 namespace App\View\Components;
 
+use App\Support\Feature;
 use Illuminate\View\Component;
 use Illuminate\Support\Facades\Auth;
 
@@ -95,6 +96,7 @@ class Sidebar extends Component
                 ],
                 [
                     'route'  => 'packages.index',
+                    'feature' => 'packages',
                     'icon'   => 'package',
                     'label'  => 'Quản lý tải hàng',
                     'roles'  => ['admin', 'manager', 'ops', 'cs'],
@@ -113,6 +115,7 @@ class Sidebar extends Component
                 ],
                 [
                     'route'  => 'invoice.index',
+                    'feature' => 'invoice',
                     'icon'   => 'receipt',
                     'label'  => 'Hóa đơn thu',
                     'roles'  => ['admin', 'manager', 'ketoan'],
@@ -341,11 +344,15 @@ class Sidebar extends Component
         $filteredItems = [];
 
         foreach ($group['items'] ?? [] as $item) {
+            if (! $this->featureMatch($item)) {
+                continue;
+            }
+
             // Filter children trước
             if (!empty($item['children'])) {
                 $item['children'] = array_values(array_filter(
                     $item['children'],
-                    fn($child) => $this->roleMatch($child['roles'] ?? [], $role)
+                    fn($child) => $this->featureMatch($child) && $this->roleMatch($child['roles'] ?? [], $role)
                 ));
                 // Chỉ giữ lại parent nếu có ít nhất 1 child
                 if (!empty($item['children'])) {
@@ -367,6 +374,13 @@ class Sidebar extends Component
     /**
      * Kiểm tra user role có trong danh sách allowed roles không
      */
+    protected function featureMatch(array $item): bool
+    {
+        $feature = $item['feature'] ?? null;
+
+        return ! $feature || Feature::enabled((string) $feature);
+    }
+
     protected function roleMatch(array $allowedRoles, string $userRole): bool
     {
         if (empty($allowedRoles)) {

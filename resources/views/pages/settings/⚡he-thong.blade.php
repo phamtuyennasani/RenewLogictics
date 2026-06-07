@@ -5,6 +5,7 @@ use App\Services\EInvoices\EInvoiceProviderManager;
 use App\Services\Payments\PaymentProviderManager;
 use Flux\Flux;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 new class extends Component
@@ -36,6 +37,10 @@ new class extends Component
     public string $sensitiveConfigPassword = '';
 
     public bool $emailOrderEnabled = false;
+    public bool $thirdPartyTrackingApiEnabled = false;
+    public string $thirdPartyTrackingApiKey = '';
+    public string $thirdPartyTrackingApiBlockedIps = '';
+    public string $thirdPartyTrackingApiRateLimitPerMinute = '60';
 
     public string $smtpHost = '';
     public string $smtpPort = '587';
@@ -68,10 +73,10 @@ new class extends Component
     {
         $this->einvoiceEnabled[$key] = ! ($this->einvoiceEnabled[$key] ?? false);
     }
-
     protected function loadFromSettings(): void
     {
         $options = data_get(Setting::first(), 'options', []);
+        $options = is_array($options) ? $options : [];
 
         // Payment: nạp động theo schema do từng cổng khai báo.
         foreach (PaymentProviderManager::configSchemas() as $key => $schema) {
@@ -102,6 +107,10 @@ new class extends Component
         }
 
         $this->emailOrderEnabled = (bool) ($options['email_order_enabled'] ?? false);
+        $this->thirdPartyTrackingApiEnabled = (bool) ($options['third_party_tracking_api_enabled'] ?? false);
+        $this->thirdPartyTrackingApiKey = (string) ($options['third_party_tracking_api_key'] ?? '');
+        $this->thirdPartyTrackingApiBlockedIps = (string) ($options['third_party_tracking_api_blocked_ips'] ?? '');
+        $this->thirdPartyTrackingApiRateLimitPerMinute = (string) ($options['third_party_tracking_api_rate_limit_per_minute'] ?? '60');
 
         $this->smtpHost = $options['smtp_host'] ?? '';
         $this->smtpPort = $options['smtp_port'] ?? '587';
@@ -238,6 +247,11 @@ new class extends Component
         }
 
         $options['email_order_enabled'] = $this->emailOrderEnabled;
+        $options['third_party_tracking_api_enabled'] = $this->thirdPartyTrackingApiEnabled;
+        $options['third_party_tracking_api_key'] = trim($this->thirdPartyTrackingApiKey);
+        $options['third_party_tracking_api_blocked_ips'] = trim($this->thirdPartyTrackingApiBlockedIps);
+        unset($options['third_party_tracking_api_allowed_ips']);
+        $options['third_party_tracking_api_rate_limit_per_minute'] = max(1, min(1000, (int) $this->thirdPartyTrackingApiRateLimitPerMinute));
 
         $options['smtp_host'] = $this->smtpHost;
         $options['smtp_port'] = $this->smtpPort;
@@ -261,6 +275,11 @@ new class extends Component
         );
     }
 
+
+    public function generateThirdPartyTrackingApiKey(): void
+    {
+        $this->thirdPartyTrackingApiKey = 'trk_' . Str::random(48);
+    }
     public function openSensitiveConfigAuth(string $gateway): void
     {
         if (! in_array($gateway, $this->sensitiveGateways(), true)) {
@@ -389,11 +408,8 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
             <div class="min-w-0">
                 <p class="text-xs font-bold uppercase tracking-normal text-neutral-500">Cấu hình</p>
                 <h1 class="mt-1 text-2xl font-black tracking-normal text-neutral-950">Cấu hình hệ thống</h1>
-                <p class="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-500">
-                    Quản lý cổng thanh toán, SMTP và thông tin nhận chuyển khoản cho toàn bộ hệ thống.
-                </p>
+                <p class="mt-2 max-w-2xl text-sm font-medium leading-6 text-neutral-500">Quản lý cổng thanh toán, hóa đơn, API, email và bản đồ cho toàn bộ hệ thống.</p>
             </div>
-
             <div class="flex shrink-0 items-center gap-3 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
                 <div class="flex h-10 w-10 items-center justify-center rounded-lg text-white" style="{{ $gradientStyle }}">
                     <flux:icon.cog-6-tooth class="size-5" />
@@ -411,12 +427,8 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                     <flux:icon.credit-card class="size-5" />
                 </span>
                 <div class="min-w-0">
-                    <p class="truncate text-sm font-bold text-neutral-950">
-                        Cổng thanh toán
-                    </p>
-                    <p class="truncate text-xs font-medium text-neutral-500">
-                        {{ collect($paymentEnabled)->filter()->count() }}/{{ count($paymentEnabled) }} cổng bật
-                    </p>
+                    <p class="truncate text-sm font-bold text-neutral-950">Cổng thanh toán</p>
+                    <p class="truncate text-xs font-medium text-neutral-500">{{ collect($paymentEnabled)->filter()->count() }}/{{ count($paymentEnabled) }} cổng bật</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 border-b border-neutral-100 px-5 py-4 sm:border-b-0 sm:border-r sm:px-6">
@@ -424,12 +436,8 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                     <flux:icon.receipt-percent class="size-5" />
                 </span>
                 <div class="min-w-0">
-                    <p class="truncate text-sm font-bold text-neutral-950">
-                        Cổng hóa đơn
-                    </p>
-                    <p class="truncate text-xs font-medium text-neutral-500">
-                        {{ collect($einvoiceEnabled)->filter()->count() }}/{{ count($einvoiceEnabled) }} cổng bật
-                    </p>
+                    <p class="truncate text-sm font-bold text-neutral-950">Cổng hóa đơn</p>
+                    <p class="truncate text-xs font-medium text-neutral-500">{{ collect($einvoiceEnabled)->filter()->count() }}/{{ count($einvoiceEnabled) }} cổng bật</p>
                 </div>
             </div>
             <div class="flex items-center gap-3 px-5 py-4 sm:px-6">
@@ -437,9 +445,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                     <flux:icon.envelope class="size-5" />
                 </span>
                 <div class="min-w-0">
-                    <p class="truncate text-sm font-bold text-neutral-950">
-                        {{ $emailOrderEnabled ? 'Đang gửi email' : 'Chưa bật email' }}
-                    </p>
+                    <p class="truncate text-sm font-bold text-neutral-950">Email đơn hàng</p>
                     <p class="truncate text-xs font-medium text-neutral-500">Thông báo đơn hàng</p>
                 </div>
             </div>
@@ -447,10 +453,11 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
     </div>
 
     <div class="overflow-x-auto rounded-lg border border-neutral-200 bg-white p-1 shadow-sm">
-        <div class="grid min-w-max grid-cols-4 gap-1 sm:min-w-0">
+        <div class="grid min-w-max grid-cols-5 gap-1 sm:min-w-0">
             @foreach ([
                 ['key' => 'payment', 'label' => 'Thanh toán', 'icon' => 'credit-card'],
                 ['key' => 'invoice', 'label' => 'Hóa đơn', 'icon' => 'receipt-percent'],
+                ['key' => 'api', 'label' => 'API', 'icon' => 'key'],
                 ['key' => 'email', 'label' => 'Email', 'icon' => 'envelope'],
                 ['key' => 'map', 'label' => 'Bản đồ', 'icon' => 'map-pin'],
             ] as $t)
@@ -475,6 +482,9 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                         @break
                     @case('map-pin')
                         <flux:icon.map-pin class="size-4" />
+                        @break
+                    @case('key')
+                        <flux:icon.key class="size-4" />
                         @break
                 @endswitch
                 {{ $t['label'] }}
@@ -831,6 +841,82 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
             </div>
         @endif
 
+        @if($tab === 'api')
+            <div class="space-y-5">
+                <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+                    <div class="p-5 sm:p-6">
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex min-w-0 items-start gap-4">
+                                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700">
+                                    <flux:icon.key class="size-5" />
+                                </span>
+                                <div class="min-w-0">
+                                    <h2 class="text-base font-black tracking-normal text-neutral-950">API tracking đơn hàng</h2>
+                                    <p class="mt-1 text-sm font-medium text-neutral-500">Cho phép đối tác tra cứu trạng thái đơn hàng bằng mã id_bill.</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-sm font-bold text-neutral-700">{{ $thirdPartyTrackingApiEnabled ? 'Đang bật' : 'Đang tắt' }}</span>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked="{{ $thirdPartyTrackingApiEnabled ? 'true' : 'false' }}"
+                                    wire:click="$toggle('thirdPartyTrackingApiEnabled')"
+                                    class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 {{ $thirdPartyTrackingApiEnabled ? 'bg-emerald-500' : 'bg-neutral-300' }}">
+                                    <span class="inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform {{ $thirdPartyTrackingApiEnabled ? 'translate-x-5' : 'translate-x-0.5' }}"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+                    <div class="flex items-start gap-3 border-b border-neutral-100 px-5 py-5 sm:px-6">
+                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-700">
+                            <flux:icon.server-stack class="size-5" />
+                        </span>
+                        <div class="min-w-0">
+                            <h2 class="text-base font-black tracking-normal text-neutral-950">Cấu hình kết nối</h2>
+                            <p class="mt-1 text-sm font-medium text-neutral-500">Đối tác gửi mã đơn hàng và truyền API key trong header <span class="font-bold text-neutral-700">X-API-Key</span>.</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6 p-5 sm:p-6">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <label class="text-sm font-bold text-neutral-900">API key</label>
+                                <span class="rounded-md bg-neutral-100 px-2 py-0.5 text-xs font-bold text-neutral-500">Bắt buộc</span>
+                            </div>
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+                                <flux:input wire:model="thirdPartyTrackingApiKey" placeholder="Bấm tạo khóa mới để cấp cho đối tác" />
+                                <button
+                                    type="button"
+                                    wire:click="generateThirdPartyTrackingApiKey"
+                                    class="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 text-sm font-bold text-neutral-800 shadow-sm transition hover:bg-neutral-50">
+                                    <flux:icon.sparkles class="size-4" />
+                                    Tạo khóa mới
+                                </button>
+                            </div>
+                            <p class="text-sm font-medium text-neutral-500">Chỉ cấp khóa này cho đối tác được phép tracking đơn hàng.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-neutral-900">Giới hạn request / phút / IP</label>
+                                <flux:input wire:model="thirdPartyTrackingApiRateLimitPerMinute" type="number" min="1" max="1000" placeholder="60" />
+                                <p class="text-sm font-medium text-neutral-500">Áp dụng riêng theo từng IP gọi API.</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="block text-sm font-bold text-neutral-900">IP bị chặn</label>
+                                <flux:input wire:model="thirdPartyTrackingApiBlockedIps" placeholder="Để trống nếu không chặn IP nào. VD: 1.1.1.1, 2.2.2.2" />
+                                <p class="text-sm font-medium text-neutral-500">Các IP trong danh sách này sẽ không được gọi API.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
         @if($tab === 'email')
             <div class="space-y-5">
                 <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">

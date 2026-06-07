@@ -1,21 +1,22 @@
 @php
+    use App\Enums\DebtStatusEnum;
+
     $debt = $order->congNoDetails
         ->sortByDesc('created_at')
         ->first(fn ($detail) => $detail->congNo)?->congNo;
-    $paymentStatus = match ($order->customer_payment_status) {
-        \App\Enums\DebtStatusEnum::DA_THANH_TOAN->value => [
+
+    $isPaid = $order->customer_payment_status === DebtStatusEnum::DA_THANH_TOAN->value
+        && (! $debt || $debt->status === DebtStatusEnum::DA_THANH_TOAN);
+
+    $paymentStatus = $isPaid
+        ? [
             'label' => 'Đã thanh toán',
             'class' => 'bg-emerald-100 text-emerald-700',
-        ],
-        \App\Enums\DebtStatusEnum::DA_THANH_TOAN_MOT_PHAN->value => [
-            'label' => 'Thanh toán một phần',
-            'class' => 'bg-amber-100 text-amber-700',
-        ],
-        default => [
+        ]
+        : [
             'label' => 'Chưa thanh toán',
             'class' => 'bg-neutral-100 text-neutral-600',
-        ],
-    };
+        ];
 @endphp
 
 <div class="flex flex-col items-start gap-1.5">
@@ -31,7 +32,5 @@
             <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-current opacity-70"></span>
             <span class="truncate">{{ $debt->sohoadon }}</span>
         </a>
-    @else
-        <span class="text-xs font-medium text-neutral-400">Chưa tạo công nợ</span>
     @endif
 </div>

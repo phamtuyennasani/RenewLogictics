@@ -16,6 +16,11 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             \App\Http\Middleware\RedirectShipperToMobile::class,
         ]);
+
+        $middleware->alias([
+            'feature' => \App\Http\Middleware\EnsureFeatureEnabled::class,
+            'third-party.tracking-api' => \App\Http\Middleware\EnsureThirdPartyTrackingApiAccess::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
