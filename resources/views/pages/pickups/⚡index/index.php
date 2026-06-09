@@ -91,9 +91,28 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         $this->dispatch('pickup-filter-synced', filters: $this->filterPayload());
     }
 
-    protected function pickupsQuery(bool $includeStatus = true, bool $includeRelations = true)
+    protected function shouldScopeToCurrentOps(): bool
+    {
+        $user = auth()->user();
+
+        return $user?->hasRole('ops') && ! $user->hasAnyRole(['admin', 'manager']);
+    }
+
+    protected function pickupAccessQuery()
     {
         return Pickup::query()
+            ->when($this->shouldScopeToCurrentOps(), function ($query) {
+                $query->where(function ($scope) {
+                    $scope->whereNull('id_user')
+                        ->orWhere('id_user', 0)
+                        ->orWhere('id_user', auth()->id());
+                });
+            });
+    }
+
+    protected function pickupsQuery(bool $includeStatus = true, bool $includeRelations = true)
+    {
+        return $this->pickupAccessQuery()
             ->when($includeRelations, fn ($query) => $query
                 ->with(['user:id,fullname,username,code', 'shipper:id,fullname,username,code'])
                 ->withCount('orders'))
@@ -159,8 +178,9 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
 
     public function openDetails(int $pickupId): void
     {
-        $this->selectedPickupId = $pickupId;
-        $this->selectedShipperId = $this->selectedPickup?->id_shipper;
+        $pickup = $this->pickupAccessQuery()->findOrFail($pickupId);
+        $this->selectedPickupId = $pickup->id;
+        $this->selectedShipperId = $pickup->id_shipper;
         Flux::modal('pickup-details')->show();
     }
 
@@ -172,7 +192,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
 
     public function openEdit(int $pickupId): void
     {
-        $pickup = Pickup::query()->findOrFail($pickupId);
+        $pickup = $this->pickupAccessQuery()->findOrFail($pickupId);
         abort_unless($this->canEditPickup($pickup), 403);
 
         $sender = $pickup->info_khachhang ?? [];
@@ -265,6 +285,11 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             $data = $this->validate($rules)['editForm'] ?? [];
         } catch (\Illuminate\Validation\ValidationException $exception) {
             Flux::toast(duration: 3500, heading: 'Thiếu thông tin', text: $exception->validator->errors()->first(), variant: 'warning');
+            return;
+        }
+
+        if ($canEditOps && $this->shouldScopeToCurrentOps() && filled($data['ops_id'] ?? null) && (int) $data['ops_id'] !== (int) auth()->id()) {
+            $this->addError('editForm.ops_id', 'OPS chi duoc nhan Pickup cho chinh minh.');
             return;
         }
 
@@ -392,7 +417,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return null;
         }
 
-        return Pickup::query()
+        return $this->pickupAccessQuery()
             ->with(['user:id,fullname,username', 'shipper:id,fullname,username', 'orders'])
             ->withCount('orders')
             ->findOrFail($this->selectedPickupId);
@@ -404,7 +429,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return null;
         }
 
-        return Pickup::query()
+        return $this->pickupAccessQuery()
             ->with(['user:id,fullname,username', 'shipper:id,fullname,username'])
             ->findOrFail($this->editPickupId);
     }
@@ -481,6 +506,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
     public function getPickupOpsUsersProperty()
     {
         return User::query()
+            ->when($this->shouldScopeToCurrentOps(), fn ($query) => $query->whereKey(auth()->id()))
             ->whereHas('roles', fn ($query) => $query->where('name', 'ops'))
             ->orderBy('fullname')
             ->orderBy('username')

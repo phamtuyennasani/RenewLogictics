@@ -148,6 +148,8 @@ new class extends Component
             ->all();
 
         $this->capabilities = [
+            'role' => collect(['admin', 'manager', 'ketoan', 'ops', 'cs', 'sale', 'ctv', 'shipper'])->first(fn ($role) => $user->hasRole($role)),
+            'roles' => $user->roles->pluck('name')->values()->all(),
             'canCreate' => $user->can('orders.create'),
             'canDeleteCancelled' => $user->hasRole('admin'),
             'canCancel' => $user->hasAnyRole(['admin', 'manager']),
@@ -156,7 +158,6 @@ new class extends Component
             'canShip' => $user->hasAnyRole(['admin', 'manager', 'cs']),
             'canSeeFinance' => $user->hasAnyRole(['admin', 'manager', 'ketoan']),
             'canSeeExtraFilters' => $user->hasAnyRole(['admin', 'cs']),
-            'isSaleUser' => $user->hasRole('sale'),
             'currentSaleId' => $user->hasRole('sale') ? $user->id : null,
         ];
 

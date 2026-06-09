@@ -28,6 +28,11 @@ new class extends Component
         return auth()->user()?->hasAnyRole(['admin', 'manager', 'ketoan']) ?? false;
     }
 
+    public function canViewCharges(): bool
+    {
+        return ! (auth()->user()?->hasRole('ops') ?? false);
+    }
+
     public function chotCuocLabel(): string
     {
         $order = $this->order;
@@ -52,6 +57,7 @@ new class extends Component
 
 ?>
 
+@if($this->canViewCharges())
 @php
     $isInternal = $this->canSeeInternalCharges();
     $salePay   = $order->payment_cuocban  ?? [];
@@ -343,3 +349,4 @@ new class extends Component
 <style>
     [x-cloak] { display: none !important; }
 </style>
+@endif

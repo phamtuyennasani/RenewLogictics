@@ -28,7 +28,7 @@ class CongNoDataTableController extends Controller
             ->addColumn('debt_code', fn (CongNo $debt) => '<a wire:navigate href="'.route('congno.show', $debt->uuid).'" class="font-bold text-primary-700 hover:text-primary-800">'.$debt->sohoadon.'</a><div class="mt-0.5 text-xs text-neutral-500">Tạo '.$debt->created_at?->format('d/m/Y H:i').'</div>')
             ->addColumn('einvoice_info', fn (CongNo $debt) => $this->einvoiceInfoHtml($debt))
             ->addColumn('status_badge', fn (CongNo $debt) => '<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '.$debt->status->color().'">'.$debt->status->label().'</span>')
-            ->addColumn('customer_info', fn (CongNo $debt) => '<div class="max-w-[300px] truncate font-semibold text-neutral-900 whitespace-pre-line">'.e($this->customerCompanyLabel($debt)).'</div>')
+            ->addColumn('customer_info', fn (CongNo $debt) => $this->customerInfoHtml($debt))
             ->addColumn('sale_info', fn (CongNo $debt) => '<div class="max-w-[200px] truncate font-semibold text-neutral-800">'.e($this->saleLabel($debt)).'</div>')
             ->addColumn('total_amount', fn (CongNo $debt) => '<span class="font-semibold text-neutral-950 text-center">'.$this->money($debt->total_cuocban).'</span>')
             ->addColumn('paid_amount_html', fn (CongNo $debt) => '<span class="font-semibold text-emerald-700 text-center">'.$this->money($debt->paid_amount).'</span>')
@@ -158,7 +158,7 @@ class CongNoDataTableController extends Controller
         $user = $request->user();
 
         return CongNo::query()
-            ->with(['sale:id,fullname,username,code', 'customer:id,fullname,username,code,options', 'ketoan:id,fullname,username,code', 'einvoices'])
+            ->with(['sale:id,fullname,username,code', 'customer:id,fullname,username,phone,code,options', 'ketoan:id,fullname,username,code', 'einvoices'])
             ->where('type', 'customer')
             ->when($user->hasRole('sale'), fn ($q) => $q->where('id_sale', $user->id))
             ->when($user->hasRole('ctv'), fn ($q) => $q->where('id_customer', $user->id))
@@ -204,11 +204,25 @@ class CongNoDataTableController extends Controller
     {
         $customer = $debt->customer;
 
-        return data_get($customer?->options, 'company.company_short_name')
-            ?: data_get($customer?->options, 'company.company_name')
+        return data_get($customer?->options, 'company.company_name')
+            ?: data_get($customer?->options, 'company.company_short_name')
             ?: $customer?->fullname
             ?: $customer?->username
             ?: 'Chưa rõ khách hàng';
+    }
+
+    protected function customerInfoHtml(CongNo $debt): string
+    {
+        $customer = $debt->customer;
+        $companyName = $this->customerCompanyLabel($debt);
+        $phone = data_get($customer?->options, 'company.company_phone') ?: $customer?->phone;
+        $meta = collect([$customer?->code, $phone])
+            ->filter(fn ($value) => filled($value))
+            ->map(fn ($value) => (string) $value)
+            ->implode(' - ');
+
+        return '<div class="max-w-[300px] truncate font-semibold text-neutral-900">'.e($companyName).'</div>'
+            .'<div class="mt-0.5 max-w-[300px] truncate text-xs text-neutral-500">'.e($meta ?: '-').'</div>';
     }
 
     protected function saleLabel(CongNo $debt): string

@@ -1,3 +1,5 @@
+@php $role = $capabilities['role'] ?? null; @endphp
+
 <flux:modal name="order-index-filter" class="w-full max-w-7xl !overflow-visible">
     <div class="order-filter-panel">
         <div class="order-filter-header">
@@ -44,12 +46,12 @@
             <section class="order-filter-section">
                 <div class="order-filter-section-heading">
                     <div>
-                        <h3>{{ $capabilities['isSaleUser'] ? 'Khách hàng / CTV' : 'Phụ trách' }}</h3>
-                        <p>{{ $capabilities['isSaleUser'] ? 'Lọc theo khách hàng / CTV của bạn' : 'Sale và khách hàng / CTV' }}</p>
+                        <h3>{{ $role === 'sale' ? 'Khách hàng / CTV' : 'Phụ trách' }}</h3>
+                        <p>{{ $role === 'sale' ? 'Lọc theo khách hàng / CTV của bạn' : 'Sale và khách hàng / CTV' }}</p>
                     </div>
                 </div>
-                <div class="order-filter-section-grid{{ !$capabilities['isSaleUser'] ? ' order-filter-section-grid-2' : '' }}">
-                    @if (!$capabilities['isSaleUser'])
+                <div class="order-filter-section-grid{{ $role !== 'sale' ? ' order-filter-section-grid-2' : '' }}">
+                    @if ($role !== 'sale')
                     <div class="order-filter-field">
                         <label class="order-filter-label">Sale phụ trách</label>
                         <select data-order-filter="saleId" data-placeholder="Tất cả nhân sự" class="tomselectEml order-filter-tomselect">
@@ -60,7 +62,7 @@
                         </select>
                     </div>
                     @endif
-                    @if ($capabilities['isSaleUser'])
+                    @if ($role === 'sale')
                     <input type="hidden" data-order-filter="saleId" value="{{ $filters['saleId'] ?? '' }}">
                     @endif
                     <div class="order-filter-field">

@@ -5,7 +5,7 @@
     data-capabilities='@json($capabilities)'
 >
     @include('pages.order.⚡index.partials.header')
-    @if (! ($capabilities['isSaleUser'] ?? false))
+    @if (! in_array(($capabilities['role'] ?? null), ['sale', 'ops'], true))
         @include('pages.order.⚡index.partials.bulk-actions')
     @endif
     @include('pages.order.⚡index.partials.filter-panel')
@@ -656,6 +656,7 @@
 
                 const routes = JSON.parse(root.dataset.routes || '{}');
                 const capabilities = JSON.parse(root.dataset.capabilities || '{}');
+                const role = capabilities.role || '';
                 const selected = new Set();
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
                 let customerRequestId = 0;
@@ -730,7 +731,6 @@
                     columns: (() => {
                         const col = (data, name) => ({ data, ...(name ? { name } : {}), orderable: false, searchable: false });
 
-                        // Cột chung đầu bảng
                         const head = [
                             col('order_code', 'id_bill'),
                             col('status_badge', 'bill_status'),
@@ -743,7 +743,7 @@
                             col('receiver_country'),
                         ];
 
-                        if (capabilities.isSaleUser) {
+                        if (role === 'sale') {
                             return [
                                 ...head,
                                 col('package_info'),
@@ -754,7 +754,14 @@
                             ];
                         }
 
-                        // Admin / manager / ketoan
+                        if (role === 'ops') {
+                            return [
+                                ...head,
+                                col('package_info'),
+                                col('actions'),
+                            ];
+                        }
+
                         return [
                             col('check'),
                             ...head,
@@ -768,45 +775,7 @@
                             col('actions'),
                         ];
                     })(),
-                    columnDefs: (() => {
-                        if (capabilities.isSaleUser) {
-                            return [
-                                { targets: 1, width: '180px' },
-                                { targets: 2, width: '200px' },
-                                { targets: 3, width: '170px' },
-                                { targets: 4, width: '250px' },
-                                { targets: 5, width: '250px' },
-                                { targets: 6, width: '280px' },
-                                { targets: 7, width: '150px' },
-                                { targets: 8, width: '150px' },
-                                { targets: 9, width: '100px' },
-                                { targets: 10, width: '100px' },
-                                { targets: 11, width: '130px' },
-                                { targets: 12, width: '130px' },
-                                { targets: 13, width: '100px' },
-                            ];
-                        }
-                        return [
-                            { targets: 0, width: '52px' },
-                            { targets: 1, width: '180px' },
-                            { targets: 2, width: '200px' },
-                            { targets: 3, width: '170px' },
-                            { targets: 4, width: '190px' },
-                            { targets: 5, width: '280px' },
-                            { targets: 6, width: '280px' },
-                            { targets: 7, width: '320px' },
-                            { targets: 8, width: '240px' },
-                            { targets: 9, width: '140px' },
-                            { targets: 10, width: '150px' },
-                            { targets: 11, width: '100px' },
-                            { targets: 12, width: '130px' },
-                            { targets: 13, width: '130px' },
-                            { targets: 14, width: '200px' },
-                            { targets: 15, width: '200px' },
-                            { targets: 16, width: '190px' },
-                            { targets: 17, width: 'auto' },
-                        ];
-                    })(),
+                    columnDefs: (() => {})(),
                 });
 
                 const updateBulkState = () => {
@@ -847,7 +816,8 @@
                 const reload = () => {
                     appliedStatus = field('status')?.value || '';
                     selected.clear();
-                    document.getElementById('orders-check-all').checked = false;
+                    const checkAll = document.getElementById('orders-check-all');
+                    if (checkAll) checkAll.checked = false;
                     updateBulkState();
                     table.ajax.reload();
                 };

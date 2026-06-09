@@ -834,7 +834,9 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             <livewire:order.payment-invoices :order="$order" wire:key="order-payment-invoices-{{ $order->id }}" />
         </div>
         <div class="space-y-5">
-            <livewire:order.charges-summary :order="$order" wire:key="order-charges-summary-{{ $order->id }}" />
+            @unless(auth()->user()->hasRole('ops'))
+                <livewire:order.charges-summary :order="$order" wire:key="order-charges-summary-{{ $order->id }}" />
+            @endunless
             @if(auth()->user()->hasRole('admin'))
                 <livewire:order.edit-history :order="$order" wire:key="order-edit-history-{{ $order->id }}" />
             @endif

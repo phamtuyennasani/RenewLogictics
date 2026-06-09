@@ -29,12 +29,13 @@ class CongNoDaiLyDataTableController extends Controller
             ->addColumn('debt_code', fn (CongNoDaiLy $debt) => '<a href="'.route('congno.daily.show', $debt->uuid).'" class="font-bold text-primary-700 hover:text-primary-800">'.$debt->sohoadon.'</a><div class="mt-0.5 text-xs text-neutral-500">Tạo '.$debt->created_at?->format('d/m/Y H:i').'</div>')
             ->addColumn('status_badge', fn (CongNoDaiLy $debt) => '<span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold '.$debt->status->color().'">'.$debt->status->label().'</span>')
             ->addColumn('daily_info', fn (CongNoDaiLy $debt) => '<div class="max-w-[220px] truncate font-semibold text-neutral-900">'.e($debt->daily?->namevi ?: $debt->daily?->nameen ?: 'Chưa rõ đại lý').'</div><div class="mt-0.5 max-w-[220px] truncate text-xs text-neutral-500">Kế toán: '.e($debt->ketoan?->fullname ?: $debt->ketoan?->username ?: '-').'</div>')
+            ->addColumn('creator_info', fn (CongNoDaiLy $debt) => '<div class="max-w-[180px] truncate font-semibold text-neutral-900">'.e($debt->creator?->fullname ?: $debt->creator?->username ?: '-').'</div>'.($debt->creator?->code ? '<div class="mt-0.5 max-w-[180px] truncate text-xs text-neutral-500">'.e($debt->creator->code).'</div>' : ''))
             ->addColumn('period_info', fn (CongNoDaiLy $debt) => '<div class="font-semibold text-neutral-900">'.$debt->tungay?->format('d/m/Y').' - '.$debt->denngay?->format('d/m/Y').'</div>')
-            ->addColumn('volume_info', fn (CongNoDaiLy $debt) => '<div class="font-semibold text-neutral-900">'.number_format((int) $debt->total_orders).' đơn</div><div class="mt-0.5 text-xs text-neutral-500">'.number_format((float) $debt->total_weight, 3, ',', '.').' kg</div>')
-            ->addColumn('total_amount', fn (CongNoDaiLy $debt) => '<span class="font-semibold text-neutral-950">'.$this->money($debt->total_cuocvon).'</span>')
-            ->addColumn('actions', fn (CongNoDaiLy $debt) => '<a href="'.route('congno.daily.show', $debt->uuid).'" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">Chi tiết</a>')
+            ->addColumn('volume_info', fn (CongNoDaiLy $debt) => '<div class="font-semibold text-neutral-900">'.number_format((int) $debt->total_orders).' đơn</div><div class="mt-0.5 text-xs text-neutral-500">'.number_format((float) $debt->total_weight, 1, ',', '.').' kg</div>')
+            ->addColumn('total_amount', fn (CongNoDaiLy $debt) => '<p class="text-right mb-0"><span class="font-semibold text-neutral-950">'.$this->money($debt->total_cuocvon).'</span></p>')
+            ->addColumn('actions', fn (CongNoDaiLy $debt) => '<p class="text-right mb-0"><a href="'.route('congno.daily.show', $debt->uuid).'" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">Chi tiết</a></p>')
             ->setRowId(fn (CongNoDaiLy $debt) => 'daily-debt-'.$debt->id)
-            ->rawColumns(['check', 'debt_code', 'status_badge', 'daily_info', 'period_info', 'volume_info', 'total_amount', 'actions'])
+            ->rawColumns(['check', 'debt_code', 'status_badge', 'daily_info', 'creator_info', 'period_info', 'volume_info', 'total_amount', 'actions'])
             ->toJson();
 
         $payload = $response->getData(true);

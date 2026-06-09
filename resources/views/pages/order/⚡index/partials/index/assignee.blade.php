@@ -1,5 +1,5 @@
 @php
-    $isSaleUser = auth()->user()?->hasRole('sale');
+    $role = collect(['admin', 'manager', 'ketoan', 'ops', 'cs', 'sale', 'ctv', 'shipper'])->first(fn ($role) => auth()->user()?->hasRole($role));
 
     $saleName = $order->sale?->fullname ?: $order->sale?->username;
     $saleCode = $order->sale?->code;
@@ -16,8 +16,8 @@
 <div class="max-w-[300px] whitespace-nowrap text-sm">
     @if ($order->id_customer)
         <div class="truncate font-medium text-neutral-800">{{ $customerCompany ?: '—' }}</div>
-        @if(!$isSaleUser)<div class="truncate text-xs text-neutral-500">{{ $saleLabel }}</div> @endif
-        @if($isSaleUser && $customer->code)<div class="truncate text-xs text-neutral-500">Mã khách hàng: {{  $customer->code }}</div> @endif
+        @if($role !== 'sale')<div class="truncate text-xs text-neutral-500">{{ $saleLabel }}</div> @endif
+        @if($role === 'sale' && $customer->code)<div class="truncate text-xs text-neutral-500">Mã khách hàng: {{  $customer->code }}</div> @endif
     @else
         <div class="truncate font-medium text-neutral-800">{{ $saleLabel }}</div>
     @endif

@@ -164,6 +164,7 @@
                             <th class="px-3 py-3">Mã công nợ</th>
                             <th class="px-3 py-3">Trạng thái</th>
                             <th class="px-3 py-3">Đại lý</th>
+                            <th class="px-3 py-3">Người tạo</th>
                             <th class="px-3 py-3">Kỳ công nợ</th>
                             <th class="px-3 py-3">Quy mô</th>
                             <th class="px-3 py-3 text-right">Tổng cước vốn</th>
