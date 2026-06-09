@@ -10,7 +10,7 @@ class OrderAccess
 {
     public static function canView(User $user, Order $order): bool
     {
-        if ($user->hasAnyRole(['admin', 'manager', 'ketoan'])) {
+        if ($user->hasAnyRole(['admin', 'manager', 'ketoan', 'ops'])) {
             return true;
         }
 

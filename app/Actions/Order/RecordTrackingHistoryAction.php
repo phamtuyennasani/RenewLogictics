@@ -14,10 +14,6 @@ class RecordTrackingHistoryAction
         $order->histories()->create([
             'id_user' => auth()->id(),
             'action' => 'tracking_status_auto',
-            'content' => json_encode([
-                'label' => 'hành trình',
-                'summary' => 'tự động thêm hành trình khi đổi trạng thái đơn',
-            ], JSON_UNESCAPED_UNICODE),
             'thoigian' => $time ?? now(),
             'diadiem' => self::locationFor($order, $status),
             'trangthai' => $status->label(),

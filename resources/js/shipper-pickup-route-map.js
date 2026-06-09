@@ -4,6 +4,7 @@ const VIETMAP_GL_JS_URL = `https://unpkg.com/@vietmap/vietmap-gl-js@${VIETMAP_GL
 const OVERLAY_ID = 'shipper-route-overlay';
 const MAP_ID = 'shipper-route-map';
 const DEFAULT_CENTER = [106.66817068179284, 10.803866192772915];
+const VIETMAP_PROXY_BASE = '/api/vietmap';
 
 let vietmapPromise = null;
 let routeMap = null;
@@ -13,11 +14,41 @@ let activePickup = null;
 let routeButtonsBound = false;
 
 function getTileApiKey() {
-    return window.__VIETMAP_CONFIG__?.tileApiKey || import.meta.env.VITE_VIETMAP_API_KEY_TITLE;
+    return window.__VIETMAP_PUBLIC_CONFIG__?.tileApiKey || '';
 }
 
-function getRouteApiKey() {
-    return window.__VIETMAP_CONFIG__?.geocodeApiKey || import.meta.env.VITE_VIETMAP_API_KEY;
+function getVietmapStyleUrl() {
+    return `https://maps.vietmap.vn/maps/styles/tm/style.json?apikey=${encodeURIComponent(getTileApiKey())}`;
+}
+
+function getVietmapUrl(path, params = {}) {
+    const url = new URL(`${VIETMAP_PROXY_BASE}/${path}`, window.location.origin);
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+            value.forEach((item) => url.searchParams.append(`${key}[]`, item));
+            return;
+        }
+
+        if (value !== undefined && value !== null && value !== '') {
+            url.searchParams.set(key, value);
+        }
+    });
+
+    return url.toString();
+}
+
+async function fetchVietmapJson(path, params = {}) {
+    const response = await fetch(getVietmapUrl(path, params), {
+        headers: { Accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+        const message = response.status === 503 ? 'missing-config' : 'vietmap-request-failed';
+        throw new Error(message);
+    }
+
+    return response.json();
 }
 
 function ensureVietmap() {
@@ -311,11 +342,11 @@ async function initMap() {
         setTimeout(() => routeMap?.resize(), 150);
         return routeMap;
     }
-    const tileApiKey = getTileApiKey();
-    if (!tileApiKey) throw new Error('Chưa cấu hình VietMap Tile API Key.');
+    if (!getTileApiKey()) throw new Error('Chưa cấu hình VietMap Tile API Key.');
+
     routeMap = new window.vietmapgl.Map({
         container: MAP_ID,
-        style: getVietmapStreetStyleUrl(tileApiKey),
+        style: getVietmapStyleUrl(),
         center: DEFAULT_CENTER,
         zoom: 12,
     });
@@ -342,60 +373,22 @@ async function initMap() {
 }
 
 async function fetchRoute(origin, destination) {
-    const apiKey = getRouteApiKey();
-    if (!apiKey) throw new Error('Chưa cấu hình VietMap Geocode/Route API Key.');
-
-    const params = new URLSearchParams({
-        apikey: apiKey,
+    const data = await fetchVietmapJson('route', {
         points_encoded: 'false',
         vehicle: 'motorcycle',
-    });
-    params.append('point', `${origin.lat},${origin.lng}`);
-    params.append('point', `${destination.lat},${destination.lng}`);
-
-    const response = await fetch(`https://maps.vietmap.vn/api/route/v3?${params.toString()}`, {
-        headers: { Accept: 'application/json' },
+        point: [
+            `${origin.lat},${origin.lng}`,
+            `${destination.lat},${destination.lng}`,
+        ],
     });
 
-    if (!response.ok) throw new Error('Không gọi được VietMap Route API.');
-
-    const data = await response.json();
     if (data?.code !== 'OK' || !Array.isArray(data?.paths) || !data.paths[0]) {
         throw new Error(data?.messages || 'Không tìm thấy tuyến đường phù hợp.');
     }
 
     return data.paths[0];
 }
-function createVietmapRasterStyle(apiKey) {
-    return {
-        version: 8,
-        sources: {
-            'vietmap-raster': {
-                type: 'raster',
-                tiles: [
-                    `https://maps.vietmap.vn/maps/tiles/st/{z}/{x}/{y}.png?apikey=${apiKey}`,
-                ],
-                tileSize: 256,
-                attribution: '© VietMap',
-            },
-        },
-        layers: [
-            {
-                id: 'vietmap-raster',
-                type: 'raster',
-                source: 'vietmap-raster',
-            },
-        ],
-    };
-}
 
-function getVietmapStreetStyleUrl(apiKey) {
-    return `https://maps.vietmap.vn/maps/styles/tm/style.json?apikey=${apiKey}`;
-}
-
-function getVietmapTrafficStyleUrl(apiKey) {
-    return `https://maps.vietmap.vn/maps/styles/tf/style.json?apikey=${apiKey}`;
-}
 function routeCoordinates(path) {
     const points = path?.points?.coordinates || path?.points;
     if (!Array.isArray(points)) return [];

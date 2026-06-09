@@ -31,7 +31,7 @@ class CreatePickupAction
 
             $pickup = Pickup::create([
                 'ma_pickup' => Pickup::generateCode(),
-                'id_user' => $userId ?? auth()->id(),
+                'id_user' => $data['ops_id'] ?? $userId ?? auth()->id(),
                 'ngay_tao' => now(),
                 'total_weight' => (float) ($data['total_weight'] ?? $lockedOrder->pickup_total_weight ?? 0),
                 'total_c_weight' => (float) ($data['total_weight'] ?? $lockedOrder->pickup_total_weight ?? 0),

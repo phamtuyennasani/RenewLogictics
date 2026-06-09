@@ -1,0 +1,503 @@
+<?php
+use App\Actions\Pickup\TransitionPickupStatusAction;
+use App\Enums\PickupStatusEnum;
+use App\Models\News;
+use App\Models\Pickup;
+use App\Models\Province;
+use App\Models\User;
+use App\Models\Ward;
+use Flux\Flux;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Title;
+use Livewire\Component;
+use Livewire\WithoutUrlPagination;
+use Livewire\WithPagination;
+use Illuminate\Validation\Rule;
+
+new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Component
+{
+    use WithPagination, WithoutUrlPagination;
+
+    public string $keyword = '';
+    public string $status = '';
+    public ?string $fromDate = null;
+    public ?string $toDate = null;
+    public ?int $filterOpsId = null;
+    public ?int $filterShipperId = null;
+    public ?int $selectedPickupId = null;
+    public ?int $selectedShipperId = null;
+    public ?int $editPickupId = null;
+    public array $editForm = [
+        'ops_id' => null,
+        'shipper_id' => null,
+        'company' => '',
+        'fullname' => '',
+        'phone' => '',
+        'email' => '',
+        'country' => 'VIETNAM',
+        'address' => '',
+        'id_city' => null,
+        'id_ward' => null,
+        'pickup_lat' => null,
+        'pickup_lng' => null,
+    ];
+
+    public function mount(): void
+    {
+        abort_unless(\Gate::allows('pickups.index'), 403);
+        $this->fromDate ??= now()->subDays(30)->format('Y-m-d');
+        $this->toDate ??= now()->format('Y-m-d');
+    }
+
+    public function updating($property): void
+    {
+        if (in_array($property, ['keyword', 'status', 'fromDate', 'toDate', 'filterOpsId', 'filterShipperId'], true)) {
+            $this->resetPage();
+        }
+    }
+
+    public function resetFilters(): void
+    {
+        $this->keyword = '';
+        $this->status = '';
+        $this->fromDate = now()->subDays(30)->format('Y-m-d');
+        $this->toDate = now()->format('Y-m-d');
+        $this->filterOpsId = null;
+        $this->filterShipperId = null;
+        $this->resetPage();
+        $this->dispatch('pickup-filter-synced', filters: $this->filterPayload());
+    }
+
+    public function setStatusFilter(string $status = ''): void
+    {
+        $this->status = $status;
+        $this->resetPage();
+    }
+
+    public function setDatePreset(string $preset): void
+    {
+        if ($preset === 'today') {
+            $this->fromDate = now()->format('Y-m-d');
+            $this->toDate = now()->format('Y-m-d');
+        } elseif ($preset === '7') {
+            $this->fromDate = now()->subDays(6)->format('Y-m-d');
+            $this->toDate = now()->format('Y-m-d');
+        } else {
+            $this->fromDate = now()->subDays(30)->format('Y-m-d');
+            $this->toDate = now()->format('Y-m-d');
+        }
+
+        $this->resetPage();
+        $this->dispatch('pickup-filter-synced', filters: $this->filterPayload());
+    }
+
+    protected function pickupsQuery(bool $includeStatus = true, bool $includeRelations = true)
+    {
+        return Pickup::query()
+            ->when($includeRelations, fn ($query) => $query
+                ->with(['user:id,fullname,username,code', 'shipper:id,fullname,username,code'])
+                ->withCount('orders'))
+            ->when($this->keyword !== '', function ($query) {
+                $keyword = trim($this->keyword);
+                $query->where(function ($subQuery) use ($keyword) {
+                    $subQuery->where('ma_pickup', 'like', '%'.$keyword.'%')
+                        ->orWhere('info_khachhang', 'like', '%'.$keyword.'%')
+                        ->orWhereHas('orders', fn ($orderQuery) => $orderQuery
+                            ->where('id_bill', 'like', '%'.$keyword.'%')
+                            ->orWhere('tracking_code', 'like', '%'.$keyword.'%'));
+                });
+            })
+            ->when($includeStatus && $this->status !== '', fn ($query) => $query->where('status', $this->status))
+            ->when($this->canFilterPickupOps() && $this->filterOpsId, fn ($query) => $query->where('id_user', $this->filterOpsId))
+            ->when($this->canFilterPickupShipper() && $this->filterShipperId, fn ($query) => $query->where('id_shipper', $this->filterShipperId))
+            ->when($this->fromDate, fn ($query) => $query->whereDate('ngay_tao', '>=', $this->fromDate))
+            ->when($this->toDate, fn ($query) => $query->whereDate('ngay_tao', '<=', $this->toDate));
+    }
+
+    public function getPickupsProperty()
+    {
+        return $this->pickupsQuery()
+            ->latest('ngay_tao')
+            ->paginate(15);
+    }
+
+    public function getPickupStatusCountsProperty(): array
+    {
+        $counts = (clone $this->pickupsQuery(false, false))
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn ($value) => (int) $value)
+            ->all();
+
+        return [
+            'all' => array_sum($counts),
+            ...$counts,
+        ];
+    }
+
+    public function canFilterPickupOps(): bool
+    {
+        return auth()->user()?->hasAnyRole(['admin', 'cs', 'manager', 'sale']) ?? false;
+    }
+
+    public function canFilterPickupShipper(): bool
+    {
+        return auth()->user()?->hasAnyRole(['admin', 'cs', 'manager', 'sale', 'ops']) ?? false;
+    }
+
+    public function filterPayload(): array
+    {
+        return [
+            'fromDate' => $this->fromDate,
+            'toDate' => $this->toDate,
+            'status' => $this->status,
+            'filterOpsId' => $this->filterOpsId,
+            'filterShipperId' => $this->filterShipperId,
+        ];
+    }
+
+    public function openDetails(int $pickupId): void
+    {
+        $this->selectedPickupId = $pickupId;
+        $this->selectedShipperId = $this->selectedPickup?->id_shipper;
+        Flux::modal('pickup-details')->show();
+    }
+
+    public function closeDetails(): void
+    {
+        $this->selectedPickupId = null;
+        $this->selectedShipperId = null;
+    }
+
+    public function openEdit(int $pickupId): void
+    {
+        $pickup = Pickup::query()->findOrFail($pickupId);
+        abort_unless($this->canEditPickup($pickup), 403);
+
+        $sender = $pickup->info_khachhang ?? [];
+
+        $this->resetValidation();
+        $this->editPickupId = $pickup->id;
+        $this->editForm = [
+            'ops_id' => $pickup->id_user,
+            'shipper_id' => $pickup->id_shipper,
+            'company' => data_get($sender, 'company', ''),
+            'fullname' => data_get($sender, 'fullname', ''),
+            'phone' => data_get($sender, 'phone', ''),
+            'email' => data_get($sender, 'email', ''),
+            'country' => data_get($sender, 'country', 'VIETNAM') ?: 'VIETNAM',
+            'address' => data_get($sender, 'address', ''),
+            'id_city' => data_get($sender, 'id_city', data_get($sender, 'city_id')),
+            'id_ward' => data_get($sender, 'id_ward', data_get($sender, 'ward_id')),
+            'pickup_lat' => data_get($sender, 'pickup_lat'),
+            'pickup_lng' => data_get($sender, 'pickup_lng'),
+        ];
+
+        Flux::modal('pickup-details')->close();
+        Flux::modal('pickup-edit')->show();
+        $this->dispatch('pickup-edit-modal-opened');
+    }
+
+    public function closeEdit(): void
+    {
+        $this->editPickupId = null;
+        $this->editForm = [
+            'ops_id' => null,
+            'shipper_id' => null,
+            'company' => '',
+            'fullname' => '',
+            'phone' => '',
+            'email' => '',
+            'country' => 'VIETNAM',
+            'address' => '',
+            'id_city' => null,
+            'id_ward' => null,
+            'pickup_lat' => null,
+            'pickup_lng' => null,
+        ];
+        $this->resetValidation();
+    }
+
+    public function updatedEditFormIdCity(): void
+    {
+        $this->editForm['id_ward'] = null;
+    }
+
+    public function saveEditPickup(): void
+    {
+        $pickup = $this->editingPickup;
+        abort_unless($pickup && $this->canEditPickup($pickup), 403);
+
+        $canEditOps = $this->canEditOpsForPickup($pickup);
+        $canEditShipper = $this->canEditShipperForPickup($pickup);
+        $canEditSender = $this->canEditSenderForPickup($pickup);
+
+        try {
+            $rules = [];
+
+            if ($canEditOps) {
+                $rules['editForm.ops_id'] = ['nullable', Rule::exists((new User())->getTable(), 'id')];
+            }
+
+            if ($canEditShipper) {
+                $rules['editForm.shipper_id'] = [
+                    $pickup->status === PickupStatusEnum::DA_HUY ? 'required' : 'nullable',
+                    Rule::exists((new User())->getTable(), 'id'),
+                ];
+            }
+
+            if ($canEditSender) {
+                $rules += [
+                    'editForm.company' => 'required|string|max:255',
+                    'editForm.fullname' => 'required|string|max:255',
+                    'editForm.phone' => 'required|string|max:50',
+                    'editForm.email' => 'nullable|email|max:255',
+                    'editForm.country' => 'required|string|max:100',
+                    'editForm.address' => 'required|string|max:500',
+                    'editForm.id_city' => 'required|exists:province,id',
+                    'editForm.id_ward' => 'required|exists:wards,id',
+                    'editForm.pickup_lat' => 'nullable|numeric',
+                    'editForm.pickup_lng' => 'nullable|numeric',
+                ];
+            }
+
+            $data = $this->validate($rules)['editForm'] ?? [];
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            Flux::toast(duration: 3500, heading: 'Thiếu thông tin', text: $exception->validator->errors()->first(), variant: 'warning');
+            return;
+        }
+
+        if ($canEditOps && filled($data['ops_id'] ?? null)) {
+            $opsIsValid = User::query()
+                ->whereKey($data['ops_id'] ?? null)
+                ->whereHas('roles', fn ($query) => $query->where('name', 'ops'))
+                ->exists();
+
+            if (! $opsIsValid) {
+                $this->addError('editForm.ops_id', 'Vui lòng chọn OPS hợp lệ.');
+                return;
+            }
+        }
+
+        if ($canEditShipper && filled($data['shipper_id'] ?? null)) {
+            $shipperIsValid = User::query()
+                ->whereKey($data['shipper_id'] ?? null)
+                ->whereHas('roles', fn ($query) => $query->where('name', 'shipper'))
+                ->exists();
+
+            if (! $shipperIsValid) {
+                $this->addError('editForm.shipper_id', 'Vui lòng chọn shipper hợp lệ.');
+                return;
+            }
+        }
+
+        if ($canEditSender) {
+            $wardIsValid = Ward::query()
+                ->whereKey($data['id_ward'] ?? null)
+                ->where('parent_code', $data['id_city'] ?? null)
+                ->exists();
+
+            if (! $wardIsValid) {
+                $this->addError('editForm.id_ward', 'Phường/xã không thuộc tỉnh/thành phố đã chọn.');
+                return;
+            }
+        }
+
+        $updates = [];
+
+        if ($canEditOps && filled($data['ops_id'] ?? null)) {
+            $updates['id_user'] = (int) $data['ops_id'];
+        }
+
+        if ($canEditShipper && filled($data['shipper_id'] ?? null)) {
+            $updates['id_shipper'] = (int) $data['shipper_id'];
+
+            if ($pickup->status === PickupStatusEnum::DA_HUY) {
+                $updates['status'] = PickupStatusEnum::MOI_TAO_PICKUP;
+            }
+        }
+
+        if ($canEditSender) {
+            $currentSender = $pickup->info_khachhang ?? [];
+            $updates['info_khachhang'] = array_merge($currentSender, [
+                'company' => trim($data['company']),
+                'fullname' => trim($data['fullname']),
+                'phone' => trim($data['phone']),
+                'email' => trim((string) ($data['email'] ?? '')),
+                'country' => trim($data['country']),
+                'address' => trim($data['address']),
+                'id_city' => (int) $data['id_city'],
+                'id_ward' => (int) $data['id_ward'],
+                'pickup_lat' => is_numeric($data['pickup_lat'] ?? null) ? (float) $data['pickup_lat'] : data_get($currentSender, 'pickup_lat'),
+                'pickup_lng' => is_numeric($data['pickup_lng'] ?? null) ? (float) $data['pickup_lng'] : data_get($currentSender, 'pickup_lng'),
+            ]);
+        }
+
+        $pickup->forceFill($updates)->save();
+
+        Flux::modal('pickup-edit')->close();
+        $this->closeEdit();
+        Flux::toast(duration: 2500, heading: 'Đã cập nhật Pickup', text: 'Thông tin Pickup đã được lưu.', variant: 'success');
+    }
+
+    public function updateStatus(string $status): void
+    {
+        $pickup = $this->selectedPickup;
+        abort_unless($pickup, 404);
+
+        try {
+            TransitionPickupStatusAction::execute($pickup, PickupStatusEnum::from($status));
+        } catch (\RuntimeException $exception) {
+            Flux::toast(heading: 'Không thể cập nhật Pickup', text: $exception->getMessage(), variant: 'warning');
+            return;
+        }
+
+        Flux::toast(heading: 'Đã cập nhật Pickup', text: 'Trạng thái phiếu Pickup đã được cập nhật.', variant: 'success');
+    }
+
+    public function reassignShipper(): void
+    {
+        abort_unless(auth()->user()?->hasAnyRole(['admin', 'manager']), 403);
+
+        $pickup = $this->selectedPickup;
+        abort_unless($pickup, 404);
+
+        if ($pickup->status !== PickupStatusEnum::DA_HUY) {
+            Flux::toast(heading: 'Không thể gán lại', text: 'Chỉ gán lại shipper cho phiếu Pickup đã hủy.', variant: 'warning');
+            return;
+        }
+
+        $shipper = User::query()
+            ->whereKey($this->selectedShipperId)
+            ->whereHas('roles', fn ($query) => $query->where('name', 'shipper'))
+            ->first();
+
+        if (! $shipper) {
+            Flux::toast(heading: 'Thiếu shipper', text: 'Vui lòng chọn shipper hợp lệ.', variant: 'warning');
+            return;
+        }
+
+        $pickup->forceFill([
+            'id_shipper' => $shipper->id,
+            'status' => PickupStatusEnum::MOI_TAO_PICKUP,
+        ])->save();
+
+        Flux::toast(heading: 'Đã gán lại shipper', text: 'Pickup đã chuyển về trạng thái Mới tạo.', variant: 'success');
+    }
+
+    public function getSelectedPickupProperty(): ?Pickup
+    {
+        if (! $this->selectedPickupId) {
+            return null;
+        }
+
+        return Pickup::query()
+            ->with(['user:id,fullname,username', 'shipper:id,fullname,username', 'orders'])
+            ->withCount('orders')
+            ->findOrFail($this->selectedPickupId);
+    }
+
+    public function getEditingPickupProperty(): ?Pickup
+    {
+        if (! $this->editPickupId) {
+            return null;
+        }
+
+        return Pickup::query()
+            ->with(['user:id,fullname,username', 'shipper:id,fullname,username'])
+            ->findOrFail($this->editPickupId);
+    }
+
+    public function canEditPickup(?Pickup $pickup = null): bool
+    {
+        $pickup ??= $this->editingPickup;
+
+        if (! $pickup) {
+            return false;
+        }
+
+        if ($pickup->status === PickupStatusEnum::PICKUP_DA_LAY) {
+            return false;
+        }
+
+        return $this->canEditOpsForPickup($pickup)
+            || $this->canEditShipperForPickup($pickup)
+            || $this->canEditSenderForPickup($pickup);
+    }
+
+    public function canEditOpsForPickup(?Pickup $pickup = null): bool
+    {
+        return (bool) $pickup && auth()->user()?->hasAnyRole(['admin', 'manager', 'ops']);
+    }
+
+    public function canEditShipperForPickup(?Pickup $pickup = null): bool
+    {
+        if (! $pickup) {
+            return false;
+        }
+
+        if ($pickup->status === PickupStatusEnum::MOI_TAO_PICKUP) {
+            return auth()->user()?->hasAnyRole(['admin', 'manager', 'ops']);
+        }
+
+        if ($pickup->status === PickupStatusEnum::DA_HUY) {
+            return auth()->user()?->hasAnyRole(['admin', 'manager']);
+        }
+
+        return false;
+    }
+
+    public function canEditSenderForPickup(?Pickup $pickup = null): bool
+    {
+        return (bool) $pickup
+            && $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP
+            && auth()->user()?->hasAnyRole(['admin', 'manager', 'sale', 'ctv']);
+    }
+
+    public function getSelectedVehicleProperty(): ?News
+    {
+        $id = data_get($this->selectedPickup?->info_pickup, 'id_phuongtien');
+
+        return $id ? News::query()->find($id) : null;
+    }
+
+    public function getSelectedBranchProperty(): ?News
+    {
+        $id = data_get($this->selectedPickup?->info_pickup, 'chinhanhnhanhang');
+
+        return $id ? News::query()->find($id) : null;
+    }
+
+    public function getPickupShippersProperty()
+    {
+        return User::query()
+            ->whereHas('roles', fn ($query) => $query->where('name', 'shipper'))
+            ->orderBy('fullname')
+            ->orderBy('username')
+            ->get(['id', 'fullname', 'username']);
+    }
+
+    public function getPickupOpsUsersProperty()
+    {
+        return User::query()
+            ->whereHas('roles', fn ($query) => $query->where('name', 'ops'))
+            ->orderBy('fullname')
+            ->orderBy('username')
+            ->get(['id', 'fullname', 'username']);
+    }
+
+    public function pickupProvinces()
+    {
+        return Province::query()->orderBy('name')->get(['id', 'name']);
+    }
+
+    public function pickupWards()
+    {
+        return Ward::query()
+            ->when(data_get($this->editForm, 'id_city'), fn ($query, $cityId) => $query->where('parent_code', $cityId))
+            ->when(! data_get($this->editForm, 'id_city'), fn ($query) => $query->whereRaw('1 = 0'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+};

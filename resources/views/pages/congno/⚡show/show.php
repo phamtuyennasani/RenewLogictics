@@ -1213,7 +1213,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
     public function openSaleChargeModal(int $detailId): void
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canEditSaleCharge(), 403);
         $this->claimAccountantIfNeeded();
 
         if ($this->debt->canCreatePaymentInvoice()) {
@@ -1243,11 +1243,11 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
     public function saveSaleCharge(): void
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canEditSaleCharge(), 403);
         $this->claimAccountantIfNeeded();
 
-        if ($this->debt->status === DebtStatusEnum::DA_THANH_TOAN) {
-            Flux::toast(heading: 'Không thể sửa', text: 'Công nợ đã thanh toán không thể sửa cước bán.', variant: 'warning');
+        if ($this->debt->canCreatePaymentInvoice() || $this->debt->status === DebtStatusEnum::DA_THANH_TOAN) {
+            Flux::toast(heading: 'Không thể sửa', text: 'Công nợ đã chốt cước, không thể sửa cước bán.', variant: 'warning');
             return;
         }
 
@@ -1490,6 +1490,13 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             || $this->isAssignedAccountant()
             || $this->isUnassignedAccountant()
             || $this->isOwnerSaleEditable();
+    }
+
+    public function canEditSaleCharge(): bool
+    {
+        return $this->hasDebtAdminPower()
+            || $this->isAssignedAccountant()
+            || $this->isUnassignedAccountant();
     }
 
     /**

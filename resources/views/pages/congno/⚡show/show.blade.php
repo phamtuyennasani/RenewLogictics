@@ -214,7 +214,7 @@
                                 <td class="whitespace-nowrap px-4 py-4 text-right align-top font-bold text-neutral-950">{{ $this->money($detail->cuocban) }}</td>
                                 <td class="px-4 py-4 text-right align-top">
                                     <div class="flex justify-end gap-2">
-                                        @if ($this->canManage() && ! $debt->canCreatePaymentInvoice() && $debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN && $order?->uuid)
+                                        @if ($this->canEditSaleCharge() && ! $debt->canCreatePaymentInvoice() && $debt->status !== \App\Enums\DebtStatusEnum::DA_THANH_TOAN && $order?->uuid)
                                             <button type="button" wire:click="openSaleChargeModal({{ $detail->id }})" class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-2.5 text-xs font-semibold text-neutral-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700" title="Edit cước bán">
                                                 <flux:icon.pencil-square class="size-4" />
                                                 Cước bán

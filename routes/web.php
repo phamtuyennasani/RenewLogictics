@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\CongNo\CongNoDataTableController;
 use App\Http\Controllers\CongNo\CongNoDaiLyDataTableController;
 use App\Http\Controllers\Api\GlobalSearchController;
+use App\Http\Controllers\Api\VietmapProxyController;
 use App\Http\Controllers\Order\OrderDataTableController;
 use App\Services\Providers\Sepay\SepayPaymentService;
 use App\Http\Controllers\Payment\PaymentReturnController;
@@ -85,6 +86,12 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     // --- Global Search API ---
     Route::get('/api/global-search', GlobalSearchController::class)->name('api.global-search');
+    Route::prefix('api/vietmap')->name('api.vietmap.')->middleware('throttle:600,1')->group(function () {
+        Route::get('/search', [VietmapProxyController::class, 'search'])->name('search');
+        Route::get('/place', [VietmapProxyController::class, 'place'])->name('place');
+        Route::get('/reverse', [VietmapProxyController::class, 'reverse'])->name('reverse');
+        Route::get('/route', [VietmapProxyController::class, 'routeDirections'])->name('route');
+    });
 
     // --- Dashboard ---
     Route::livewire('/dashboard', 'pages::dashboard.index')->name('dashboard')

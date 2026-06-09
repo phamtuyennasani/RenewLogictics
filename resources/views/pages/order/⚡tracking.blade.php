@@ -39,7 +39,12 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
     public function mount(string $uuid): void
     {
         $this->order = Order::query()
-            ->with(['packages', 'customer:id,fullname,code', 'sale:id,fullname,username,code'])
+            ->with([
+                'packages',
+                'customer:id,fullname,code',
+                'sale:id,fullname,username,code',
+                'shipmentLoadHistories.shipmentLoad:id,code',
+            ])
             ->where('uuid', $uuid)
             ->firstOrFail();
 
@@ -241,6 +246,15 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
 
     public function getTrackingHistoriesProperty()
     {
+        return $this->orderTrackingHistoryRows()
+            ->merge($this->shipmentLoadHistoryRows())
+            ->merge($this->commonTrackingMoreHistoryRows())
+            ->sortByDesc(fn (array $row) => $row['sort_time'])
+            ->values();
+    }
+
+    protected function orderTrackingHistoryRows()
+    {
         return $this->order->histories()
             ->where(function ($query) {
                 $query->whereNotNull('thoigian')
@@ -248,33 +262,149 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                     ->orWhere('action', 'tracking_history');
             })
             ->orderByRaw('COALESCE(thoigian, created_at) desc')
-            ->get();
+            ->get()
+            ->map(function (OrderHistory $history) {
+                $source = $this->orderHistorySourceKey($history);
+                $sourceLabel = $this->orderHistorySourceLabel($history);
+
+                return [
+                    'id' => 'order-'.$history->id,
+                    'history_id' => $history->id,
+                    'source' => $source,
+                    'source_label' => $sourceLabel,
+                    'source_meta' => $this->trackingHistorySourceMeta($source, $sourceLabel),
+                    'time' => $history->thoigian ?: $history->created_at,
+                    'location' => $history->diadiem,
+                    'status' => $history->trangthai,
+                    'detail' => $history->ghichu ?: $this->orderHistorySummary($history),
+                    'can_delete' => true,
+                    'sort_time' => ($history->thoigian ?: $history->created_at)?->timestamp ?? 0,
+                ];
+            });
+    }
+
+    protected function shipmentLoadHistoryRows()
+    {
+        return $this->order->shipmentLoadHistories()
+            ->with('shipmentLoad:id,code')
+            ->get()
+            ->map(function ($history) {
+                $loadCode = $history->shipmentLoad?->code;
+
+                $sourceLabel = $loadCode ? 'Tải '.$loadCode : 'Tải hàng';
+
+                return [
+                    'id' => 'shipment-load-'.$history->id,
+                    'history_id' => null,
+                    'source' => 'shipment_load',
+                    'source_label' => $sourceLabel,
+                    'source_meta' => $this->trackingHistorySourceMeta('shipment_load', $sourceLabel),
+                    'time' => $history->thoigian ?: $history->created_at,
+                    'location' => $history->diadiem,
+                    'status' => $history->trangthai,
+                    'detail' => $history->ghichu,
+                    'can_delete' => false,
+                    'sort_time' => ($history->thoigian ?: $history->created_at)?->timestamp ?? 0,
+                ];
+            });
+    }
+
+    protected function commonTrackingMoreHistoryRows()
+    {
+        if (! $this->trackingMoreEnabled() || $this->trackingMode !== 'common') {
+            return collect();
+        }
+
+        $trackingNumber = trim((string) ($this->trackingCode ?: $this->order->mathamchieu));
+        $courierCode = trim((string) ($this->commonCourierCode ?: $this->order->id_thamchieu));
+
+        if ($trackingNumber === '' || $courierCode === '') {
+            return collect();
+        }
+
+        $result = $this->trackingResultFor($trackingNumber, $courierCode);
+
+        if (filled($result['error'] ?? null)) {
+            return collect();
+        }
+
+        return collect($result['events'] ?? [])
+            ->map(fn (array $event, int $index) => [
+                'id' => 'tracking-more-'.$index.'-'.(($event['time']?->timestamp) ?? 0),
+                'history_id' => null,
+                'source' => 'tracking_more',
+                'source_label' => 'TrackingMore',
+                'source_meta' => $this->trackingHistorySourceMeta('tracking_more', 'TrackingMore'),
+                'time' => $event['time'] ?? null,
+                'location' => $event['location'] ?? null,
+                'status' => $event['status'] ?? null,
+                'detail' => $event['detail'] ?? null,
+                'can_delete' => false,
+                'sort_time' => ($event['time']?->timestamp) ?? 0,
+            ]);
+    }
+
+    protected function orderHistorySourceKey(OrderHistory $history): string
+    {
+        return match ($history->action) {
+            'tracking_history' => 'manual',
+            'shipment_load_approved' => 'shipment_load',
+            default => 'order',
+        };
+    }
+
+    protected function orderHistorySourceLabel(OrderHistory $history): string
+    {
+        return match ($history->action) {
+            'tracking_history' => 'Nhập tay',
+            'tracking_status_auto' => 'Đơn hàng',
+            'shipment_load_approved' => 'Tải hàng',
+            default => 'Đơn hàng',
+        };
+    }
+
+    protected function trackingHistorySourceMeta(string $source, string $label): array
+    {
+        return match ($source) {
+            'manual' => [
+                'title' => $label,
+                'class' => 'border-emerald-200 bg-emerald-50 text-emerald-700',
+                'icon' => 'M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 7.125L16.875 4.5M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10',
+            ],
+            'shipment_load' => [
+                'title' => $label,
+                'class' => 'border-amber-200 bg-amber-50 text-amber-700',
+                'icon' => 'M8.25 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM15.75 18.75a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM3.75 6.75h9v9h-9v-9zM12.75 9.75h3.879c.398 0 .779.158 1.06.44l2.121 2.121c.281.281.44.663.44 1.06v2.379h-7.5v-6z',
+            ],
+            'tracking_more' => [
+                'title' => $label,
+                'class' => 'border-sky-200 bg-sky-50 text-sky-700',
+                'icon' => 'M3.75 15a4.5 4.5 0 014.5-4.5h.474A6.75 6.75 0 0121 12.75 4.5 4.5 0 0116.5 17.25H8.25A4.5 4.5 0 013.75 15z',
+            ],
+            default => [
+                'title' => $label,
+                'class' => 'border-neutral-200 bg-neutral-100 text-neutral-600',
+                'icon' => 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5A3.375 3.375 0 0010.125 2.25H6.75A2.25 2.25 0 004.5 4.5v15A2.25 2.25 0 006.75 21h10.5a2.25 2.25 0 002.25-2.25v-4.5zM13.5 2.25V6a2.25 2.25 0 002.25 2.25h3.75',
+            ],
+        };
+    }
+
+    protected function orderHistorySummary(OrderHistory $history): string
+    {
+        $content = json_decode((string) $history->content, true);
+
+        return is_array($content)
+            ? (string) ($content['summary'] ?? '')
+            : (string) $history->content;
     }
 
     public function getPackageTrackingHistoriesProperty(): array
     {
-        if (! $this->trackingMoreEnabled()) {
+        if (! $this->trackingMoreEnabled() || $this->trackingMode !== 'packages') {
             return [];
         }
 
         $packages = $this->order->packages;
-
-        if ($this->trackingMode === 'common') {
-            return [array_merge([
-                'id' => 'common',
-                'label' => 'Tracking chung',
-                'code' => $this->order->id_bill ?: 'Don hang #'.$this->order->id,
-                'courier_code' => trim((string) ($this->commonCourierCode ?: $this->order->id_thamchieu)),
-                'tracking_number' => trim((string) ($this->trackingCode ?: $this->order->mathamchieu)),
-                'latest_status' => null,
-                'latest_time' => null,
-                'events' => [],
-                'error' => null,
-            ], $this->trackingResultFor(
-                trim((string) ($this->trackingCode ?: $this->order->mathamchieu)),
-                trim((string) ($this->commonCourierCode ?: $this->order->id_thamchieu))
-            ))];
-        }
 
         return $packages
             ->map(function (OrderPackage $package) {
@@ -641,7 +771,7 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
 
         $this->savePackageTrackings();
 
-        $this->order->refresh()->load('packages');
+        $this->order->refresh()->load(['packages', 'shipmentLoadHistories.shipmentLoad']);
         $this->trackingCode = (string) ($this->order->tracking_code ?? '');
         $this->commonCourierCode = (string) ($this->order->id_thamchieu ?? '');
         $this->billStatus = $this->order->bill_status?->value ?? '';
@@ -769,7 +899,7 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
 
         OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
         $this->order->save();
-        $this->order->refresh();
+        $this->order->refresh()->load(['packages', 'shipmentLoadHistories.shipmentLoad']);
 
         $this->historyForm = [
             'thoigian' => now()->format('Y-m-d H:i'),
@@ -931,32 +1061,34 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-xs font-semibold text-neutral-500">{{ $historyRows->count() }} mốc</span>
-                    @if($this->canUpdate && $historyRows->isNotEmpty())
-                        <button type="button" wire:click="deleteAllTrackingHistories" wire:confirm="Xóa toàn bộ lịch sử vận chuyển?" class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-300 hover:bg-red-100">
-                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            Xóa lịch sử
-                        </button>
-                    @endif
                 </div>
             </div>
 
             <div class="divide-y divide-neutral-100">
                 @forelse($historyRows as $history)
+                    @php($sourceMeta = $history['source_meta'] ?? ['title' => $history['source_label'] ?? 'Nguồn', 'class' => 'border-neutral-200 bg-neutral-100 text-neutral-600', 'icon' => 'M13.5 6H5.25A2.25 2.25 0 003 8.25v7.5A2.25 2.25 0 005.25 18h13.5A2.25 2.25 0 0021 15.75v-7.5A2.25 2.25 0 0018.75 6H13.5z'])
                     <div class="grid gap-3 px-5 py-4 md:grid-cols-12 md:items-start">
-                        <div class="md:col-span-2">
-                            <p class="text-sm font-semibold text-neutral-900">{{ ($history->thoigian ?: $history->created_at)?->format('d/m/Y') }}</p>
-                            <p class="mt-0.5 text-xs text-neutral-500">{{ ($history->thoigian ?: $history->created_at)?->format('H:i') }}</p>
+                        <div class="flex items-start gap-3 md:col-span-2">
+                            <span class="mt-0.5 inline-flex h-8 w-8 flex-none items-center justify-center rounded-full border {{ $sourceMeta['class'] }}" title="{{ $sourceMeta['title'] }}" aria-label="{{ $sourceMeta['title'] }}">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="{{ $sourceMeta['icon'] }}"/>
+                                </svg>
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-neutral-900">{{ $history['time']?->format('d/m/Y') ?: '-' }}</p>
+                                <p class="mt-0.5 text-xs text-neutral-500">{{ $history['time']?->format('H:i') ?: '-' }}</p>
+                            </div>
                         </div>
                         <div class="md:col-span-3">
-                            <p class="text-sm text-neutral-700">{{ $history->diadiem ?: '-' }}</p>
+                            <p class="text-sm text-neutral-700">{{ $history['location'] ?: '-' }}</p>
                         </div>
                         <div class="md:col-span-3">
-                            <p class="text-sm font-semibold uppercase text-neutral-900">{{ $history->trangthai ?: '-' }}</p>
+                            <p class="text-sm font-semibold uppercase text-neutral-900">{{ $history['status'] ?: '-' }}</p>
                         </div>
                         <div class="flex gap-3 md:col-span-4">
-                            <p class="min-w-0 flex-1 text-sm text-neutral-600">{{ $history->ghichu ?: '-' }}</p>
-                            @if($this->canUpdate)
-                                <button type="button" wire:click="deleteHistory({{ $history->id }})" wire:confirm="Xóa hành trình đã chọn?" class="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-neutral-400 transition hover:bg-red-50 hover:text-red-600" aria-label="Xóa hành trình">
+                            <p class="min-w-0 flex-1 text-sm text-neutral-600">{{ $history['detail'] ?: '-' }}</p>
+                            @if($this->canUpdate && $history['can_delete'])
+                                <button type="button" wire:click="deleteHistory({{ $history['history_id'] }})" wire:confirm="Xóa hành trình đã chọn?" class="flex h-8 w-8 flex-none items-center justify-center rounded-lg text-neutral-400 transition hover:bg-red-50 hover:text-red-600" aria-label="Xóa hành trình">
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                 </button>
                             @endif
@@ -967,7 +1099,7 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                 @endforelse
             </div>
 
-            @if($this->trackingMoreEnabled())
+            @if($this->trackingMoreEnabled() && $this->trackingMode === 'packages')
                 <div class="border-t border-neutral-100">
                     <div class="flex items-center justify-between gap-3 px-5 py-4">
                         <div>

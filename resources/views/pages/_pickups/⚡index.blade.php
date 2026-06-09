@@ -418,6 +418,10 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return false;
         }
 
+        if ($pickup->status === PickupStatusEnum::PICKUP_DA_LAY) {
+            return false;
+        }
+
         return $this->canEditOpsForPickup($pickup)
             || $this->canEditShipperForPickup($pickup)
             || $this->canEditSenderForPickup($pickup);

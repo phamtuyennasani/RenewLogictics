@@ -287,6 +287,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             ->get(['id', 'fullname', 'username']);
     }
 
+    public function getPickupOpsUsersProperty(): \Illuminate\Database\Eloquent\Collection
+    {
+        return User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'ops'))
+            ->orderBy('fullname')
+            ->get(['id', 'fullname', 'username']);
+    }
+
+    public function canSelectOpsForPickup(): bool
+    {
+        return auth()->user()->hasAnyRole(['admin', 'cs', 'manager']);
+    }
+
     public function canSelectShipperForPickup(): bool
     {
         return auth()->user()->hasAnyRole(['admin', 'ops', 'cs', 'manager']);
@@ -314,6 +327,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             'note' => '',
             'pickup_lat' => null,
             'pickup_lng' => null,
+            'ops_id' => null,
             'shipper_id' => null,
         ];
 
@@ -329,9 +343,11 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
     public function createPickup(): void
     {
         abort_unless($this->canCreatePickup(), 403);
+        $mustSelectOps = $this->canSelectOpsForPickup();
+        $mustSelectShipper = $this->canSelectShipperForPickup();
 
         try {
-            $data = $this->validate([
+            $rules = [
                 'pickupForm.company' => 'required|string|max:255',
                 'pickupForm.fullname' => 'required|string|max:255',
                 'pickupForm.phone' => 'required|string|max:50',
@@ -346,9 +362,14 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 'pickupForm.total_weight' => 'nullable|numeric|min:0',
                 'pickupForm.branch_id' => 'nullable|exists:news,id',
                 'pickupForm.note' => 'nullable|string|max:1000',
-                'pickupForm.shipper_id' => ['nullable', Rule::exists((new User())->getTable(), 'id')],
-            ], [
+                'pickupForm.ops_id' => [$mustSelectOps ? 'required' : 'nullable', Rule::exists((new User())->getTable(), 'id')],
+                'pickupForm.shipper_id' => [$mustSelectShipper ? 'required' : 'nullable', Rule::exists((new User())->getTable(), 'id')],
+            ];
+
+            $data = $this->validate($rules, [
                 'pickupForm.vehicle_id.required' => 'Vui lòng chọn phương tiện.',
+                'pickupForm.ops_id.required' => 'Vui lòng chọn OPS phụ trách.',
+                'pickupForm.shipper_id.required' => 'Vui lòng chọn shipper phụ trách.',
             ])['pickupForm'];
         } catch (\Illuminate\Validation\ValidationException $exception) {
             Flux::toast(
@@ -370,8 +391,33 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             return;
         }
 
+        if ($mustSelectOps) {
+            $opsIsValid = User::query()
+                ->whereKey($data['ops_id'] ?? null)
+                ->whereHas('roles', fn ($query) => $query->where('name', 'ops'))
+                ->exists();
+
+            if (! $opsIsValid) {
+                $this->addError('pickupForm.ops_id', 'Vui lòng chọn OPS hợp lệ.');
+                return;
+            }
+        }
+
+        if ($mustSelectShipper) {
+            $shipperIsValid = User::query()
+                ->whereKey($data['shipper_id'] ?? null)
+                ->whereHas('roles', fn ($query) => $query->where('name', 'shipper'))
+                ->exists();
+
+            if (! $shipperIsValid) {
+                $this->addError('pickupForm.shipper_id', 'Vui lòng chọn shipper hợp lệ.');
+                return;
+            }
+        }
+
         try {
             $pickup = CreatePickupAction::execute($this->order, [
+                'ops_id' => $this->resolvePickupOpsId($data),
                 'sender_snapshot' => [
                     'company' => trim($data['company']),
                     'fullname' => trim($data['fullname']),
@@ -390,7 +436,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 'note' => trim((string) ($data['note'] ?? '')),
                 'pickup_lat' => is_numeric($this->pickupForm['pickup_lat'] ?? null) ? (float) $this->pickupForm['pickup_lat'] : null,
                 'pickup_lng' => is_numeric($this->pickupForm['pickup_lng'] ?? null) ? (float) $this->pickupForm['pickup_lng'] : null,
-                'shipper_id' => $this->canSelectShipperForPickup() && filled($data['shipper_id'] ?? null) ? (int) $data['shipper_id'] : null,
+                'shipper_id' => $mustSelectShipper && filled($data['shipper_id'] ?? null) ? (int) $data['shipper_id'] : null,
             ], auth()->id());
         } catch (\Throwable $exception) {
             report($exception);
@@ -401,6 +447,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         $this->order->load('pickups');
         Flux::modal('create-pickup')->close();
         Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã tạo Pickup '.$pickup->ma_pickup.'.', variant: 'success');
+    }
+
+    protected function resolvePickupOpsId(array $data): ?int
+    {
+        if ($this->canSelectOpsForPickup() && filled($data['ops_id'] ?? null)) {
+            return (int) $data['ops_id'];
+        }
+
+        if (auth()->user()->hasRole('ops')) {
+            return auth()->id();
+        }
+
+        return null;
     }
 
     public function pickupProvinces()
@@ -923,9 +982,28 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     <flux:input type="text" wire:model="pickupForm.scheduled_at" data-pickup-scheduled-picker autocomplete="off" />
                     @error('pickupForm.scheduled_at') <flux:error>{{ $message }}</flux:error> @enderror
                 </flux:field>
+                @if($this->canSelectOpsForPickup())
+                    <flux:field class="pickup-create-field">
+                        <flux:label>OPS phụ trách *</flux:label>
+                        <select
+                            wire:model="pickupForm.ops_id"
+                            data-livewire-model="pickupForm.ops_id"
+                            data-livewire-live="false"
+                            data-placeholder="Chọn OPS"
+                            class="tomselectEml pickup-create-select"
+                            autocomplete="off"
+                        >
+                            <option value="">Chọn OPS</option>
+                            @foreach($this->pickupOpsUsers as $ops)
+                                <option value="{{ $ops->id }}">{{ $ops->fullname ?: $ops->username }}</option>
+                            @endforeach
+                        </select>
+                        @error('pickupForm.ops_id') <flux:error>{{ $message }}</flux:error> @enderror
+                    </flux:field>
+                @endif
                 @if($this->canSelectShipperForPickup())
                     <flux:field class="pickup-create-field">
-                        <flux:label>Shipper phụ trách</flux:label>
+                        <flux:label>Shipper phụ trách *</flux:label>
                         <select
                             wire:model="pickupForm.shipper_id"
                             data-livewire-model="pickupForm.shipper_id"

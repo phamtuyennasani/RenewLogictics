@@ -110,15 +110,12 @@
 
     @livewireScripts
     @php
-        $__vietmapOptions = data_get(\App\Models\Setting::first(), 'options', []);
-        $__vietmapTileKey = $__vietmapOptions['vietmap_tile_api_key'] ?? '';
-        $__vietmapGeocodeKey = $__vietmapOptions['vietmap_geocode_api_key'] ?? '';
+        $__vietmapTileKey = data_get(\App\Models\Setting::first(), 'options.vietmap_tile_api_key', '');
     @endphp
-    @if($__vietmapTileKey || $__vietmapGeocodeKey)
+    @if($__vietmapTileKey)
     <script>
-        window.__VIETMAP_CONFIG__ = {
+        window.__VIETMAP_PUBLIC_CONFIG__ = {
             tileApiKey: @json($__vietmapTileKey),
-            geocodeApiKey: @json($__vietmapGeocodeKey),
         };
     </script>
     @endif
