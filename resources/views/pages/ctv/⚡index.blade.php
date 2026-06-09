@@ -27,6 +27,14 @@ new class extends Component {
         return $user->hasRole('sale') && ! $user->hasAnyRole(['admin', 'manager', 'cs']);
     }
 
+    /**
+     * Chỉ admin và CS được xóa tài khoản CTV.
+     */
+    public function canDeleteCtv(): bool
+    {
+        return auth()->user()?->hasAnyRole(['admin', 'cs']) ?? false;
+    }
+
     #[Url(history: true)]
     public ?string $keyword = '';
 
@@ -86,7 +94,7 @@ new class extends Component {
 
     public function deleteSelected()
     {
-        if ($this->isSaleOnly()) {
+        if (! $this->canDeleteCtv()) {
             Flux::toast(duration: 2000, heading: 'Lỗi', text: 'Bạn không có quyền xóa tài khoản CTV!', variant: 'danger');
             return;
         }
@@ -108,7 +116,7 @@ new class extends Component {
 
     public function deleteItem($id)
     {
-        if ($this->isSaleOnly()) {
+        if (! $this->canDeleteCtv()) {
             Flux::toast(duration: 2000, heading: 'Lỗi', text: 'Bạn không có quyền xóa tài khoản CTV!', variant: 'danger');
             return;
         }
@@ -125,14 +133,14 @@ new class extends Component {
     #[On('confirm-action')]
     public function handleConfirmAction()
     {
-        // Sale không được xóa
-        if ($this->isSaleOnly()) {
+        // Manager và sale không được xóa CTV.
+        if (! $this->canDeleteCtv()) {
             Flux::toast(duration: 2000, heading: 'Lỗi', text: 'Bạn không có quyền xóa tài khoản CTV!', variant: 'danger');
             return;
         }
 
         $user = auth()->user();
-        $isAdmin = $user->hasAnyRole(['admin', 'manager', 'cs']);
+        $isAdmin = $user->hasAnyRole(['admin', 'cs']);
 
         match ($this->pendingAction) {
             'deleteItem'     => User::whereKey($this->pendingId)
@@ -219,7 +227,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
             </span>
 
             <div class="flex items-center gap-2" x-cloak x-show="localCheck.length > 0" x-transition>
-                @unless($this->isSaleOnly())
+                @if($this->canDeleteCtv())
                 <button wire:click="deleteSelected()"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -227,7 +235,7 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                     </svg>
                     Xóa <span x-text="'(' + localCheck.length + ')'"/>
                 </button>
-                @endunless
+                @endif
             </div>
         </div>
 
@@ -311,11 +319,11 @@ $gradientStyle = "background: linear-gradient(135deg, {$primaryHex}, {$accentHex
                                     <a href="{{ route('ctv.edit', ['id' => $v->id]) }}" wire:navigate class="p-2 rounded-lg text-neutral-400 hover:text-primary-600 hover:bg-primary-50 transition-all" title="Chỉnh sửa">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                                     </a>
-                                    @unless($this->isSaleOnly())
+                                    @if($this->canDeleteCtv())
                                     <button wire:click="deleteItem({{ $v->id }})" class="p-2 rounded-lg text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer" title="Xóa">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                     </button>
-                                    @endunless
+                                    @endif
                                 </div>
                             </td>
                         </tr>

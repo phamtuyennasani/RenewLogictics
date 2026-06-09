@@ -28,5 +28,22 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(ThirdPartyTrackingApi::rateLimitPerMinute())
                 ->by((string) $request->ip());
         });
+
+        // Mobile API rate limits (xem docs/MOBILE_API_CONTRACT §1.6).
+        RateLimiter::for('mobile-login', function (Request $request) {
+            return Limit::perMinute(5)->by((string) $request->ip());
+        });
+
+        RateLimiter::for('mobile-scan', function (Request $request) {
+            return Limit::perMinute(60)->by(
+                $request->user()?->id ? 'user:'.$request->user()->id : 'ip:'.$request->ip()
+            );
+        });
+
+        RateLimiter::for('mobile-receive', function (Request $request) {
+            return Limit::perMinute(30)->by(
+                $request->user()?->id ? 'user:'.$request->user()->id : 'ip:'.$request->ip()
+            );
+        });
     }
 }

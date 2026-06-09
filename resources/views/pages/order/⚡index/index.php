@@ -148,7 +148,7 @@ new class extends Component
             ->all();
 
         $this->capabilities = [
-            'canCreate' => $user->can('orders.create') || $user->hasAnyRole(['admin', 'manager', 'sale', 'SALE', 'cs']),
+            'canCreate' => $user->can('orders.create'),
             'canDeleteCancelled' => $user->hasRole('admin'),
             'canCancel' => $user->hasAnyRole(['admin', 'manager']),
             'canReceive' => $user->hasAnyRole(['admin', 'ops', 'manager', 'cs']),

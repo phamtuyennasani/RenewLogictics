@@ -109,6 +109,8 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     {
         $user = auth()->user();
 
+        abort_unless($user->can('orders.create'), 403);
+
         $this->dim = \App\Models\Setting::selectRaw("JSON_UNQUOTE(JSON_EXTRACT(options, '$.dim')) as dim")->value('dim');
         if ($user->hasRole('sale')) {
             $this->idSale = $user->id;
@@ -593,6 +595,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public function submit(bool $agreedToTerms = false): void{
         $this->agreedToTerms = $agreedToTerms;
         try {
+            abort_unless(auth()->user()?->can('orders.create'), 403);
             $this->normalizeAssignmentByRole();
             $this->validate($this->rules());
         } catch (AuthorizationException $e) {

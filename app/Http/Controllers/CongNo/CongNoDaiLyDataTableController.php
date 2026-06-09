@@ -32,7 +32,6 @@ class CongNoDaiLyDataTableController extends Controller
             ->addColumn('period_info', fn (CongNoDaiLy $debt) => '<div class="font-semibold text-neutral-900">'.$debt->tungay?->format('d/m/Y').' - '.$debt->denngay?->format('d/m/Y').'</div>')
             ->addColumn('volume_info', fn (CongNoDaiLy $debt) => '<div class="font-semibold text-neutral-900">'.number_format((int) $debt->total_orders).' đơn</div><div class="mt-0.5 text-xs text-neutral-500">'.number_format((float) $debt->total_weight, 3, ',', '.').' kg</div>')
             ->addColumn('total_amount', fn (CongNoDaiLy $debt) => '<span class="font-semibold text-neutral-950">'.$this->money($debt->total_cuocvon).'</span>')
-            ->addColumn('due_date', fn (CongNoDaiLy $debt) => $debt->hanthanhtoan?->format('d/m/Y') ?: '-')
             ->addColumn('actions', fn (CongNoDaiLy $debt) => '<a href="'.route('congno.daily.show', $debt->uuid).'" class="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">Chi tiết</a>')
             ->setRowId(fn (CongNoDaiLy $debt) => 'daily-debt-'.$debt->id)
             ->rawColumns(['check', 'debt_code', 'status_badge', 'daily_info', 'period_info', 'volume_info', 'total_amount', 'actions'])

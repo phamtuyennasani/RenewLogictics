@@ -33,7 +33,6 @@ class CongNoDataTableController extends Controller
             ->addColumn('total_amount', fn (CongNo $debt) => '<span class="font-semibold text-neutral-950 text-center">'.$this->money($debt->total_cuocban).'</span>')
             ->addColumn('paid_amount_html', fn (CongNo $debt) => '<span class="font-semibold text-emerald-700 text-center">'.$this->money($debt->paid_amount).'</span>')
             ->addColumn('remaining_amount_html', fn (CongNo $debt) => '<span class="font-semibold text-amber-700 text-center">'.$this->money($debt->remaining_amount).'</span>')
-            ->addColumn('due_date', fn (CongNo $debt) => $debt->hanthanhtoan?->format('d/m/Y') ?: '-')
             ->addColumn('actions', fn (CongNo $debt) => '<p class="text-right"><a wire:navigate href="'.route('congno.show', $debt->uuid).'" class="inline-flex h-8 items-center justify-end gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">Chi tiết</a></p>')
             ->setRowId(fn (CongNo $debt) => 'debt-'.$debt->id)
             ->rawColumns(['check', 'debt_code', 'einvoice_info', 'status_badge', 'customer_info', 'sale_info', 'total_amount', 'paid_amount_html', 'remaining_amount_html', 'actions'])
@@ -133,7 +132,7 @@ class CongNoDataTableController extends Controller
 
             public function headings(): array
             {
-                return ['Mã công nợ', 'Khách hàng', 'Sale phụ trách', 'Từ ngày', 'Đến ngày', 'Số order', 'Tổng cước bán', 'Đã thanh toán', 'Còn lại', 'Trạng thái', 'Hạn thanh toán'];
+                return ['Mã công nợ', 'Khách hàng', 'Sale phụ trách', 'Từ ngày', 'Đến ngày', 'Số order', 'Tổng cước bán', 'Đã thanh toán', 'Còn lại', 'Trạng thái'];
             }
 
             public function map($debt): array
@@ -149,7 +148,6 @@ class CongNoDataTableController extends Controller
                     (float) $debt->paid_amount,
                     (float) $debt->remaining_amount,
                     $debt->status?->label(),
-                    $debt->hanthanhtoan?->format('d/m/Y'),
                 ];
             }
         }, $fileName);

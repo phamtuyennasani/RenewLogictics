@@ -169,7 +169,6 @@
                 { data: 'total_amount', orderable: false, searchable: false },
                 { data: 'paid_amount_html', orderable: false, searchable: false },
                 { data: 'remaining_amount_html', orderable: false, searchable: false },
-                { data: 'due_date', orderable: false, searchable: false },
                 { data: 'actions', orderable: false, searchable: false },
             ],
             columnDefs: [
@@ -183,7 +182,6 @@
                 { targets: 7, width: '150px' },
                 { targets: 8, width: '150px' },
                 { targets: 9, width: '100px' },
-                { targets: 10, width: '100px' },
             ],
             initComplete: markReady,
         });

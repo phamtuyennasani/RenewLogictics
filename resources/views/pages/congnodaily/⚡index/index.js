@@ -145,7 +145,6 @@
                 { data: 'period_info', orderable: false, searchable: false },
                 { data: 'volume_info', orderable: false, searchable: false },
                 { data: 'total_amount', orderable: false, searchable: false },
-                { data: 'due_date', orderable: false, searchable: false },
                 { data: 'actions', orderable: false, searchable: false },
             ],
             columnDefs: [
@@ -156,8 +155,7 @@
                 { targets: 4, width: '220px' },
                 { targets: 5, width: '150px' },
                 { targets: 6, width: '150px' },
-                { targets: 7, width: '130px' },
-                { targets: 8, width: '100px' },
+                { targets: 7, width: '100px' },
             ],
             initComplete: markReady,
         });

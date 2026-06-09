@@ -104,7 +104,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/bulk-status', [OrderDataTableController::class, 'bulkStatus'])->name('bulk-status');
         Route::post('/delete-cancelled', [OrderDataTableController::class, 'deleteCancelled'])->name('delete-cancelled');
         Route::get('/export', [OrderDataTableController::class, 'export'])->name('export');
-        Route::livewire('/create', 'pages::order.create')->name('create');
+        Route::livewire('/create', 'pages::order.create')->name('create')->middleware('can:orders.create');
         Route::livewire('/{uuid}/payment', 'pages::order.payment')->name('payment');
         Route::livewire('/{uuid}/tracking', 'pages::order.tracking')->name('tracking');
         Route::livewire('/{uuid}', 'pages::order.show')->name('show');

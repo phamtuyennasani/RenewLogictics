@@ -172,7 +172,6 @@
                                 <th class="px-3 py-3 text-center">Tổng cước</th>
                                 <th class="px-3 py-3 text-center">Đã thu</th>
                                 <th class="px-3 py-3 text-center">Còn lại</th>
-                                <th class="px-3 py-3">Hạn thanh toán</th>
                                 <th class="px-3 py-3 text-right">Thao tác</th>
                             </tr>
                         </thead>

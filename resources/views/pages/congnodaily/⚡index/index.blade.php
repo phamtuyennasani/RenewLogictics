@@ -167,7 +167,6 @@
                             <th class="px-3 py-3">Kỳ công nợ</th>
                             <th class="px-3 py-3">Quy mô</th>
                             <th class="px-3 py-3 text-right">Tổng cước vốn</th>
-                            <th class="px-3 py-3">Hạn thanh toán</th>
                             <th class="px-3 py-3 text-right">Thao tác</th>
                         </tr>
                     </thead>

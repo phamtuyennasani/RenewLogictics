@@ -1,7 +1,12 @@
 @php
     use App\Enums\InvoicePaymentStatusEnum;
 
-    $customerName = $debt->customer?->fullname ?: $debt->customer?->username ?: 'Chưa rõ khách hàng';
+    $customerCompany = data_get($debt->customer?->options, 'company', []);
+    $customerName = data_get($customerCompany, 'company_name')
+        ?: data_get($customerCompany, 'company_short_name')
+        ?: $debt->customer?->fullname
+        ?: $debt->customer?->username
+        ?: 'Chưa rõ khách hàng';
     $customerCode = $debt->customer?->code ?: $debt->customer?->email ?: $debt->customer?->phone;
     $totalAmount = (float) $debt->total_cuocban;
     $paidAmount = (float) $debt->paid_amount;

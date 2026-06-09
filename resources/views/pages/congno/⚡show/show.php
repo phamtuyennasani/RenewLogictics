@@ -94,7 +94,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
         return CongNo::query()
             ->with([
                 'sale:id,fullname,username,code',
-                'customer:id,fullname,username,code,phone,email',
+                'customer:id,fullname,username,code,phone,email,options',
                 'creator:id,fullname,username,code',
                 'ketoan:id,fullname,username,code',
                 'details.order.dichvu:id,namevi',

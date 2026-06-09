@@ -638,6 +638,26 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
             && count($this->statusOptions()) > 1;
     }
 
+    public function canEditTrackingMode(): bool
+    {
+        return $this->canUpdate
+            && in_array($this->order->bill_status, [
+                OrderStatusEnum::MOI_TAO,
+                OrderStatusEnum::DA_XAC_NHAN,
+                OrderStatusEnum::DA_NHAN_HANG,
+                OrderStatusEnum::DUYET_XUAT_HANG,
+            ], true);
+    }
+
+    public function updatedTrackingMode(string $mode): void
+    {
+        if ($this->canEditTrackingMode()) {
+            return;
+        }
+
+        $this->trackingMode = $this->detectTrackingMode();
+    }
+
     public function trackingMoreEnabled(): bool
     {
         return filled(config('services.trackingmore.key'));
@@ -688,6 +708,12 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
     public function saveTracking(): void
     {
         abort_unless($this->canUpdate, 403);
+
+        $detectedTrackingMode = $this->detectTrackingMode();
+
+        if (! $this->canEditTrackingMode() && $this->trackingMode !== $detectedTrackingMode) {
+            $this->trackingMode = $detectedTrackingMode;
+        }
 
         $rules = [
             'trackingMode' => 'required|in:common,packages',
@@ -1178,12 +1204,12 @@ new #[Layout('layouts.app')] #[Title('Tracking đơn hàng')] class extends Comp
                     <div>
                         <span class="text-xs font-medium text-neutral-600">Chế độ tracking</span>
                         <div class="mt-1 grid grid-cols-2 gap-2">
-                            <label class="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition {{ $trackingMode === 'common' ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-neutral-200 bg-white text-neutral-600' }}">
-                                <input type="radio" wire:model.live="trackingMode" value="common" @disabled(! $this->canUpdate) class="sr-only">
+                            <label class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition {{ $trackingMode === 'common' ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-neutral-200 bg-white text-neutral-600' }} {{ ! $this->canEditTrackingMode() ? 'cursor-not-allowed opacity-70' : 'cursor-pointer' }}">
+                                <input type="radio" wire:model.live="trackingMode" value="common" @disabled(! $this->canEditTrackingMode()) class="sr-only">
                                 <span>Dùng tracking chung</span>
                             </label>
-                            <label class="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition {{ $trackingMode === 'packages' ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-neutral-200 bg-white text-neutral-600' }}">
-                                <input type="radio" wire:model.live="trackingMode" value="packages" @disabled(! $this->canUpdate) class="sr-only">
+                            <label class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition {{ $trackingMode === 'packages' ? 'border-primary-300 bg-primary-50 text-primary-700' : 'border-neutral-200 bg-white text-neutral-600' }} {{ ! $this->canEditTrackingMode() ? 'cursor-not-allowed opacity-70' : 'cursor-pointer' }}">
+                                <input type="radio" wire:model.live="trackingMode" value="packages" @disabled(! $this->canEditTrackingMode()) class="sr-only">
                                 <span>Riêng từng kiện</span>
                             </label>
                         </div>

@@ -300,7 +300,6 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
                     'Đã thanh toán',
                     'Còn lại',
                     'Trạng thái',
-                    'Hạn thanh toán',
                 ];
             }
 
@@ -317,7 +316,6 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
                     (float) $debt->paid_amount,
                     (float) $debt->remaining_amount,
                     $debt->status?->label(),
-                    $debt->hanthanhtoan?->format('d/m/Y'),
                 ];
             }
         }, $fileName);

@@ -74,12 +74,13 @@
 
         {{-- Action buttons --}}
         <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a href="{{ url()->previous() }}"
+            <a href="mailto:{{ config('mail.from.address', 'admin@hethong.local') }}?subject={{ rawurlencode('Yêu cầu cấp quyền truy cập') }}"
                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-white border border-neutral-300 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 hover:shadow-sm transition-all">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/>
                 </svg>
-                Quay lại
+                Liên hệ admin
             </a>
             <a href="{{ route('dashboard') }}"
                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 text-white font-medium rounded-xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
