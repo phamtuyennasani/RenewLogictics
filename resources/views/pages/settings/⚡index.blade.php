@@ -40,13 +40,6 @@ new class extends Component {
                 'roles' => ['admin'],
             ],
             [
-                'route' => 'settings.banner',
-                'icon' => 'image',
-                'title' => 'Banner đăng nhập',
-                'description' => 'Hình ảnh hiển thị tại trang đăng nhập',
-                'roles' => ['admin'],
-            ],
-            [
                 'route' => 'settings.social',
                 'icon' => 'share',
                 'title' => 'Mạng xã hội',

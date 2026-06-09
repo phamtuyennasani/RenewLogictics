@@ -242,7 +242,7 @@ new #[Layout('layouts::guest')] class extends Component
                     <div class="w-full border-t border-gray-200"></div>
                 </div>
                 <div class="relative flex justify-center text-sm">
-                    <span class="px-4 bg-white text-gray-400">Hoặc tiếp tục với</span>
+                    <span class="px-4 bg-white text-gray-400">Liên hệ với chúng tôi</span>
                 </div>
             </div>
             {{-- Social Login --}}
