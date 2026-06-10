@@ -28,7 +28,7 @@
                     </th>
                     @endif
                     <th class="px-3 py-3">Mã AWB / REF</th>
-                    <th class="px-3 py-3">Trạng thái/PickUp</th>
+                    <th class="px-3 py-3 min-w-[120px]">Trạng thái/PickUp</th>
                     <th class="px-3 py-3">Ngày tạo / xuất / giao</th>
                     <th class="px-3 py-3">Khách hàng</th>
                     <th class="px-3 py-3">Người gửi</th>

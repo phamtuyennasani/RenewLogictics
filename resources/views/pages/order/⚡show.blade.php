@@ -130,11 +130,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         }
 
         if (! OrderAccess::canEditOrder($user, $this->order)) {
-            return [
-                ['type' => 'exit', 'label' => 'Thoát'],
-            ];
-        }
+            $buttons = [];
 
+            if ($this->canCreatePickup()) {
+                $buttons[] = ['type' => 'pickup', 'label' => 'Tạo phiếu Pickup'];
+            }
+            $buttons[] = ['type' => 'exit', 'label' => 'Thoát'];
+
+            return $buttons;
+        }
         $buttons = collect($this->order->bill_status?->allowedTransitions(false) ?? [])
             ->reject(fn (OrderStatusEnum $status) => in_array($status, [
                 OrderStatusEnum::DA_GIAO,
@@ -160,10 +164,9 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
         }
 
         if (! in_array($this->order->bill_status, [OrderStatusEnum::MOI_TAO, OrderStatusEnum::DA_XAC_NHAN, OrderStatusEnum::HUY, OrderStatusEnum::DA_GIAO], true)) {
-            $buttons[] = ['type' => 'tracking', 'label' => 'Cáº­p nháº­t tracking'];
+            $buttons[] = ['type' => 'tracking', 'label' => 'Cập nhật tracking'];
         }
-
-        $buttons[] = ['type' => 'exit', 'label' => 'ThoÃ¡t'];
+        $buttons[] = ['type' => 'exit', 'label' => 'Thoát'];
 
         return $buttons;
 /*

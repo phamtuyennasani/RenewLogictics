@@ -331,6 +331,10 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
 
         $updates = [];
 
+        if ($this->shouldScopeToCurrentOps()) {
+            $updates['id_user'] = auth()->id();
+        }
+
         if ($canEditOps && filled($data['ops_id'] ?? null)) {
             $updates['id_user'] = (int) $data['ops_id'];
         }
@@ -453,7 +457,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
 
     public function canEditOpsForPickup(?Pickup $pickup = null): bool
     {
-        return (bool) $pickup && auth()->user()?->hasAnyRole(['admin', 'manager', 'ops']);
+        return (bool) $pickup && auth()->user()?->hasAnyRole(['admin', 'manager']);
     }
 
     public function canEditShipperForPickup(?Pickup $pickup = null): bool
@@ -462,7 +466,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return false;
         }
 
-        if ($pickup->status === PickupStatusEnum::MOI_TAO_PICKUP) {
+        if (in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true)) {
             return auth()->user()?->hasAnyRole(['admin', 'manager', 'ops']);
         }
 
@@ -476,8 +480,8 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
     public function canEditSenderForPickup(?Pickup $pickup = null): bool
     {
         return (bool) $pickup
-            && $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP
-            && auth()->user()?->hasAnyRole(['admin', 'manager', 'sale', 'ctv']);
+            && in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true)
+            && auth()->user()?->hasAnyRole(['admin', 'manager', 'sale', 'ctv', 'ops']);
     }
 
     public function getSelectedVehicleProperty(): ?News
