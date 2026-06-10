@@ -22,4 +22,9 @@ class Country extends Model
     {
         return $this->hasMany(State::class, 'country_id');
     }
+
+    public function servicePriceLists()
+    {
+        return $this->belongsToMany(ServicePriceList::class, 'service_price_list_countries', 'country_id', 'service_price_list_id');
+    }
 }

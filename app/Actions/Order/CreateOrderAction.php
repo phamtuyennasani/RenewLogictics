@@ -20,6 +20,7 @@ class CreateOrderAction
     public function __construct(
         protected GenerateOrderCodeAction $generateOrderCode,
         protected CalculateChargeableWeightAction $calculateWeight,
+        protected ResolveServicePriceAction $resolveServicePrice,
     ) {
         $this->defaultPayment();
     }
@@ -94,7 +95,13 @@ class CreateOrderAction
     }
     public function execute(OrderFormData $formData): Order
     {
-        $payment = $this->calculatePrice($formData->phuphihaiquan);
+        $payment = $this->calculatePrice(
+            phuphihaiquan: $formData->phuphihaiquan,
+            service: $formData->service,
+            receiver: $formData->receiver,
+            packages: $formData->packages,
+            dim: $formData->dim,
+        );
         $currentUser = auth()->user();
         $currentUserId = auth()->id();
         $orderCode = $this->generateOrderCode->execute();
@@ -149,42 +156,156 @@ class CreateOrderAction
 
         return $order;
     }
-    protected function calculatePrice(array $phuphihaiquan): array
+    protected function calculatePrice(array $phuphihaiquan, array $service, array $receiver, array $packages, float $dim): array
     {
+        $resolvedPrice = $this->resolveServicePrice->execute($service, $receiver, $packages, $dim);
+        $priceList = $resolvedPrice['price_list'];
+        $detail = $resolvedPrice['detail'];
+        $chargeableWeight = (float) $resolvedPrice['chargeable_weight'];
+        $phuphihaiquan = $this->normalizeFeeRows($phuphihaiquan);
+
         $this->paymentDefault['cuocvon']['phuphi'] = $phuphihaiquan;
         $this->paymentDefault['cuocban']['phuphi'] = $phuphihaiquan;
         $this->paymentDefault['cuocgoc']['phuphi'] = $phuphihaiquan;
 
-        $totalPhuphi = array_sum(array_map(
-            fn ($item) => (float) ($item['total'] ?? 0),
-            $phuphihaiquan
-        ));
+        $totalPhuphi = array_sum(array_map(fn ($item) => (float) ($item['total'] ?? 0), $phuphihaiquan));
 
-        $this->paymentDefault['cuocvon']['total_phuphi'] = $totalPhuphi;
-        $this->paymentDefault['cuocban']['total_phuphi'] = $totalPhuphi;
-        $this->paymentDefault['cuocgoc']['total_phuphi'] = $totalPhuphi;
+        $priceMeta = [
+            'service_price_list_id' => $priceList->id,
+            'service_price_list_name' => $priceList->name,
+            'service_price_detail_id' => $detail->id,
+            'service_price_quycach' => $detail->quycach,
+            'service_price_weight' => $chargeableWeight,
+            'service_price_weight_from' => (float) $detail->weight_from,
+            'service_price_weight_to' => (float) $detail->weight_to,
+            'service_price_sale_unit' => (float) $detail->sale_price,
+            'service_price_cost_unit' => (float) $detail->cost_price,
+            'service_price_base_unit' => (float) $detail->base_price,
+            'service_price_sale_amount' => (float) $resolvedPrice['sale_price'],
+            'service_price_cost_amount' => (float) $resolvedPrice['cost_price'],
+            'service_price_base_amount' => (float) $resolvedPrice['base_price'],
+        ];
 
-        $this->paymentDefault['cuocvon']['total_phuphi_no_vat'] = $totalPhuphi;
-        $this->paymentDefault['cuocban']['total_phuphi_no_vat'] = $totalPhuphi;
-        $this->paymentDefault['cuocgoc']['total_phuphi_no_vat'] = $totalPhuphi;
+        $this->paymentDefault['cuocban'] = $this->buildPaymentGroup(
+            group: $this->paymentDefault['cuocban'],
+            priceKey: 'dongiaban',
+            price: (float) $resolvedPrice['sale_price'],
+            totalPhuphi: $totalPhuphi,
+            meta: $priceMeta + ['service_price_unit' => (float) $detail->sale_price],
+        );
+        $this->paymentDefault['cuocvon'] = $this->buildPaymentGroup(
+            group: $this->paymentDefault['cuocvon'],
+            priceKey: 'dongiavon',
+            price: (float) $resolvedPrice['cost_price'],
+            totalPhuphi: $totalPhuphi,
+            meta: $priceMeta + ['service_price_unit' => (float) $detail->cost_price],
+        );
+        $this->paymentDefault['cuocgoc'] = $this->buildPaymentGroup(
+            group: $this->paymentDefault['cuocgoc'],
+            priceKey: 'dongiagoc',
+            price: (float) $resolvedPrice['base_price'],
+            totalPhuphi: $totalPhuphi,
+            meta: $priceMeta + ['service_price_unit' => (float) $detail->base_price],
+        );
 
-        $this->paymentDefault['cuocvon']['total_tongcuoc_no_vat'] = $this->paymentDefault['cuocvon']['total_phuphi_no_vat'];
-        $this->paymentDefault['cuocvon']['total_tongcuoc'] = $this->paymentDefault['cuocvon']['total_phuphi_no_vat'];
+        $this->paymentDefault['payment_loinhuan'] = $this->profitSnapshot(
+            salePayment: $this->paymentDefault['cuocban'],
+            costPayment: $this->paymentDefault['cuocvon'],
+            basePayment: $this->paymentDefault['cuocgoc'],
+        );
 
-        $this->paymentDefault['cuocban']['total_tongcuoc_no_vat'] = $this->paymentDefault['cuocban']['total_phuphi_no_vat'];
-        $this->paymentDefault['cuocban']['total_tongcuoc'] = $this->paymentDefault['cuocban']['total_phuphi_no_vat'];
-
-        $this->paymentDefault['cuocgoc']['total_tongcuoc_no_vat'] = $this->paymentDefault['cuocgoc']['total_phuphi_no_vat'];
-        $this->paymentDefault['cuocgoc']['total_tongcuoc'] = $this->paymentDefault['cuocgoc']['total_phuphi_no_vat'];
-
-        $this->paymentDefault['payment_loinhuan']['cuocvon_no_vat'] = $this->paymentDefault['cuocvon']['total_tongcuoc_no_vat'];
-        $this->paymentDefault['payment_loinhuan']['cuocvon'] = $this->paymentDefault['cuocvon']['total_tongcuoc'];
-        $this->paymentDefault['payment_loinhuan']['cuocban_no_vat'] = $this->paymentDefault['cuocban']['total_tongcuoc_no_vat'];
-        $this->paymentDefault['payment_loinhuan']['cuocban'] = $this->paymentDefault['cuocban']['total_tongcuoc'];
-        $this->paymentDefault['payment_loinhuan']['cuocgoc_no_vat'] = $this->paymentDefault['cuocgoc']['total_tongcuoc_no_vat'];
-        $this->paymentDefault['payment_loinhuan']['cuocgoc'] = $this->paymentDefault['cuocgoc']['total_tongcuoc'];
         return $this->paymentDefault;
     }
+
+    protected function buildPaymentGroup(array $group, string $priceKey, float $price, float $totalPhuphi, array $meta = []): array
+    {
+        $ppxdAmount = round($price * ((float) ($group['ppxd_percent'] ?? 0)) / 100);
+        $vatAmount = round(($price + $ppxdAmount) * ((float) ($group['vat_percent'] ?? 0)) / 100);
+        $tongcuoc = $price + $ppxdAmount + $vatAmount;
+
+        return array_merge($group, $meta, [
+            $priceKey => $price,
+            'ppxd_amount' => $ppxdAmount,
+            'vat_amount' => $vatAmount,
+            'tongcuoc' => $tongcuoc,
+            'total_vat' => $vatAmount,
+            'total_vat_phuphi' => 0,
+            'total_phuphi_no_vat' => $totalPhuphi,
+            'total_phuphi' => $totalPhuphi,
+            'total_tongcuoc_no_vat' => $price + $ppxdAmount + $totalPhuphi,
+            'total_tongcuoc' => $tongcuoc + $totalPhuphi,
+        ]);
+    }
+
+    protected function normalizeFeeRows(array $feeRows): array
+    {
+        return array_values(array_map(function ($row) {
+            if (! is_array($row)) {
+                $row = [];
+            }
+
+            $quantity = max(1, (int) ($row['soluong'] ?? 1));
+            $price = $this->number($row['price'] ?? 0);
+            $total = $price > 0
+                ? round($quantity * $price)
+                : $this->number($row['total'] ?? 0);
+
+            $row['soluong'] = $quantity;
+            $row['price'] = $price;
+            $row['total'] = $total;
+            $row['total_after_vat'] = $total;
+            $row['vat_percent'] = (float) ($row['vat_percent'] ?? 0);
+            $row['vat_amount'] = 0;
+
+            return $row;
+        }, $feeRows));
+    }
+
+    protected function number(mixed $value): float
+    {
+        if (is_int($value) || is_float($value)) {
+            return (float) $value;
+        }
+
+        if (! is_string($value)) {
+            return 0;
+        }
+
+        $normalized = preg_replace('/[^\d.-]/', '', $value);
+
+        return $normalized === '' ? 0 : (float) $normalized;
+    }
+
+    protected function profitSnapshot(array $salePayment, array $costPayment, array $basePayment): array
+    {
+        $saleNoVat = (float) ($salePayment['total_tongcuoc_no_vat'] ?? 0);
+        $sale = (float) ($salePayment['total_tongcuoc'] ?? 0);
+        $costNoVat = (float) ($costPayment['total_tongcuoc_no_vat'] ?? 0);
+        $cost = (float) ($costPayment['total_tongcuoc'] ?? 0);
+        $baseNoVat = (float) ($basePayment['total_tongcuoc_no_vat'] ?? 0);
+        $base = (float) ($basePayment['total_tongcuoc'] ?? 0);
+        $customerCommission = (float) ($salePayment['total_hh_khachhang'] ?? 0);
+        $saleBonus = (float) ($costPayment['bonus_sale_amount'] ?? 0);
+        $estimatedProfit = $saleNoVat - $costNoVat - $customerCommission;
+        $profit = $estimatedProfit - $saleBonus;
+        $estimatedProfitRate = $saleNoVat > 0 ? round(($estimatedProfit * 100) / $saleNoVat, 2) : 0;
+        $profitRate = $saleNoVat > 0 ? round(($profit * 100) / $saleNoVat, 2) : 0;
+
+        return [
+            'cuocban_no_vat' => $saleNoVat,
+            'cuocban' => $sale,
+            'cuocvon_no_vat' => $costNoVat,
+            'cuocvon' => $cost,
+            'cuocgoc_no_vat' => $baseNoVat,
+            'cuocgoc' => $base,
+            'loinhuantamtinh' => $estimatedProfit,
+            'tysuattamtinh' => $estimatedProfitRate,
+            'loinhuan' => $profit,
+            'tysuat' => $profitRate,
+            'tysuatloinhuan' => $profitRate,
+        ];
+    }
+
     protected function calculatePackageWeights(array $packages, float $dim): array {
         return array_map(function ($package) use ($dim) {
             $length = (float) ($package['length'] ?? 0);

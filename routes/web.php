@@ -1,19 +1,19 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\Request;
-use App\Http\Controllers\CongNo\CongNoDataTableController;
-use App\Http\Controllers\CongNo\CongNoDaiLyDataTableController;
 use App\Http\Controllers\Api\GlobalSearchController;
 use App\Http\Controllers\Api\VietmapProxyController;
+use App\Http\Controllers\CongNo\CongNoDaiLyDataTableController;
+use App\Http\Controllers\CongNo\CongNoDataTableController;
+use App\Http\Controllers\Invoice\InvoiceDataTableController;
 use App\Http\Controllers\Order\OrderDataTableController;
-use App\Services\Providers\Sepay\SepayPaymentService;
 use App\Http\Controllers\Payment\PaymentReturnController;
 use App\Livewire\Dashboard;
-use App\Livewire\Order;
-use App\Livewire\Login;
 use App\Livewire\DuLieu;
+use App\Livewire\Login;
+use App\Services\Providers\Sepay\SepayPaymentService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 if (! app()->environment('production')) {
     Route::get('/dev/sepay-gateway-test', function (Request $request, SepayPaymentService $sepay) {
@@ -78,7 +78,7 @@ HTML);
    GUEST ROUTES — Chưa đăng nhập
    ============================================================ */
 Route::middleware('guest')->group(function () {
-    Route::livewire('/login','pages::auth.login')->name('login');
+    Route::livewire('/login', 'pages::auth.login')->name('login');
 });
 /* ============================================================
    AUTH ROUTES — Đã đăng nhập
@@ -159,18 +159,18 @@ Route::middleware('auth')->group(function () {
     // --- Hóa đơn thu ---
     Route::prefix('hoa-don-thu')->name('invoice.')->middleware(['feature:invoice', 'can:invoice.index'])->group(function () {
         Route::livewire('/', 'pages::invoice.index')->name('index');
-        Route::get('/datatable', App\Http\Controllers\Invoice\InvoiceDataTableController::class)->name('datatable');
-        Route::post('/{id}/approve', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'approve'])->name('approve')->middleware('can:invoice.index');
-        Route::post('/{id}/cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'submitCashPayment'])->name('cash')->middleware('can:invoice.index');
-        Route::post('/{id}/qr', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'submitOnlinePayment'])->name('qr')->middleware('can:invoice.index');
-        Route::post('/{id}/regenerate-qr', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'regenerateQr'])->name('regenerate-qr')->middleware('can:invoice.index');
-        Route::post('/{id}/confirm-cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'confirmCashPayment'])->name('confirm-cash')->middleware('can:invoice.index');
-        Route::post('/{id}/reject-cash', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'rejectCashPayment'])->name('reject-cash')->middleware('can:invoice.index');
-        Route::post('/{id}/reset-payment-channel', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'resetPaymentChannel'])->name('reset-payment-channel')->middleware('can:invoice.index');
-        Route::post('/{id}/mark-paid', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'markPaidByAdmin'])->name('mark-paid')->middleware('can:invoice.index');
-        Route::post('/{id}/cancel', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'cancel'])->name('cancel')->middleware('can:invoice.index');
-        Route::get('/sales', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'sales'])->name('sales');
-        Route::get('/customers', [App\Http\Controllers\Invoice\InvoiceDataTableController::class, 'customers'])->name('customers');
+        Route::get('/datatable', InvoiceDataTableController::class)->name('datatable');
+        Route::post('/{id}/approve', [InvoiceDataTableController::class, 'approve'])->name('approve')->middleware('can:invoice.index');
+        Route::post('/{id}/cash', [InvoiceDataTableController::class, 'submitCashPayment'])->name('cash')->middleware('can:invoice.index');
+        Route::post('/{id}/qr', [InvoiceDataTableController::class, 'submitOnlinePayment'])->name('qr')->middleware('can:invoice.index');
+        Route::post('/{id}/regenerate-qr', [InvoiceDataTableController::class, 'regenerateQr'])->name('regenerate-qr')->middleware('can:invoice.index');
+        Route::post('/{id}/confirm-cash', [InvoiceDataTableController::class, 'confirmCashPayment'])->name('confirm-cash')->middleware('can:invoice.index');
+        Route::post('/{id}/reject-cash', [InvoiceDataTableController::class, 'rejectCashPayment'])->name('reject-cash')->middleware('can:invoice.index');
+        Route::post('/{id}/reset-payment-channel', [InvoiceDataTableController::class, 'resetPaymentChannel'])->name('reset-payment-channel')->middleware('can:invoice.index');
+        Route::post('/{id}/mark-paid', [InvoiceDataTableController::class, 'markPaidByAdmin'])->name('mark-paid')->middleware('can:invoice.index');
+        Route::post('/{id}/cancel', [InvoiceDataTableController::class, 'cancel'])->name('cancel')->middleware('can:invoice.index');
+        Route::get('/sales', [InvoiceDataTableController::class, 'sales'])->name('sales');
+        Route::get('/customers', [InvoiceDataTableController::class, 'customers'])->name('customers');
     });
 
     // --- Thống kê ---
@@ -202,49 +202,52 @@ Route::middleware('auth')->group(function () {
 
     // --- Nhân sự ---
     Route::prefix('nhan-su')->name('nhansu.')->group(function () {
-        Route::livewire('/{type}',         'pages::nhansu.index')->name('index');
-        Route::livewire('/{type}/add',     'pages::nhansu.create')->name('add');
-        Route::livewire('/{type}/edit/{id}','pages::nhansu.create')->name('edit');
+        Route::livewire('/{type}', 'pages::nhansu.index')->name('index');
+        Route::livewire('/{type}/add', 'pages::nhansu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}', 'pages::nhansu.create')->name('edit');
     })->middleware('can:nhansu.index');
 
     // --- Dữ liệu ---
     Route::prefix('dich-vu')->name('dichvu.')->group(function () {
-        Route::livewire('/{type}','pages::dulieu.index')->name('index');
-        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
-        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
+        Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
     })->middleware('can:dulieu.index');
 
     Route::prefix('don-vi')->name('donvi.')->group(function () {
-        Route::livewire('/{type}','pages::dulieu.index')->name('index');
-        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
-        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
+        Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
     })->middleware('can:dulieu.index');
 
     Route::prefix('phan-loai')->name('phanloai.')->group(function () {
-        Route::livewire('/{type}','pages::dulieu.index')->name('index');
-        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
-        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
+        Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
     })->middleware('can:dulieu.index');
 
     Route::prefix('doi-tac')->name('doitac.')->group(function () {
-        Route::livewire('/{type}','pages::dulieu.index')->name('index');
-        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
-        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
+        Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
     })->middleware('can:dulieu.index');
 
     Route::prefix('phu-phi')->name('phuphi.')->group(function () {
-        Route::livewire('/{type}','pages::dulieu.index')->name('index');
-        Route::livewire('/{type}/add','pages::dulieu.create')->name('add');
-        Route::livewire('/{type}/edit/{id}','pages::dulieu.create')->name('edit');
+        Route::prefix('bang-gia-dich-vu')->name('service-prices.')->group(function () {
+            Route::livewire('/', 'pages::service-prices.index')->name('index');
+            Route::livewire('/add', 'pages::service-prices.form')->name('add');
+            Route::livewire('/edit/{id}', 'pages::service-prices.form')->name('edit');
+        });
+        Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
+        Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
+        Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
     })->middleware('can:phuphi.index');
 
-   
     Route::prefix('place')->name('place.')->group(function () {
-        Route::livewire('/{type}','pages::place.index')->name('index');
-        Route::livewire('/{type}/add','pages::place.create')->name('add');
-        Route::livewire('/{type}/edit/{id}','pages::place.create')->name('edit');
+        Route::livewire('/{type}', 'pages::place.index')->name('index');
+        Route::livewire('/{type}/add', 'pages::place.create')->name('add');
+        Route::livewire('/{type}/edit/{id}', 'pages::place.create')->name('edit');
     })->middleware('can:dulieu.index');
-  
 
     // ================================================================
     // DULIEU — Mỗi view là 1 Livewire component cùng cấu trúc
@@ -279,6 +282,7 @@ Route::middleware('auth')->group(function () {
         \Auth::logout();
         \Session::invalidate();
         \Session::regenerateToken();
+
         return redirect()->route('login');
     })->name('logout');
 });

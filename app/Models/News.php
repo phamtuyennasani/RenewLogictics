@@ -99,4 +99,9 @@ class News extends Model
     {
         return $this->hasMany(NotificationRead::class, 'news_id');
     }
+
+    public function servicePriceLists()
+    {
+        return $this->hasMany(ServicePriceList::class, 'service_id');
+    }
 }

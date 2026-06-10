@@ -137,5 +137,14 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('phuphi.index', function ($user) {
             return $user->hasAnyRole(['admin', 'manager', 'ketoan']);
         });
+
+        // Gate for service price lists — admin can delete, manager/ketoan can add/edit only.
+        Gate::define('service-prices.manage', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'ketoan']);
+        });
+
+        Gate::define('service-prices.delete', function ($user) {
+            return $user->hasRole('admin');
+        });
     }
 }

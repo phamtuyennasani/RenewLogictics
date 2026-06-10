@@ -364,7 +364,7 @@ Flutter Cross-platform App
   -> Riverpod state management
   -> Dio API client
   -> Secure Storage token
-  -> Mobile Scanner camera scan
+  -> Mobile Scanner camera scan.
   -> Laravel Sanctum API
   -> Laravel Actions/Services hiện có
 ```

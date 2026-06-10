@@ -51,8 +51,14 @@ function buildTomSelectOptions(select) {
             return "<div><p class='!line-clamp-1 mb-0'><b>" + escape(parsedData.company_name || '') + '</b> - ' + escape(parsedData.phone || '') + ' - ' + escape(parsedData.address || '') + '</p></div>';
         };
     }
+    const plugins = ['dropdown_input'];
+
+    if (select.multiple) {
+        plugins.push('remove_button');
+    }
+
     return {
-        plugins: ['dropdown_input'],
+        plugins,
         placeholder,
         render: {
             option: renderDefaultOption,
@@ -64,7 +70,16 @@ function buildTomSelectOptions(select) {
         },
         onChange: function (value) {
             if (isBooting) return;
-            select.value = value || '';
+
+            if (select.multiple && Array.isArray(value)) {
+                const selectedValues = new Set(value.map(String));
+                Array.from(select.options).forEach((option) => {
+                    option.selected = selectedValues.has(option.value);
+                });
+            } else {
+                select.value = value || '';
+            }
+
             if (livewireModel) {
                 const componentEl = select.closest('[wire\\:id]');
                 const componentId = componentEl?.getAttribute('wire:id');

@@ -110,6 +110,17 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             });
     }
 
+    protected function currentOpsCanAccessPickup(?Pickup $pickup): bool
+    {
+        if (! $pickup || ! $this->shouldScopeToCurrentOps()) {
+            return false;
+        }
+
+        return blank($pickup->id_user)
+            || (int) $pickup->id_user === 0
+            || (int) $pickup->id_user === (int) auth()->id();
+    }
+
     protected function pickupsQuery(bool $includeStatus = true, bool $includeRelations = true)
     {
         return $this->pickupAccessQuery()
@@ -450,6 +461,10 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return false;
         }
 
+        if ($this->currentOpsCanAccessPickup($pickup)) {
+            return true;
+        }
+
         return $this->canEditOpsForPickup($pickup)
             || $this->canEditShipperForPickup($pickup)
             || $this->canEditSenderForPickup($pickup);
@@ -466,6 +481,14 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return false;
         }
 
+        if ($this->currentOpsCanAccessPickup($pickup)) {
+            return in_array($pickup->status, [
+                PickupStatusEnum::MOI_TAO_PICKUP,
+                PickupStatusEnum::DA_XAC_NHAN,
+                PickupStatusEnum::DA_HUY,
+            ], true);
+        }
+
         if (in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true)) {
             return auth()->user()?->hasAnyRole(['admin', 'manager', 'ops']);
         }
@@ -479,6 +502,15 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
 
     public function canEditSenderForPickup(?Pickup $pickup = null): bool
     {
+        if ($this->currentOpsCanAccessPickup($pickup)) {
+            return in_array($pickup->status, [
+                PickupStatusEnum::MOI_TAO_PICKUP,
+                PickupStatusEnum::DA_XAC_NHAN,
+                PickupStatusEnum::PICKUP_DANG_LAY,
+                PickupStatusEnum::DA_HUY,
+            ], true);
+        }
+
         return (bool) $pickup
             && in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true)
             && auth()->user()?->hasAnyRole(['admin', 'manager', 'sale', 'ctv', 'ops']);
