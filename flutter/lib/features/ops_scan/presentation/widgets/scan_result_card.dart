@@ -32,20 +32,36 @@ class ScanResultCard extends StatelessWidget {
         onClear: onClear,
         child: Row(
           children: [
-            Icon(Icons.search_off, color: theme.colorScheme.error, size: 28),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.search_off,
+                color: theme.colorScheme.error,
+                size: 24,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Không tìm thấy đơn',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  Text(
+                    'Không tìm thấy đơn',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     result.reason ?? 'Không có đơn nào khớp mã đã quét.',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.hintColor),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.hintColor,
+                    ),
                   ),
                 ],
               ),
@@ -65,14 +81,30 @@ class ScanResultCard extends StatelessWidget {
         children: [
           Row(
             children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.inventory_2_outlined,
+                  color: theme.colorScheme.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   order.primaryCode,
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
               StatusChip(badge: order.status),
+              const SizedBox(width: 34),
             ],
           ),
           if (result.matchedBy != ScanMatchedBy.unknown) ...[
@@ -80,7 +112,9 @@ class ScanResultCard extends StatelessWidget {
             Text(
               'Khớp theo ${result.matchedBy.label}'
               '${result.matchedPackageCode != null ? ' · ${result.matchedPackageCode}' : ''}',
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.hintColor,
+              ),
             ),
           ],
           const Divider(height: 20),
@@ -94,7 +128,8 @@ class ScanResultCard extends StatelessWidget {
             _Row(
               icon: Icons.move_to_inbox_outlined,
               label: 'Người nhận',
-              value: order.receiver!.displayName +
+              value:
+                  order.receiver!.displayName +
                   (order.receiver!.country != null
                       ? ' (${order.receiver!.country})'
                       : ''),
@@ -105,12 +140,14 @@ class ScanResultCard extends StatelessWidget {
             children: [
               if (order.packageCount != null)
                 _Meta(
-                    icon: Icons.inventory_2_outlined,
-                    text: '${order.packageCount} kiện'),
+                  icon: Icons.inventory_2_outlined,
+                  text: '${order.packageCount} kiện',
+                ),
               if (order.weightKg != null)
                 _Meta(
-                    icon: Icons.scale_outlined,
-                    text: DateFormatters.weight(order.weightKg)),
+                  icon: Icons.scale_outlined,
+                  text: DateFormatters.weight(order.weightKg),
+                ),
               if (order.saleName != null && order.saleName!.isNotEmpty)
                 _Meta(icon: Icons.person_outline, text: order.saleName!),
             ],
@@ -134,7 +171,9 @@ class ScanResultCard extends StatelessWidget {
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.check_circle_outline),
               label: Text(isReceiving ? 'Đang nhập kho…' : 'Xác nhận nhập kho'),
@@ -145,16 +184,23 @@ class ScanResultCard extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: theme.colorScheme.error.withValues(alpha: 0.12),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline,
-                      size: 18, color: theme.colorScheme.error),
+                  Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: theme.colorScheme.error,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      result.reason ?? 'Đơn không ở trạng thái cho phép nhập kho.',
+                      result.reason ??
+                          'Đơn không ở trạng thái cho phép nhập kho.',
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -176,13 +222,13 @@ class _Shell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
       child: Stack(
         children: [
-          Padding(padding: const EdgeInsets.all(14), child: child),
+          Padding(padding: const EdgeInsets.all(16), child: child),
           Positioned(
-            top: 0,
-            right: 0,
+            top: 6,
+            right: 6,
             child: IconButton(
               icon: const Icon(Icons.close, size: 18),
               tooltip: 'Đóng',
@@ -210,17 +256,30 @@ class _Row extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: theme.hintColor),
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 15,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(width: 8),
           SizedBox(
             width: 80,
-            child: Text(label,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.hintColor)),
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
-          Expanded(
-            child: Text(value, style: theme.textTheme.bodyMedium),
-          ),
+          Expanded(child: Text(value, style: theme.textTheme.bodyMedium)),
         ],
       ),
     );
@@ -236,13 +295,27 @@ class _Meta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: theme.hintColor),
-        const SizedBox(width: 4),
-        Text(text, style: theme.textTheme.bodySmall),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

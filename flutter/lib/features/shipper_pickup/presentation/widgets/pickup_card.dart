@@ -15,9 +15,11 @@ class PickupCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final customer = pickup.customer;
+    final hasAddress =
+        customer.address != null && customer.address!.trim().isNotEmpty;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 10),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -31,33 +33,63 @@ class PickupCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       pickup.maPickup,
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600),
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 10),
                   StatusChip(badge: pickup.status),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                customer.displayName,
-                style: theme.textTheme.bodyLarge,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.business_outlined,
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      customer.displayName,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-              if (customer.address != null && customer.address!.isNotEmpty) ...[
-                const SizedBox(height: 2),
+              if (hasAddress) ...[
+                const SizedBox(height: 10),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.location_on_outlined,
-                        size: 16, color: theme.hintColor),
-                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 17,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        customer.address!,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.hintColor),
+                        customer.address!.trim(),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -65,10 +97,10 @@ class PickupCard extends StatelessWidget {
                   ],
                 ),
               ],
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 12,
-                runSpacing: 4,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   _Meta(
                     icon: Icons.inventory_2_outlined,
@@ -108,13 +140,27 @@ class _Meta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 15, color: theme.hintColor),
-        const SizedBox(width: 4),
-        Text(label, style: theme.textTheme.bodySmall),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

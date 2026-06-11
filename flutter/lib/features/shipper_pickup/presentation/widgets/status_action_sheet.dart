@@ -57,8 +57,7 @@ class _StatusActionSheetState extends State<StatusActionSheet> {
     super.dispose();
   }
 
-  bool _isCancel(StatusBadge t) =>
-      t.value == 'da_huy' || t.value == 'huy';
+  bool _isCancel(StatusBadge t) => t.value == 'da_huy' || t.value == 'huy';
 
   void _onTransitionTap(StatusBadge t) {
     if (_isCancel(t)) {
@@ -75,9 +74,9 @@ class _StatusActionSheetState extends State<StatusActionSheet> {
       setState(() => _reasonError = 'Vui lòng nhập lý do hủy.');
       return;
     }
-    Navigator.of(context).pop(
-      StatusActionChoice(status: _pendingCancel!.value, reason: reason),
-    );
+    Navigator.of(
+      context,
+    ).pop(StatusActionChoice(status: _pendingCancel!.value, reason: reason));
   }
 
   @override
@@ -86,7 +85,7 @@ class _StatusActionSheetState extends State<StatusActionSheet> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 4, 20, 20 + bottomInset),
+      padding: EdgeInsets.fromLTRB(20, 4, 20, 18 + bottomInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -102,12 +101,7 @@ class _StatusActionSheetState extends State<StatusActionSheet> {
 
   List<Widget> _buildTransitionList(ThemeData theme) {
     return [
-      Text(
-        'Cập nhật trạng thái',
-        style: theme.textTheme.titleMedium?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
-      ),
+      Text('Cập nhật trạng thái', style: theme.textTheme.titleMedium),
       const SizedBox(height: 4),
       Text(
         'Chọn trạng thái tiếp theo cho phiếu lấy hàng.',
@@ -193,30 +187,47 @@ class _TransitionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = StatusPalette.of(badge.value);
+    final label = badge.label.isEmpty ? badge.value : badge.label;
+    final icon = danger ? Icons.cancel_outlined : Icons.arrow_forward_rounded;
+    final color = danger ? theme.colorScheme.error : palette.fg;
 
-    if (danger) {
-      return OutlinedButton.icon(
-        style: OutlinedButton.styleFrom(
-          foregroundColor: theme.colorScheme.error,
-          side: BorderSide(color: theme.colorScheme.error.withValues(alpha: 0.5)),
-          padding: const EdgeInsets.symmetric(vertical: 14),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Ink(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: danger ? 0.06 : 0.08),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  danger && label == 'Hủy' ? 'Hủy pickup' : label,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: color),
+            ],
+          ),
         ),
-        onPressed: onTap,
-        icon: const Icon(Icons.cancel_outlined),
-        label: Text(badge.label.isEmpty ? 'Hủy' : badge.label),
-      );
-    }
-
-    return FilledButton(
-      style: FilledButton.styleFrom(
-        backgroundColor: palette.fg,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-      onPressed: onTap,
-      child: Text(
-        badge.label.isEmpty ? badge.value : badge.label,
-        style: const TextStyle(fontWeight: FontWeight.w600),
       ),
     );
   }

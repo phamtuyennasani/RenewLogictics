@@ -146,13 +146,16 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
           Expanded(
             child: state.result != null
                 ? SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 16),
                     child: ScanResultCard(
                       result: state.result!,
                       isReceiving: state.isReceiving,
-                      onReceive: () =>
-                          ref.read(scanControllerProvider.notifier).receiveCurrent(),
-                      onClear: () =>
-                          ref.read(scanControllerProvider.notifier).clearResult(),
+                      onReceive: () => ref
+                          .read(scanControllerProvider.notifier)
+                          .receiveCurrent(),
+                      onClear: () => ref
+                          .read(scanControllerProvider.notifier)
+                          .clearResult(),
                     ),
                   )
                 : _buildHint(state, theme),
@@ -163,63 +166,130 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
   }
 
   Widget _buildScannerView(ScanState state, ThemeData theme) {
-    return SizedBox(
-      height: 260,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          MobileScanner(
-            controller: _scanner,
-            onDetect: _onDetect,
-            errorBuilder: (context, error, child) => _CameraError(error: error),
-          ),
-          // Khung ngắm.
-          Center(
-            child: Container(
-              width: 220,
-              height: 130,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white.withValues(alpha: 0.9), width: 2),
-                borderRadius: BorderRadius.circular(12),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+      child: SizedBox(
+        height: 280,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              MobileScanner(
+                controller: _scanner,
+                onDetect: _onDetect,
+                errorBuilder: (context, error, child) =>
+                    _CameraError(error: error),
               ),
-            ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.2),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.46),
+                    ],
+                  ),
+                ),
+              ),
+              Center(
+                child: Container(
+                  width: 230,
+                  height: 132,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 14,
+                right: 14,
+                bottom: 14,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Đưa mã vận đơn vào khung để tra cứu',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: const Text(
+                        'LIVE',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (state.isLooking)
+                Container(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+            ],
           ),
-          if (state.isLooking)
-            Container(
-              color: Colors.black.withValues(alpha: 0.35),
-              child: const Center(child: CircularProgressIndicator()),
-            ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildManualInput(ScanState state, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _manualCtrl,
-              textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _submitManual(),
-              decoration: const InputDecoration(
-                hintText: 'Nhập mã thủ công',
-                prefixIcon: Icon(Icons.keyboard_outlined),
-                isDense: true,
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _manualCtrl,
+                  textInputAction: TextInputAction.search,
+                  onSubmitted: (_) => _submitManual(),
+                  decoration: const InputDecoration(
+                    hintText: 'Nhập mã thủ công',
+                    prefixIcon: Icon(Icons.keyboard_outlined),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: state.isBusy ? null : _submitManual,
+                child: const Text('Tra cứu'),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          FilledButton(
-            onPressed: state.isBusy ? null : _submitManual,
-            child: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text('Tra cứu'),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -228,27 +298,56 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
     final lastReceived = state.recent.where((e) => e.received).length;
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.qr_code_scanner,
-                size: 56, color: theme.hintColor.withValues(alpha: 0.6)),
-            const SizedBox(height: 12),
-            Text(
-              'Hướng camera vào mã vận đơn để tra cứu.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
+        padding: const EdgeInsets.all(20),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.colorScheme.outlineVariant),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.qr_code_scanner,
+                    size: 30,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Sẵn sàng quét mã vận đơn',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Camera sẽ tự tra cứu khi phát hiện mã hợp lệ.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                if (state.recent.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  TextButton.icon(
+                    onPressed: () => context.push('/ops/recent'),
+                    icon: const Icon(Icons.history, size: 18),
+                    label: Text('Phiên này: đã nhập $lastReceived đơn'),
+                  ),
+                ],
+              ],
             ),
-            if (state.recent.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              TextButton.icon(
-                onPressed: () => context.push('/ops/recent'),
-                icon: const Icon(Icons.history, size: 18),
-                label: Text('Phiên này: đã nhập $lastReceived đơn'),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -280,8 +379,11 @@ class _CameraError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.no_photography_outlined,
-                color: Colors.white70, size: 40),
+            const Icon(
+              Icons.no_photography_outlined,
+              color: Colors.white70,
+              size: 40,
+            ),
             const SizedBox(height: 12),
             Text(
               _message(error),

@@ -14,21 +14,26 @@ class StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = StatusPalette.of(badge.value);
+    final label = badge.label.trim().isEmpty ? badge.value : badge.label;
+
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: dense ? 8 : 10,
-        vertical: dense ? 3 : 5,
+        horizontal: dense ? 8 : 11,
+        vertical: dense ? 4 : 6,
       ),
       decoration: BoxDecoration(
         color: palette.bg,
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: palette.fg.withValues(alpha: 0.14)),
       ),
       child: Text(
-        badge.label,
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: palette.fg,
-          fontSize: dense ? 11 : 12.5,
-          fontWeight: FontWeight.w600,
+          fontSize: dense ? 11 : 12,
+          fontWeight: FontWeight.w800,
           height: 1.1,
         ),
       ),

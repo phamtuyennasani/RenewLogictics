@@ -15,7 +15,9 @@ Future<void> main() async {
   try {
     await dotenv.load(fileName: '.env');
   } catch (e) {
-    debugPrint('[main] Không nạp được .env ($e) → dùng giá trị mặc định trong Env.');
+    debugPrint(
+      '[main] Không nạp được .env ($e) → dùng giá trị mặc định trong Env.',
+    );
   }
 
   // Khởi tạo dữ liệu locale cho intl (định dạng ngày giờ tiếng Việt).
@@ -26,9 +28,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
+      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
       child: const ShipperOpsApp(),
     ),
   );
