@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" rx="192" fill="#2563eb"/>
+  <text x="512" y="728"
+        font-family="Arial, sans-serif"
+        font-size="576"
+        font-weight="bold"
+        text-anchor="middle"
+        fill="white">H</text>
+</svg>

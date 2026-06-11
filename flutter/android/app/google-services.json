@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "246593927847",
+    "project_id": "loginseo-490901",
+    "storage_bucket": "loginseo-490901.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:246593927847:android:e59ed6f2b084412649f982",
+        "android_client_info": {
+          "package_name": "com.hethong.shipper_ops_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "246593927847-158eqigpotpm76c42ilitrq2gqtc29pc.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdScplQeGpamRM9TM_rOf5kp9U-w2wOu8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "246593927847-158eqigpotpm76c42ilitrq2gqtc29pc.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api/dio_client.dart';
+import 'security/biometric_auth_service.dart';
 import 'storage/secure_token_storage.dart';
 
 /// Provider hạ tầng dùng chung toàn app (DI gốc).
@@ -9,6 +10,11 @@ import 'storage/secure_token_storage.dart';
 /// Secure storage cho token.
 final tokenStorageProvider = Provider<SecureTokenStorage>((ref) {
   return SecureTokenStorage();
+});
+
+/// Face ID / Touch ID local unlock.
+final biometricAuthProvider = Provider<BiometricAuthService>((ref) {
+  return BiometricAuthService();
 });
 
 /// SharedPreferences instance — override ở main() sau khi `getInstance()`.

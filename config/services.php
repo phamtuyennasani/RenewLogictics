@@ -40,4 +40,14 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+
+    'firebase' => [
+        // Bật/tắt toàn bộ push notification. Tắt (false) → bỏ qua hoàn toàn,
+        // không enqueue job, không gọi FCM. Dùng khi chưa có app để nhận.
+        'push_enabled' => env('PUSH_ENABLED', false),
+        // Đường dẫn tới service account JSON (CHỈ ở server, KHÔNG đưa vào app).
+        // Để trống → FcmSender bỏ qua việc gửi (no-op an toàn khi chưa cấu hình).
+        'credentials' => env('FIREBASE_CREDENTIALS'),
+        'project_id' => env('FIREBASE_PROJECT_ID'),
+    ],
 ];

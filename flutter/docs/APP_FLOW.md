@@ -23,6 +23,7 @@ Tài khoản có **cả hai** quyền → vào màn chọn module (chooser).
 - **HTTP:** Dio + interceptor gắn Bearer token
 - **Điều hướng:** go_router (có auth guard)
 - **Token:** flutter_secure_storage (Sanctum token)
+- **Sinh trắc học:** local_auth (Face ID / Touch ID) — mở khóa phiên đã lưu
 - **Cấu hình:** flutter_dotenv (`.env`)
 - **Quét mã:** mobile_scanner (MLKit)
 - **DTO:** `fromJson` viết tay (không freezed/json_serializable)
@@ -189,10 +190,37 @@ LoginScreen (nhập username/password)
 ```
 SplashScreen → AuthController.restoreSession()
  ├─ không có token → unauthenticated
- └─ có token → GET /me
-     ├─ OK   → authenticated(session)
-     └─ lỗi  → xóa token → unauthenticated
+ └─ có token:
+     ├─ thiết bị HỖ TRỢ sinh trắc học → KHÔNG auto restore
+     │   → unauthenticated (chờ user mở khóa bằng Face ID/Touch ID ở /login)
+     └─ thiết bị KHÔNG hỗ trợ → GET /me
+         ├─ OK   → authenticated(session)
+         └─ lỗi  → xóa token → unauthenticated
 ```
+
+> **Gate bảo mật:** khi máy có Face ID/Touch ID, app **không** tự khôi phục phiên
+> dù còn token hợp lệ. User phải mở khóa chủ động (xem dưới). Mục tiêu: tránh mở
+> app là vào thẳng dữ liệu vận hành trên thiết bị dùng chung.
+
+### Mở khóa bằng sinh trắc học (Face ID / Touch ID)
+
+`BiometricAuthService` (`core/security/biometric_auth_service.dart`) dò khả năng
+thiết bị; `biometricAuthProvider` cấp DI.
+
+```
+LoginScreen (nếu còn token + thiết bị hỗ trợ → hiện nút "Đăng nhập bằng Face ID/Touch ID")
+ └─ AuthController.unlockWithBiometrics()
+     ├─ không còn token → unauthenticated + thông báo
+     └─ local_auth.authenticate(biometricOnly: true)
+         ├─ thất bại/hủy → giữ nguyên (không đổi status)
+         └─ thành công → GET /me
+             ├─ OK   → authenticated(session)
+             └─ lỗi  → xóa token → unauthenticated
+```
+
+- `availability()` map loại sinh trắc → nhãn UI: Face ID / Touch ID / "Sinh trắc học".
+- Xác thực **chỉ mở khóa local**, không gọi `/login` lại — token cũ vẫn dùng cho `/me`.
+- Nút biometric chỉ hiện khi `token != null` **và** `canAuthenticate == true`.
 
 ### Đăng xuất
 
@@ -399,9 +427,11 @@ flutter run                # chọn thiết bị/simulator
 
 ### Quyền native
 
-- iOS `Info.plist`: `NSCameraUsageDescription` (quét mã) + ngoại lệ ATS cho host
-  dev (`logictics.local`) — đánh dấu DEV ONLY.
-- Android `AndroidManifest.xml`: `android.permission.CAMERA`.
+- iOS `Info.plist`: `NSCameraUsageDescription` (quét mã) + `NSFaceIDUsageDescription`
+  (mở khóa phiên bằng Face ID) + ngoại lệ ATS cho host dev (`logictics.local`) —
+  đánh dấu DEV ONLY.
+- Android `AndroidManifest.xml`: `android.permission.CAMERA`. Sinh trắc học dùng
+  `local_auth` (USE_BIOMETRIC khai báo bởi plugin).
 
 ---
 

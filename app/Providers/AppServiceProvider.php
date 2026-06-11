@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Pickup;
+use App\Observers\PickupObserver;
 use App\Services\TrackingMore\TrackingMore;
 use App\Support\ThirdPartyTrackingApi;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -24,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Pickup::observe(PickupObserver::class);
+
         RateLimiter::for('third-party-tracking', function (Request $request) {
             return Limit::perMinute(ThirdPartyTrackingApi::rateLimitPerMinute())
                 ->by((string) $request->ip());

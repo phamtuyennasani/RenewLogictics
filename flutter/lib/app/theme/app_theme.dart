@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 class AppTheme {
   const AppTheme._();
 
-  static const _seed = Color(0xFF0F766E);
-  static const _background = Color(0xFFF3F6FA);
+  static const _seed = Color(0xFF2563EB);
+  static const _background = Color(0xFFF3F7FF);
   static const _surface = Color(0xFFFFFFFF);
-  static const _surfaceMuted = Color(0xFFEFF6F8);
-  static const _outline = Color(0xFFD9E2EA);
+  static const _surfaceMuted = Color(0xFFEEF5FF);
+  static const _outline = Color(0xFFD8E4F5);
   static const _text = Color(0xFF0F172A);
   static const _muted = Color(0xFF64748B);
 
@@ -19,14 +19,14 @@ class AppTheme {
     );
     final scheme = baseScheme.copyWith(
       primary: _seed,
-      secondary: const Color(0xFF2563EB),
+      secondary: const Color(0xFF06B6D4),
       tertiary: const Color(0xFFF59E0B),
       surface: _surface,
       surfaceContainerLowest: _surface,
       surfaceContainerLow: const Color(0xFFF8FAFC),
       surfaceContainer: _surfaceMuted,
       outline: _outline,
-      outlineVariant: const Color(0xFFE5EDF3),
+      outlineVariant: const Color(0xFFE2EAF7),
       onSurface: _text,
       onSurfaceVariant: _muted,
     );

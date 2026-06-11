@@ -49,6 +49,12 @@ dependencies:
   # Device/app info (device_name khi login, version hiển thị)
   device_info_plus: ^11.1.1
   package_info_plus: ^8.1.1
+  local_auth: ^3.0.1
+
+  # Push notification (FCM)
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:

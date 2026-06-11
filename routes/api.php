@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Mobile\MobileAuthController;
+use App\Http\Controllers\Api\Mobile\MobileDeviceTokenController;
 use App\Http\Controllers\Api\Mobile\MobileOpsScanController;
 use App\Http\Controllers\Api\Mobile\MobileShipperPickupController;
 use App\Http\Controllers\Api\ThirdPartyOrderTrackingController;
@@ -42,6 +43,10 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/me', [MobileAuthController::class, 'me'])->name('me');
         Route::post('/logout', [MobileAuthController::class, 'logout'])->name('logout');
+
+        // Device token cho push notification (mọi role mobile).
+        Route::post('/device-tokens', [MobileDeviceTokenController::class, 'store'])->name('device-tokens.store');
+        Route::post('/device-tokens/revoke', [MobileDeviceTokenController::class, 'revoke'])->name('device-tokens.revoke');
 
         // Shipper pickup — bắt buộc role shipper; controller ép id_shipper = auth()->id().
         Route::middleware('role:shipper')->prefix('shipper')->name('shipper.')->group(function (): void {

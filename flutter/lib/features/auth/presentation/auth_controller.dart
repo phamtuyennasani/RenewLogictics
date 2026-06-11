@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/notifications/push_providers.dart';
 import '../../../core/providers.dart';
+import '../../../core/storage/secure_token_storage.dart';
 import '../data/auth_api.dart';
 import '../data/auth_repository_impl.dart';
 import '../domain/auth_repository.dart';
@@ -35,10 +37,10 @@ class AuthState {
   final bool isSubmitting;
 
   const AuthState.unknown()
-      : status = AuthStatus.unknown,
-        session = null,
-        errorMessage = null,
-        isSubmitting = false;
+    : status = AuthStatus.unknown,
+      session = null,
+      errorMessage = null,
+      isSubmitting = false;
 
   AuthState copyWith({
     AuthStatus? status,
@@ -84,9 +86,45 @@ class AuthController extends Notifier<AuthState> {
       state = const AuthState(status: AuthStatus.unauthenticated);
       return;
     }
+
+    final biometric = await ref.read(biometricAuthProvider).availability();
+    if (biometric.canAuthenticate) {
+      state = const AuthState(status: AuthStatus.unauthenticated);
+      return;
+    }
+
+    await _restoreStoredSession(storage);
+  }
+
+  Future<void> unlockWithBiometrics() async {
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    final storage = ref.read(tokenStorageProvider);
+    final token = await storage.read();
+    if (token == null || token.isEmpty) {
+      state = const AuthState(
+        status: AuthStatus.unauthenticated,
+        errorMessage:
+            'Chưa có phiên đăng nhập để mở khóa bằng Face ID/Touch ID.',
+      );
+      return;
+    }
+
+    final ok = await ref
+        .read(biometricAuthProvider)
+        .authenticate(reason: 'Xác thực để mở khóa phiên đăng nhập VAU TRANS.');
+    if (!ok) {
+      state = state.copyWith(isSubmitting: false);
+      return;
+    }
+
+    await _restoreStoredSession(storage);
+  }
+
+  Future<void> _restoreStoredSession(SecureTokenStorage storage) async {
     try {
       final session = await _repo.me();
       state = AuthState(status: AuthStatus.authenticated, session: session);
+      _registerPushDevice();
     } catch (_) {
       // Token hỏng/hết hạn → xóa và yêu cầu đăng nhập lại.
       await storage.clear();
@@ -110,6 +148,7 @@ class AuthController extends Notifier<AuthState> {
         status: AuthStatus.authenticated,
         session: result.session,
       );
+      _registerPushDevice();
     } on Object catch (e) {
       state = state.copyWith(
         isSubmitting: false,
@@ -120,12 +159,19 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
+    // Thu hồi device token trước khi mất Bearer (server cần auth để revoke).
+    await ref.read(pushRegistrationProvider).revokeCurrentDevice();
     try {
       await _repo.logout();
     } catch (_) {
       // Logout server lỗi vẫn xóa local; bỏ qua.
     }
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  /// Đăng ký FCM token lên server (fire-and-forget, không chặn UI).
+  void _registerPushDevice() {
+    ref.read(pushRegistrationProvider).registerCurrentDevice();
   }
 
   void clearError() {
@@ -150,5 +196,6 @@ class AuthController extends Notifier<AuthState> {
   }
 }
 
-final authControllerProvider =
-    NotifierProvider<AuthController, AuthState>(AuthController.new);
+final authControllerProvider = NotifierProvider<AuthController, AuthState>(
+  AuthController.new,
+);

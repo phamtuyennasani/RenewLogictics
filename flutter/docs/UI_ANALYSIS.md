@@ -9,6 +9,8 @@ App hiện là một mobile workflow nội bộ cho hai nhóm chính:
 - Shipper: xem pickup, tìm kiếm, đổi trạng thái, gọi khách, mở bản đồ.
 - OPS: quét mã/nhập mã thủ công, tra cứu đơn, xác nhận nhập kho, xem lịch sử phiên.
 
+Xác thực dùng chung: đăng nhập username/password, kèm mở khóa nhanh bằng Face ID/Touch ID khi thiết bị còn phiên đã lưu.
+
 Kiến trúc UI đang bám theo `APP_FLOW.md`: router có auth guard, điều hướng theo `default_module`, và chia feature-first theo `auth`, `shipper_pickup`, `ops_scan`, `profile`.
 
 ## 2. Bản đồ màn hình
@@ -16,7 +18,7 @@ Kiến trúc UI đang bám theo `APP_FLOW.md`: router có auth guard, điều h�
 | Màn hình | File | Vai trò UI |
 | --- | --- | --- |
 | Splash | `lib/features/auth/presentation/splash_screen.dart` | Khôi phục phiên, hiển thị tên app và loading |
-| Login | `lib/features/auth/presentation/login_screen.dart` | Đăng nhập username/password, lỗi qua SnackBar |
+| Login | `lib/features/auth/presentation/login_screen.dart` | Đăng nhập username/password + mở khóa Face ID/Touch ID, lỗi qua SnackBar |
 | Module chooser | `lib/features/auth/presentation/module_chooser_screen.dart` | Chọn Shipper hoặc OPS khi user có nhiều quyền |
 | Pickup list | `lib/features/shipper_pickup/presentation/pickup_list_screen.dart` | 4 tab pickup, search debounce, refresh, infinite scroll |
 | Pickup detail | `lib/features/shipper_pickup/presentation/pickup_detail_screen.dart` | Thông tin khách, số kiện/đơn/kg, ghi chú, orders, cập nhật trạng thái |
@@ -34,6 +36,7 @@ Kiến trúc UI đang bám theo `APP_FLOW.md`: router có auth guard, điều h�
 - OPS scanner có fallback nhập mã thủ công khi camera lỗi hoặc chưa cấp quyền.
 - Scan result tách rõ hai trạng thái: tìm thấy/không tìm thấy, được nhập kho/không được nhập kho.
 - Lịch sử scan chỉ lưu trong phiên, khớp yêu cầu bảo mật dữ liệu nhạy cảm trong `APP_FLOW.md`.
+- Login hỗ trợ mở khóa nhanh bằng Face ID/Touch ID khi thiết bị còn phiên; nút biometric chỉ hiện khi đủ điều kiện (còn token + máy hỗ trợ), tránh gây rối khi không dùng được.
 
 ## 4. Rủi ro và điểm cần cải thiện
 
@@ -44,7 +47,8 @@ Kiến trúc UI đang bám theo `APP_FLOW.md`: router có auth guard, điều h�
 5. Status action sheet phụ thuộc label backend; nếu backend trả label dài, CTA có nguy cơ chật trên màn hình nhỏ.
 6. OPS scanner đặt camera và form thủ công cùng một màn hình, tốt cho vận hành, nhưng cần kiểm tra thực tế trên máy nhỏ để bảo đảm camera preview không đẩy CTA khỏi vùng chạm thuận tiện.
 7. Lỗi/thành công dùng SnackBar nhiều. Với thao tác nghiệp vụ quan trọng như nhập kho, nên cân nhắc trạng thái inline hoặc confirmation rõ hơn để tránh bị bỏ lỡ.
-8. Chưa thấy widget test cho các state UI chính: empty/error/loading của pickup list, scan not found, scan can_receive=false, camera permission denied.
+8. Chưa thấy widget test cho các state UI chính: empty/error/loading của pickup list, scan not found, scan can_receive=false, camera permission denied, và luồng mở khóa biometric (thành công/thất bại/hủy).
+9. Tên app chưa nhất quán giữa các màn: Splash hiển thị "Renew Logistics" còn Login hiển thị "VAU TRANS". Cần thống nhất một brand name để tránh gây nhầm cho người dùng.
 
 ## 5. Khuyến nghị ưu tiên
 

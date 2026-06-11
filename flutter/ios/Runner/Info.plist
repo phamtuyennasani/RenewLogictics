@@ -66,9 +66,17 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Push notification: nhận remote notification khi app ở background. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<!-- Quét QR/Code128 ở module OPS (mobile_scanner). -->
 	<key>NSCameraUsageDescription</key>
 	<string>Ứng dụng cần camera để quét mã vận đơn / mã kiện khi nhập kho.</string>
+	<!-- Face ID / Touch ID để mở khóa phiên đăng nhập đã lưu trong Keychain. -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Ứng dụng dùng Face ID hoặc Touch ID để mở khóa phiên đăng nhập nhanh và an toàn.</string>
 	<!-- DEV ONLY: cho phép kết nối host nội bộ logictics.local (self-signed).
 	     KHÔNG dùng cho production — host thật phải có HTTPS hợp lệ. -->
 	<key>NSAppTransportSecurity</key>

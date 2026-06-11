@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
+import 'core/notifications/push_providers.dart';
 import 'core/providers.dart';
 
 Future<void> main() async {
@@ -26,9 +27,16 @@ Future<void> main() async {
   // SharedPreferences cho dữ liệu không nhạy cảm (lịch sử scan trong phiên).
   final prefs = await SharedPreferences.getInstance();
 
+  final container = ProviderContainer(
+    overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+  );
+
+  // Khởi tạo push notification (degrade an toàn nếu chưa cấu hình Firebase).
+  await container.read(pushNotificationServiceProvider).init();
+
   runApp(
-    ProviderScope(
-      overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+    UncontrolledProviderScope(
+      container: container,
       child: const ShipperOpsApp(),
     ),
   );
