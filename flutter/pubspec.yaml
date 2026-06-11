@@ -1,0 +1,63 @@
+name: shipper_ops_app
+description: "App Flutter cho Shipper (pickup) và OPS (scan/nhập kho) — Mobile API Laravel."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management + DI
+  flutter_riverpod: ^2.6.1
+
+  # Routing (auth guard theo role)
+  go_router: ^14.6.2
+
+  # HTTP client
+  dio: ^5.7.0
+
+  # Token storage (Keychain/Keystore)
+  flutter_secure_storage: ^9.2.4
+
+  # Setting nhẹ (không nhạy cảm) + lịch sử scan phiên
+  shared_preferences: ^2.3.3
+
+  # Quét QR/Barcode
+  mobile_scanner: ^5.2.3
+
+  # Xin quyền camera/location
+  permission_handler: ^11.3.1
+
+  # Mở map / gọi điện
+  url_launcher: ^6.3.1
+
+  # Trạng thái mạng
+  connectivity_plus: ^6.1.0
+
+  # Format ngày/số
+  intl: ^0.19.0
+
+  # Env config
+  flutter_dotenv: ^5.2.1
+
+  # Device/app info (device_name khi login, version hiển thị)
+  device_info_plus: ^11.1.1
+  package_info_plus: ^8.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
