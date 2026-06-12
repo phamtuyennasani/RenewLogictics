@@ -70,6 +70,12 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
             Route::get('/pickups', [MobileShipperPickupController::class, 'index'])->name('pickups.index');
             Route::get('/pickups/{pickup}', [MobileShipperPickupController::class, 'show'])->name('pickups.show');
             Route::post('/pickups/{pickup}/status', [MobileShipperPickupController::class, 'updateStatus'])->name('pickups.status');
+
+            // Quét mã kiện → tìm pickup → nhận hàng.
+            Route::post('/scan', [MobileShipperPickupController::class, 'scan'])
+                ->middleware('throttle:mobile-scan')->name('scan');
+            Route::post('/pickups/receive-by-scan', [MobileShipperPickupController::class, 'receiveByScan'])
+                ->middleware('throttle:mobile-receive')->name('pickups.receive-by-scan');
         });
 
         // OPS scan/nhập kho — role ops|admin|manager|cs.

@@ -19,6 +19,7 @@ import '../features/shipper_pickup/domain/pickup.dart';
 import '../features/shipper_pickup/presentation/pickup_detail_screen.dart';
 import '../features/shipper_pickup/presentation/pickup_list_screen.dart';
 import '../features/shipper_pickup/presentation/pickup_route_map_screen.dart';
+import '../features/shipper_scan/presentation/shipper_scanner_screen.dart';
 
 /// Tên các route (tránh hardcode chuỗi rải rác).
 abstract class AppRoutes {
@@ -26,6 +27,8 @@ abstract class AppRoutes {
   static const login = '/login';
   static const chooser = '/chooser';
   static const shipper = '/shipper';
+  static const shipperScan = '/shipper/scan';
+  static const shipperScanChild = 'scan';
   static const pickupDetail = '/shipper/pickups/:id';
   static const pickupDetailChild = 'pickups/:id';
   static const pickupRoute = '/shipper/pickups/:id/route';
@@ -113,6 +116,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.shipper,
         builder: (_, _) => const PickupListScreen(),
         routes: [
+          GoRoute(
+            path: AppRoutes.shipperScanChild,
+            builder: (_, _) => const ShipperScannerScreen(),
+          ),
           GoRoute(
             path: AppRoutes.pickupDetailChild,
             builder: (_, state) {

@@ -30,8 +30,7 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
   VietmapController? _mapController;
   bool _styleReady = false;
 
-  Symbol? _pickupSymbol;
-  Symbol? _shipperSymbol;
+  Circle? _shipperMarker;
   Line? _routeLine;
 
   LatLngPoint get _destination =>
@@ -42,16 +41,10 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
 
   @override
   void dispose() {
-    // Dọn annotation đã thêm để tránh giữ tham chiếu khi rời màn hình.
-    final controller = _mapController;
-    if (controller != null) {
-      final pickup = _pickupSymbol;
-      final shipper = _shipperSymbol;
-      final line = _routeLine;
-      if (pickup != null) controller.removeSymbol(pickup);
-      if (shipper != null) controller.removeSymbol(shipper);
-      if (line != null) controller.removePolyline(line);
-    }
+    // KHÔNG gọi removeCircle/removePolyline ở đây: VietmapGL tự huỷ map +
+    // annotation khi widget dispose. Gọi platform-channel async lúc map đang
+    // bị tear down gây treo (ANR) khi back về màn trước.
+    _mapController = null;
     super.dispose();
   }
 
@@ -130,16 +123,15 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
     final controller = _mapController;
     if (controller == null || !_styleReady) return;
 
-    _pickupSymbol = await controller.addSymbol(
-      SymbolOptions(
+    // Dùng addCircle thay vì addSymbol: VietMap style không có sprite
+    // 'marker-15' nên symbol icon sẽ vô hình. Circle vẽ trực tiếp, luôn hiện.
+    await controller.addCircle(
+      CircleOptions(
         geometry: LatLng(_destination.lat, _destination.lng),
-        iconImage: 'marker-15',
-        iconSize: 2.4,
-        iconColor: const Color(0xFFDC2626),
-        textField: 'P',
-        textColor: const Color(0xFFDC2626),
-        textSize: 12,
-        textOffset: const Offset(0, 1.4),
+        circleRadius: 9,
+        circleColor: const Color(0xFFDC2626),
+        circleStrokeWidth: 3,
+        circleStrokeColor: const Color(0xFFFFFFFF),
       ),
     );
   }
@@ -153,9 +145,9 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
       await controller.removePolyline(_routeLine!);
       _routeLine = null;
     }
-    if (_shipperSymbol != null) {
-      await controller.removeSymbol(_shipperSymbol!);
-      _shipperSymbol = null;
+    if (_shipperMarker != null) {
+      await controller.removeCircle(_shipperMarker!);
+      _shipperMarker = null;
     }
 
     final coords = route.coordinates
@@ -174,16 +166,13 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
       );
     }
 
-    _shipperSymbol = await controller.addSymbol(
-      SymbolOptions(
+    _shipperMarker = await controller.addCircle(
+      CircleOptions(
         geometry: LatLng(shipper.lat, shipper.lng),
-        iconImage: 'marker-15',
-        iconSize: 2.2,
-        iconColor: const Color(0xFF2563EB),
-        textField: 'Bạn',
-        textColor: const Color(0xFF1D4ED8),
-        textSize: 11,
-        textOffset: const Offset(0, 1.4),
+        circleRadius: 8,
+        circleColor: const Color(0xFF2563EB),
+        circleStrokeWidth: 3,
+        circleStrokeColor: const Color(0xFFFFFFFF),
       ),
     );
 

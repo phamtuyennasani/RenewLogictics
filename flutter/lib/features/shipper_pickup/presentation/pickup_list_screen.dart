@@ -89,6 +89,7 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
                 FocusScope.of(context).unfocus();
               },
               onProfile: () => context.push('/profile'),
+              onScan: () => context.push(AppRoutes.shipperScan),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
@@ -317,6 +318,7 @@ class _ListHeader extends StatelessWidget {
     required this.onChanged,
     required this.onClear,
     required this.onProfile,
+    required this.onScan,
     this.nearest,
   });
 
@@ -326,6 +328,7 @@ class _ListHeader extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
   final VoidCallback onProfile;
+  final VoidCallback onScan;
 
   @override
   Widget build(BuildContext context) {
@@ -346,6 +349,11 @@ class _ListHeader extends StatelessWidget {
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Quét nhận hàng',
+                  onPressed: onScan,
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
                 ),
                 IconButton(
                   tooltip: 'Tài khoản',
