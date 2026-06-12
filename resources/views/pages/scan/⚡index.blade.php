@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Actions\Order\RecordTrackingHistoryAction;
 use App\Enums\OrderStatusEnum;
@@ -175,9 +175,8 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
 
 <div class="space-y-5" x-data="{
     cameraActive: false,
-    scannerControls: null,
-    zxingPromise: null,
-    codeReader: null,
+    html5QrCode: null,
+    scannerPromise: null,
     lastCode: '',
     lastAt: 0,
     duplicateWindowMs: 5000,
@@ -185,39 +184,35 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
     candidateAt: 0,
     candidateCount: 0,
     confirmationWindowMs: 2500,
-    detectedPoints: '',
-    detectedViewBox: '0 0 1 1',
-    detectedLineTimer: null,
-    busy: false,
 
     get csrf() {
         return document.querySelector('meta[name=csrf-token]')?.content || '';
     },
 
     async loadScanner() {
-        if (typeof window.loadZXingBrowser !== 'function') {
+        if (typeof window.loadHtml5Qrcode !== 'function') {
             throw new Error('Scanner assets are not available.');
         }
-        this.zxingPromise ??= window.loadZXingBrowser();
-        return this.zxingPromise;
+        this.scannerPromise ??= window.loadHtml5Qrcode();
+        return this.scannerPromise;
     },
 
     async loadCameras() {
         try {
-            const { BrowserCodeReader } = await this.loadScanner();
-            const devices = await BrowserCodeReader.listVideoInputDevices();
+            const { Html5Qrcode } = await this.loadScanner();
+            const devices = await Html5Qrcode.getCameras();
             const select = document.querySelector('[data-camera-select]');
             if (!select) return;
             select.replaceChildren(new Option('Camera mặc định', ''));
-            devices.forEach((d, i) => select.appendChild(new Option(d.label || `Camera ${i+1}`, d.deviceId)));
+            devices.forEach((d, i) => select.appendChild(new Option(d.label || `Camera ${i+1}`, d.id)));
         } catch (e) {
             this.setCameraStatus('Không thể đọc danh sách camera. Kiểm tra quyền camera hoặc HTTPS.', 'error');
         }
     },
 
     async ensureCameraDevices() {
-        const { BrowserCodeReader } = await this.loadScanner();
-        let devices = await BrowserCodeReader.listVideoInputDevices();
+        const { Html5Qrcode } = await this.loadScanner();
+        let devices = await Html5Qrcode.getCameras();
         if (devices.length > 0) {
             return devices;
         }
@@ -229,7 +224,7 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         stream.getTracks().forEach(track => track.stop());
 
-        devices = await BrowserCodeReader.listVideoInputDevices();
+        devices = await Html5Qrcode.getCameras();
         return devices;
     },
 
@@ -239,7 +234,7 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
             const select = document.querySelector('[data-camera-select]');
             if (!select) return devices;
             select.replaceChildren(new Option('Camera mặc định', ''));
-            devices.forEach((d, i) => select.appendChild(new Option(d.label || `Camera ${i+1}`, d.deviceId)));
+            devices.forEach((d, i) => select.appendChild(new Option(d.label || `Camera ${i+1}`, d.id)));
             return devices;
         } catch (e) {
             this.setCameraStatus(this.cameraErrorMessage(e, 'Không thể đọc danh sách camera. Kiểm tra quyền camera hoặc HTTPS.'), 'error');
@@ -274,107 +269,72 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         return fallback;
     },
 
-    showDetectedLine(result) {
-        const video = document.querySelector('[data-camera-video]');
-        const points = result?.getResultPoints?.() || [];
+    handleDecodedText(decodedText) {
+        const text = decodedText?.trim().toUpperCase();
+        if (!text) return;
 
-        if (!video || points.length < 2 || !video.videoWidth || !video.videoHeight) {
+        if (!/^[A-Z0-9-]+-\d{2,}$/.test(text)) {
+            this.setCameraStatus('Barcode không đúng định dạng mã kiện: ' + text, 'neutral');
             return;
         }
 
-        this.detectedViewBox = `0 0 ${video.videoWidth} ${video.videoHeight}`;
-        this.detectedPoints = points
-            .map(point => `${point.getX?.() ?? point.x},${point.getY?.() ?? point.y}`)
-            .join(' ');
+        const now = Date.now();
 
-        clearTimeout(this.detectedLineTimer);
-        this.detectedLineTimer = setTimeout(() => {
-            this.detectedPoints = '';
-        }, 700);
-    },
-
-    async enableContinuousFocus() {
-        const getCapabilities = this.scannerControls?.streamVideoCapabilitiesGet;
-        const applyConstraints = this.scannerControls?.streamVideoConstraintsApply;
-
-        if (!getCapabilities || !applyConstraints) {
+        if (text !== this.candidateCode || now - this.candidateAt > this.confirmationWindowMs) {
+            this.candidateCode = text;
+            this.candidateAt = now;
+            this.candidateCount = 1;
+            this.setCameraStatus('Đang xác nhận barcode: ' + text, 'neutral');
             return;
         }
 
-        try {
-            const capabilities = getCapabilities(track => track.kind === 'video');
-            if ((capabilities?.focusMode || []).includes('continuous')) {
-                await applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-            }
-        } catch {
-            // Some mobile browsers expose camera controls but reject focus constraints.
-        }
+        this.candidateCount += 1;
+        this.candidateAt = now;
+
+        if (this.candidateCount < 2) return;
+        if (text === this.lastCode && now - this.lastAt < this.duplicateWindowMs) return;
+
+        this.lastCode = text;
+        this.lastAt = now;
+        this.candidateCode = '';
+        this.candidateAt = 0;
+        this.candidateCount = 0;
+        this.setCameraStatus('Đã đọc: ' + text, 'success');
+        $wire.processScan(text);
     },
 
     async startCamera() {
-        const video = document.querySelector('[data-camera-video]');
+        const reader = document.querySelector('[data-camera-reader]');
         const select = document.querySelector('[data-camera-select]');
-        if (!video) return;
-        this.stopCamera();
+        if (!reader) return;
+        await this.stopCamera();
         this.setCameraStatus('Đang bật camera...', 'neutral');
         try {
-            const { BarcodeFormat, BrowserMultiFormatOneDReader, DecodeHintType } = await this.loadScanner();
+            const { Html5Qrcode, Html5QrcodeSupportedFormats } = await this.loadScanner();
             const devices = await this.loadCamerasWithPermission();
-            const preferredDeviceId = select?.value || devices[0]?.deviceId;
-            const hints = new Map([
-                [DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128]],
-                [DecodeHintType.TRY_HARDER, true],
-            ]);
-            const videoConstraints = {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                ...(preferredDeviceId
-                    ? { deviceId: { exact: preferredDeviceId } }
-                    : { facingMode: { ideal: 'environment' } }),
+            const preferredDeviceId = select?.value || devices[0]?.id;
+            const cameraConfig = preferredDeviceId || { facingMode: 'environment' };
+            const scannerConfig = {
+                fps: 12,
+                aspectRatio: 16 / 9,
+                rememberLastUsedCamera: true,
+                formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128],
+                qrbox: (viewfinderWidth, viewfinderHeight) => ({
+                    width: Math.floor(viewfinderWidth * 0.76),
+                    height: Math.floor(viewfinderHeight * 0.5),
+                }),
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true,
+                },
             };
-            this.codeReader = new BrowserMultiFormatOneDReader(hints, {
-                delayBetweenScanAttempts: 120,
-                delayBetweenScanSuccess: 150,
-            });
-            this.scannerControls = await this.codeReader.decodeFromConstraints(
-                { video: videoConstraints },
-                video,
-                (result) => {
-                    this.showDetectedLine(result);
-                    const text = result?.getText?.()?.trim().toUpperCase();
-                    if (!text) return;
-
-                    if (!/^[A-Z0-9-]+-\d{2,}$/.test(text)) {
-                        this.setCameraStatus('Barcode không đúng định dạng mã kiện: ' + text, 'neutral');
-                        return;
-                    }
-
-                    const now = Date.now();
-
-                    if (text !== this.candidateCode || now - this.candidateAt > this.confirmationWindowMs) {
-                        this.candidateCode = text;
-                        this.candidateAt = now;
-                        this.candidateCount = 1;
-                        this.setCameraStatus('Đang xác nhận barcode: ' + text, 'neutral');
-                        return;
-                    }
-
-                    this.candidateCount += 1;
-                    this.candidateAt = now;
-
-                    if (this.candidateCount < 2) return;
-                    if (text === this.lastCode && now - this.lastAt < this.duplicateWindowMs) return;
-
-                    this.lastCode = text;
-                    this.lastAt = now;
-                    this.candidateCode = '';
-                    this.candidateAt = 0;
-                    this.candidateCount = 0;
-                    this.setCameraStatus('Đã đọc: ' + text, 'success');
-                    $wire.set('barcodeInput', text).then(() => $wire.submitScan());
-                }
+            reader.innerHTML = '';
+            this.html5QrCode = new Html5Qrcode(reader.id, false);
+            await this.html5QrCode.start(
+                cameraConfig,
+                scannerConfig,
+                (decodedText) => this.handleDecodedText(decodedText),
+                () => {}
             );
-            await this.enableContinuousFocus();
             this.cameraActive = true;
             this.setCameraStatus('Camera đang quét. Đưa barcode vào khung hình.', 'success');
         } catch (e) {
@@ -382,20 +342,22 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
         }
     },
 
-    stopCamera() {
-        if (this.scannerControls) { this.scannerControls.stop(); this.scannerControls = null; }
-        const video = document.querySelector('[data-camera-video]');
-        if (video?.srcObject) {
-            video.srcObject.getTracks().forEach(t => t.stop());
-            video.srcObject = null;
+    async stopCamera() {
+        if (this.html5QrCode) {
+            try {
+                await this.html5QrCode.stop();
+            } catch {}
+            try {
+                this.html5QrCode.clear();
+            } catch {}
+            this.html5QrCode = null;
         }
+        const reader = document.querySelector('[data-camera-reader]');
+        if (reader) reader.innerHTML = '';
         this.cameraActive = false;
         this.candidateCode = '';
         this.candidateAt = 0;
         this.candidateCount = 0;
-        clearTimeout(this.detectedLineTimer);
-        this.detectedLineTimer = null;
-        this.detectedPoints = '';
         this.setCameraStatus('Camera chưa bật.', 'neutral');
     },
 
@@ -471,26 +433,15 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
                     </div>
                 </div>
                 <div class="relative mt-4 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-950">
-                    <video data-camera-video class="aspect-video w-full object-cover" muted playsinline></video>
-                    <div class="pointer-events-none absolute inset-[12%] rounded-lg border-2 border-white/70"></div>
-                    <div x-show="cameraActive" x-cloak class="camera-scan-line pointer-events-none absolute inset-x-[12%] border-t-2 border-red-500 shadow-[0_0_8px_red]"></div>
-                    <svg
-                        x-show="detectedPoints"
-                        x-cloak
-                        x-bind:viewBox="detectedViewBox"
-                        class="pointer-events-none absolute inset-0 h-full w-full"
-                        preserveAspectRatio="xMidYMid slice"
-                    >
-                        <polyline
-                            x-bind:points="detectedPoints"
-                            fill="none"
-                            stroke="#22c55e"
-                            stroke-width="5"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            vector-effect="non-scaling-stroke"
-                        />
-                    </svg>
+                    <div id="html5-qrcode-reader" data-camera-reader class="aspect-video w-full [&_video]:h-full [&_video]:w-full [&_video]:object-cover"></div>
+                    <div x-show="cameraActive" x-cloak class="pointer-events-none absolute inset-0">
+                        <div class="absolute inset-x-[12%] top-[25%] bottom-[25%] rounded-lg" style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.4);"></div>
+                        <div class="absolute left-[12%] top-[25%] h-6 w-6 rounded-tl-lg border-l-4 border-t-4 border-emerald-400"></div>
+                        <div class="absolute right-[12%] top-[25%] h-6 w-6 rounded-tr-lg border-r-4 border-t-4 border-emerald-400"></div>
+                        <div class="absolute left-[12%] bottom-[25%] h-6 w-6 rounded-bl-lg border-b-4 border-l-4 border-emerald-400"></div>
+                        <div class="absolute right-[12%] bottom-[25%] h-6 w-6 rounded-br-lg border-b-4 border-r-4 border-emerald-400"></div>
+                        <div class="camera-scan-line absolute inset-x-[12%] border-t-2 border-emerald-400 shadow-[0_0_8px_#34d399]"></div>
+                    </div>
                 </div>
                 <p data-camera-status class="mt-3 text-sm font-semibold text-neutral-600">Camera chưa bật.</p>
             </div>
@@ -585,8 +536,8 @@ new #[Layout('layouts.app')] #[Title('Quét kiện hàng')] class extends Compon
 
 <style>
     @keyframes camera-scan-line {
-        0%, 100% { top: 16%; }
-        50% { top: 84%; }
+        0%, 100% { top: 27%; }
+        50% { top: 73%; }
     }
 
     .camera-scan-line {

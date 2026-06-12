@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Mobile\MobileAuthController;
+use App\Http\Controllers\Api\Mobile\MobileConfigController;
 use App\Http\Controllers\Api\Mobile\MobileDeviceTokenController;
 use App\Http\Controllers\Api\Mobile\MobileLocationController;
 use App\Http\Controllers\Api\Mobile\MobileOpsOrderController;
@@ -8,6 +9,7 @@ use App\Http\Controllers\Api\Mobile\MobileOpsPickupController;
 use App\Http\Controllers\Api\Mobile\MobileOpsScanController;
 use App\Http\Controllers\Api\Mobile\MobileShipperPickupController;
 use App\Http\Controllers\Api\ThirdPartyOrderTrackingController;
+use App\Http\Controllers\Api\VietmapProxyController;
 use App\Http\Controllers\Webhook\MoMoWebhookController;
 use App\Http\Controllers\Webhook\SepayGatewayIpnController;
 use App\Http\Controllers\Webhook\SepayWebhookController;
@@ -50,6 +52,18 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
         // Device token cho push notification (mọi role mobile).
         Route::post('/device-tokens', [MobileDeviceTokenController::class, 'store'])->name('device-tokens.store');
         Route::post('/device-tokens/revoke', [MobileDeviceTokenController::class, 'revoke'])->name('device-tokens.revoke');
+
+        // Cấu hình public cho app (vd VietMap tile key để render bản đồ).
+        Route::get('/config', [MobileConfigController::class, 'index'])->name('config');
+
+        // Proxy VietMap (search/place/reverse/route) — giấu geocode/route key ở
+        // server. Tile/style tải thẳng từ VietMap bằng tile key, KHÔNG qua đây.
+        Route::prefix('vietmap')->name('vietmap.')->middleware('throttle:120,1')->group(function (): void {
+            Route::get('/search', [VietmapProxyController::class, 'search'])->name('search');
+            Route::get('/place', [VietmapProxyController::class, 'place'])->name('place');
+            Route::get('/reverse', [VietmapProxyController::class, 'reverse'])->name('reverse');
+            Route::get('/route', [VietmapProxyController::class, 'routeDirections'])->name('route');
+        });
 
         // Shipper pickup — bắt buộc role shipper; controller ép id_shipper = auth()->id().
         Route::middleware('role:shipper')->prefix('shipper')->name('shipper.')->group(function (): void {

@@ -74,6 +74,9 @@
 	<!-- Quét QR/Code128 ở module OPS (mobile_scanner). -->
 	<key>NSCameraUsageDescription</key>
 	<string>Ứng dụng cần camera để quét mã vận đơn / mã kiện khi nhập kho.</string>
+	<!-- Định vị shipper để chỉ đường tới điểm pickup (VietMap GL + geolocator). -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ứng dụng cần vị trí của bạn để tìm và chỉ đường tới điểm lấy hàng.</string>
 	<!-- Face ID / Touch ID để mở khóa phiên đăng nhập đã lưu trong Keychain. -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>Ứng dụng dùng Face ID hoặc Touch ID để mở khóa phiên đăng nhập nhanh và an toàn.</string>

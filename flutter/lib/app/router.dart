@@ -15,8 +15,10 @@ import '../features/ops_pickups/presentation/ops_pickup_list_screen.dart';
 import '../features/ops_scan/presentation/ops_scanner_screen.dart';
 import '../features/ops_scan/presentation/recent_scans_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
+import '../features/shipper_pickup/domain/pickup.dart';
 import '../features/shipper_pickup/presentation/pickup_detail_screen.dart';
 import '../features/shipper_pickup/presentation/pickup_list_screen.dart';
+import '../features/shipper_pickup/presentation/pickup_route_map_screen.dart';
 
 /// Tên các route (tránh hardcode chuỗi rải rác).
 abstract class AppRoutes {
@@ -26,6 +28,8 @@ abstract class AppRoutes {
   static const shipper = '/shipper';
   static const pickupDetail = '/shipper/pickups/:id';
   static const pickupDetailChild = 'pickups/:id';
+  static const pickupRoute = '/shipper/pickups/:id/route';
+  static const pickupRouteChild = 'route';
   static const ops = '/ops';
   static const opsRecent = '/ops/recent';
   static const opsOrders = '/ops/orders';
@@ -39,6 +43,7 @@ abstract class AppRoutes {
   static const profile = '/profile';
 
   static String pickupDetailLocation(int id) => '/shipper/pickups/$id';
+  static String pickupRouteLocation(int id) => '/shipper/pickups/$id/route';
   static String opsOrderDetailLocation(int id) => '/ops/orders/$id';
   static String opsOrderCreatePickupLocation(int id) => '/ops/orders/$id/create-pickup';
   static String opsPickupDetailLocation(int id) => '/ops/pickups/$id';
@@ -114,6 +119,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
               return PickupDetailScreen(pickupId: id);
             },
+            routes: [
+              GoRoute(
+                path: AppRoutes.pickupRouteChild,
+                builder: (_, state) {
+                  return PickupRouteMapScreen(pickup: state.extra as Pickup);
+                },
+              ),
+            ],
           ),
         ],
       ),

@@ -7,11 +7,11 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Shipper luôn được redirect sang giao diện mobile.
+ * Shipper/OPS luôn được redirect sang giao diện mobile.
  *
- * Khi user có role "shipper" truy cập bất kỳ route nào trong nhóm
- * web (trừ các route mobile, logout, profile, api), middleware sẽ
- * tự động redirect sang /shipper/pickups.
+ * Khi user có role "shipper" hoặc "ops" truy cập bất kỳ route desktop nào trong nhóm
+ * web (trừ các route mobile, logout, api), middleware sẽ tự động redirect
+ * sang giao diện mobile tương ứng.
  */
 class RedirectShipperToMobile
 {
@@ -20,9 +20,17 @@ class RedirectShipperToMobile
      */
     protected array $allowedRoutes = [
         'shipper.pickups',
+        'shipper.scan',
         'shipper.notifications',
         'shipper.profile',
-        'profile',
+        'ops.mobile.home',
+        'ops.mobile.orders.index',
+        'ops.mobile.orders.show',
+        'ops.mobile.pickups.index',
+        'ops.mobile.pickups.show',
+        'ops.mobile.notifications',
+        'ops.mobile.profile',
+        'mobile.scan',
         'logout',
         'login',
     ];
@@ -32,9 +40,10 @@ class RedirectShipperToMobile
      */
     protected array $allowedPrefixes = [
         'shipper/',
+        'ops/mobile',
+        'mobile/scan',
         'livewire',
         'api/',
-        'ho-so',
         'logout',
     ];
 
@@ -49,7 +58,7 @@ class RedirectShipperToMobile
 
         $user = $request->user();
 
-        if (! $user || ! $user->hasRole('shipper')) {
+        if (! $user || ! $user->hasAnyRole(['shipper', 'ops'])) {
             return $next($request);
         }
 
@@ -64,6 +73,10 @@ class RedirectShipperToMobile
             if (str_starts_with($path, $prefix)) {
                 return $next($request);
             }
+        }
+
+        if ($user->hasRole('ops')) {
+            return redirect()->route('ops.mobile.orders.index');
         }
 
         return redirect()->route('shipper.pickups');

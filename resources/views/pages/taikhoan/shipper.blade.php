@@ -27,7 +27,7 @@ new #[Layout('layouts.mobile')] #[Title('Thông tin cá nhân')] class extends C
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->hasRole('shipper'), 403);
+        abort_unless(auth()->user()?->hasAnyRole(['shipper', 'ops', 'admin', 'manager', 'cs']), 403);
 
         $user = auth()->user();
         $this->username = $user->username ?? '';

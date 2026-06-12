@@ -14,14 +14,7 @@ window.TomSelect = TomSelect;
 window.flatpickr = flatpickr;
 window.Chart = Chart;
 window.Fancybox = Fancybox;
-window.loadZXingBrowser = async () => {
-    const [browser, library] = await Promise.all([
-        import('@zxing/browser'),
-        import('@zxing/library'),
-    ]);
-
-    return { ...browser, DecodeHintType: library.DecodeHintType };
-};
+window.loadHtml5Qrcode = async () => import('html5-qrcode');
 Fancybox.bind('[data-fancybox]', {});
 import Scrollbar from 'smooth-scrollbar';
 const sidebarEl = document.querySelector('#sidebar-scrollbar');

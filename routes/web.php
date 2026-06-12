@@ -118,9 +118,27 @@ Route::middleware('auth')->group(function () {
     // --- Shipper Mobile Pickup ---
     Route::livewire('/shipper/pickups', 'pages::pickups.shipper')->name('shipper.pickups')
         ->middleware('can:pickups.index');
+    Route::livewire('/shipper/scan', 'pages::pickups.shipper-scan')->name('shipper.scan')
+        ->middleware('can:pickups.index');
     Route::livewire('/shipper/thong-bao', 'pages::notifications.shipper')->name('shipper.notifications')
         ->middleware('can:notifications.view');
     Route::livewire('/shipper/profile', 'pages::taikhoan.shipper')->name('shipper.profile');
+
+    // --- OPS Web Mobile ---
+    Route::prefix('ops/mobile')->name('ops.mobile.')->middleware('role:ops|admin|manager|cs')->group(function () {
+        Route::get('/', fn () => redirect()->route('ops.mobile.orders.index'))->name('home');
+        Route::livewire('/orders', 'pages::ops-mobile.orders.index')->name('orders.index')
+            ->middleware('can:orders.index');
+        Route::livewire('/orders/{order}', 'pages::ops-mobile.orders.show')->name('orders.show')
+            ->middleware('can:orders.index');
+        Route::livewire('/pickups', 'pages::ops-mobile.pickups.index')->name('pickups.index')
+            ->middleware('can:pickups.index');
+        Route::livewire('/pickups/{pickup}', 'pages::ops-mobile.pickups.show')->name('pickups.show')
+            ->middleware('can:pickups.index');
+        Route::livewire('/thong-bao', 'pages::notifications.shipper')->name('notifications')
+            ->middleware('can:notifications.view');
+        Route::livewire('/profile', 'pages::taikhoan.shipper')->name('profile');
+    });
 
     // --- OPS Mobile Scan ---
     Route::livewire('/mobile/scan', 'pages::scan.mobile')->name('mobile.scan')
@@ -128,7 +146,7 @@ Route::middleware('auth')->group(function () {
 
     // --- Scan ---
     Route::livewire('/scan', 'pages::scan.index')->name('scan')
-        ->middleware('can:scan');
+        ->middleware(['can:scan', \App\Http\Middleware\RedirectScanToMobile::class]);
 
     // --- Packages / Tải hàng ---
     Route::prefix('packages')->name('packages.')->middleware('feature:packages')->group(function () {

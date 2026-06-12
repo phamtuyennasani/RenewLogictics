@@ -1,36 +1,40 @@
-﻿<?php
+<?php
 
-use App\Actions\Order\RecordTrackingHistoryAction;
-use App\Enums\OrderStatusEnum;
-use App\Models\Order;
+use App\Actions\Pickup\TransitionPickupStatusAction;
+use App\Enums\PickupStatusEnum;
 use App\Models\OrderPackage;
-use Illuminate\Support\Facades\DB;
+use App\Models\Pickup;
+use Flux\Flux;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
-new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Component
+new #[Layout('layouts.mobile')] #[Title('Quét mã nhận Pickup')] class extends Component
 {
     public string $barcodeInput = '';
+    public ?int $scannedPickupId = null;
+    public ?int $scannedOrderId = null;
+    public int $successCount = 0;
+    public int $errorCount = 0;
+    public array $scanLog = [];
 
     public array $scanResult = [
         'message' => '',
-        'updated' => false,
+        'type' => 'neutral',
         'package_code' => '',
         'order_code' => '',
-        'from_status' => '',
-        'current_status' => '',
+        'pickup_code' => '',
+        'pickup_status' => '',
         'customer' => '',
-        'receiver' => '',
+        'address' => '',
+        'phone' => '',
+        'package_count' => 0,
+        'can_receive' => false,
     ];
-
-    public array $scanLog = [];
-    public int $successCount = 0;
-    public int $errorCount = 0;
 
     public function mount(): void
     {
-        abort_unless(\Gate::allows('scan'), 403);
+        abort_unless(\Gate::allows('pickups.index'), 403);
     }
 
     public function submitScan(): void
@@ -47,107 +51,151 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
 
     public function processScan(string $code): void
     {
+        $code = trim(strtoupper($code));
+
         $package = OrderPackage::query()
-            ->with(['order.customerAccount:id,fullname,username,code', 'order.sale:id,fullname,username,code'])
+            ->with(['order:id,id_bill,tracking_code'])
             ->where('code', $code)
             ->first();
 
         if (! $package || ! $package->order) {
-            $this->setScanResult($code, false, 'Không tìm thấy đơn hàng từ mã kiện này.');
+            $this->clearScannedPickup();
             $this->errorCount++;
+            $this->setScanResult('Không tìm thấy đơn hàng từ mã kiện này.', 'error', $code);
+            $this->pushLog($code, 'Không tìm thấy đơn hàng', 'error');
             return;
         }
 
-        $result = DB::transaction(function () use ($package) {
-            $order = Order::query()
-                ->whereKey($package->order->id)
-                ->lockForUpdate()
-                ->firstOrFail();
+        $pickup = Pickup::query()
+            ->where('id_shipper', auth()->id())
+            ->whereHas('orders', fn ($query) => $query->whereKey($package->order->id))
+            ->where('status', '!=', PickupStatusEnum::DA_HUY->value)
+            ->with(['orders' => fn ($query) => $query->whereKey($package->order->id)->withCount('packages')])
+            ->first();
 
-            $fromStatus = $order->bill_status;
-            $toStatus = match ($fromStatus) {
-                OrderStatusEnum::DA_XAC_NHAN => OrderStatusEnum::DA_NHAN_HANG,
-                OrderStatusEnum::DUYET_XUAT_HANG => OrderStatusEnum::DANG_PHAT_HANG,
-                default => null,
-            };
-
-            if (! $toStatus) {
-                return [
-                    'updated' => false,
-                    'message' => 'Đơn hàng đã được xử lý.',
-                    'order' => $order->fresh(['customerAccount:id,fullname,username,code', 'sale:id,fullname,username,code']),
-                    'from_status' => $fromStatus,
-                    'to_status' => null,
-                ];
-            }
-
-            $payload = ['bill_status' => $toStatus];
-            if ($toStatus === OrderStatusEnum::DA_NHAN_HANG && blank($order->ngaynhanhang)) {
-                $payload['ngaynhanhang'] = now();
-            }
-            if ($toStatus === OrderStatusEnum::DANG_PHAT_HANG && blank($order->ngayxuathang)) {
-                $payload['ngayxuathang'] = now();
-            }
-
-            $order->forceFill($payload)->save();
-
-            return [
-                'updated' => true,
-                'message' => 'Đã cập nhật trạng thái.',
-                'order' => $order->fresh(['customerAccount:id,fullname,username,code', 'sale:id,fullname,username,code']),
-                'from_status' => $fromStatus,
-                'to_status' => $toStatus,
-            ];
-        });
-
-        if ($result['updated'] && $result['to_status']) {
-            RecordTrackingHistoryAction::execute($result['order'], $result['to_status'], now());
-            $this->successCount++;
+        if (! $pickup) {
+            $this->clearScannedPickup();
+            $this->errorCount++;
+            $this->setScanResult('Không tìm thấy pickup được gán cho bạn từ mã kiện này.', 'error', $code);
+            $this->pushLog($code, 'Không tìm thấy pickup được gán', 'error');
+            return;
         }
 
-        $this->setScanResultFromPayload($package->code, $result);
+        $order = $pickup->orders->first() ?: $package->order->loadCount('packages');
+        $packageCount = max(1, (int) ($order->packages_count ?: 1));
+        $canReceive = $pickup->status !== PickupStatusEnum::PICKUP_DA_LAY;
+
+        $this->scannedPickupId = $pickup->id;
+        $this->scannedOrderId = $order->id;
+        $this->scanResult = [
+            'message' => $canReceive
+                ? 'Đã tìm thấy pickup. Kiểm tra thông tin rồi bấm nhận hàng.'
+                : 'Pickup này đã được nhận hàng.',
+            'type' => 'success',
+            'package_code' => $package->code,
+            'order_code' => $order->id_bill ?: $order->tracking_code ?: '-',
+            'pickup_code' => $pickup->ma_pickup,
+            'pickup_status' => $pickup->status?->label() ?? '-',
+            'customer' => data_get($pickup->info_khachhang, 'company')
+                ?: data_get($pickup->info_khachhang, 'fullname')
+                ?: '-',
+            'address' => data_get($pickup->info_khachhang, 'address', ''),
+            'phone' => data_get($pickup->info_khachhang, 'phone', ''),
+            'package_count' => $packageCount,
+            'can_receive' => $canReceive,
+        ];
+
+        $this->pushLog($code, $this->scanResult['message'], 'success');
     }
 
-    protected function setScanResult(string $code, bool $updated, string $message): void
+    public function receiveScannedPickup(): void
+    {
+        if (! $this->scannedPickupId || ! $this->scannedOrderId) {
+            Flux::toast(heading: 'Lỗi', text: 'Vui lòng quét mã kiện trước khi nhận hàng.', variant: 'warning');
+            return;
+        }
+
+        $pickup = Pickup::query()
+            ->where('id_shipper', auth()->id())
+            ->whereHas('orders', fn ($query) => $query->whereKey($this->scannedOrderId))
+            ->findOrFail($this->scannedPickupId);
+
+        try {
+            $pickup = $this->markPickupAsReceived($pickup);
+        } catch (\RuntimeException $e) {
+            Flux::toast(heading: 'Lỗi', text: $e->getMessage(), variant: 'warning');
+            return;
+        }
+
+        $packageCount = max(1, (int) ($this->scanResult['package_count'] ?? 1));
+        $message = $packageCount > 1
+            ? "Shiper đã nhận đủ {$packageCount} kiện hàng"
+            : 'Shiper đã nhận hàng thành công';
+
+        $this->successCount++;
+        $this->scanResult['message'] = $message;
+        $this->scanResult['type'] = 'success';
+        $this->scanResult['pickup_status'] = $pickup->status?->label() ?? PickupStatusEnum::PICKUP_DA_LAY->label();
+        $this->scanResult['can_receive'] = false;
+        $this->pushLog($this->scanResult['package_code'], $message, 'success');
+
+        Flux::toast(heading: 'Thành công', text: $message, variant: 'success');
+    }
+
+    public function clearLog(): void
+    {
+        $this->scanLog = [];
+        $this->successCount = 0;
+        $this->errorCount = 0;
+    }
+
+    protected function clearScannedPickup(): void
+    {
+        $this->scannedPickupId = null;
+        $this->scannedOrderId = null;
+    }
+
+    protected function setScanResult(string $message, string $type = 'neutral', string $code = ''): void
     {
         $this->scanResult = [
             'message' => $message,
-            'updated' => $updated,
+            'type' => $type,
             'package_code' => $code,
             'order_code' => '',
-            'from_status' => '',
-            'current_status' => '',
+            'pickup_code' => '',
+            'pickup_status' => '',
             'customer' => '',
-            'receiver' => '',
+            'address' => '',
+            'phone' => '',
+            'package_count' => 0,
+            'can_receive' => false,
         ];
-
-        $this->pushLog($code, $message, $updated ? 'success' : 'error');
     }
 
-    protected function setScanResultFromPayload(string $packageCode, array $result): void
+    protected function markPickupAsReceived(Pickup $pickup): Pickup
     {
-        $order = $result['order'];
-        $this->scanResult = [
-            'message' => $result['message'],
-            'updated' => $result['updated'],
-            'package_code' => $packageCode,
-            'order_code' => $order->id_bill ?? $order->tracking_code ?? '-',
-            'from_status' => $result['from_status']?->label() ?? '-',
-            'current_status' => $result['updated']
-                ? ($result['to_status']?->label() ?? '-')
-                : ($order->bill_status?->label() ?? '-'),
-            'customer' => $order->customerAccount?->fullname ?: $order->customerAccount?->username ?: '-',
-            'receiver' => collect([
-                data_get($order->receiver, 'name'),
-                data_get($order->receiver, 'phone'),
-            ])->filter()->join(' / ') ?: '-',
-        ];
+        $pickup = $pickup->fresh();
 
-        $this->pushLog(
-            $packageCode,
-            $result['message'],
-            $result['updated'] ? 'success' : 'warning'
-        );
+        if ($pickup->status === PickupStatusEnum::PICKUP_DA_LAY) {
+            return $pickup;
+        }
+
+        foreach ([PickupStatusEnum::DA_XAC_NHAN, PickupStatusEnum::PICKUP_DANG_LAY, PickupStatusEnum::PICKUP_DA_LAY] as $nextStatus) {
+            if ($pickup->status->canTransitionTo($nextStatus)) {
+                $pickup = TransitionPickupStatusAction::execute($pickup, $nextStatus);
+            }
+        }
+
+        if ($pickup->status !== PickupStatusEnum::PICKUP_DA_LAY) {
+            throw new \RuntimeException('Không thể chuyển pickup sang trạng thái đã lấy hàng.');
+        }
+
+        if (blank($pickup->ngay_nhanhang)) {
+            $pickup->forceFill(['ngay_nhanhang' => now()])->save();
+            $pickup = $pickup->fresh();
+        }
+
+        return $pickup;
     }
 
     protected function pushLog(string $code, string $message, string $type = 'info'): void
@@ -161,17 +209,11 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
 
         $this->scanLog = array_slice($this->scanLog, 0, 30);
     }
+};
 
-    public function clearLog(): void
-    {
-        $this->scanLog = [];
-        $this->successCount = 0;
-        $this->errorCount = 0;
-    }
-}
 ?>
 
-<div class="flex flex-col min-h-[calc(100vh-3.5rem)]" x-data="{
+<div class="flex min-h-[calc(100vh-3.5rem)] flex-col pb-4" x-data="{
     cameraActive: false,
     html5QrCode: null,
     scannerPromise: null,
@@ -181,7 +223,7 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
     candidateCode: '',
     candidateAt: 0,
     candidateCount: 0,
-    confirmationWindowMs: 2500,
+    confirmationWindowMs: 2200,
     statusMsg: 'Nhấn nút để bật camera',
     statusType: 'neutral',
     showManualInput: false,
@@ -241,7 +283,7 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
         this.candidateCode = '';
         this.candidateAt = 0;
         this.candidateCount = 0;
-        this.statusMsg = '✓ ' + text;
+        this.statusMsg = 'Đã đọc: ' + text;
         this.statusType = 'success';
         $wire.processScan(text).finally(() => {
             setTimeout(() => this.recoverCameraAfterScan(), 250);
@@ -250,13 +292,11 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
 
     async recoverCameraAfterScan() {
         if (!this.cameraActive) return;
-
         const reader = this.$refs.cameraReader;
         if (!reader || !reader.querySelector('video')) {
             await this.startCamera();
             return;
         }
-
         this.statusMsg = 'Đưa barcode tiếp theo vào khung hình';
         this.statusType = 'success';
     },
@@ -268,24 +308,23 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
         try {
             const { Html5Qrcode, Html5QrcodeSupportedFormats } = await this.loadScanner();
             await this.ensureCameraDevices();
-            const scannerConfig = {
-                fps: 12,
-                aspectRatio: 4 / 3,
-                rememberLastUsedCamera: true,
-                formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128],
-                qrbox: (viewfinderWidth, viewfinderHeight) => ({
-                    width: Math.floor(viewfinderWidth * 0.8),
-                    height: Math.min(Math.floor(viewfinderHeight * 0.64), 320),
-                }),
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true,
-                },
-            };
             this.$refs.cameraReader.innerHTML = '';
             this.html5QrCode = new Html5Qrcode(this.$refs.cameraReader.id, false);
             await this.html5QrCode.start(
                 { facingMode: 'environment' },
-                scannerConfig,
+                {
+                    fps: 12,
+                    aspectRatio: 4 / 3,
+                    rememberLastUsedCamera: true,
+                    formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128],
+                    qrbox: (width, height) => ({
+                        width: Math.floor(width * 0.8),
+                        height: Math.min(Math.floor(height * 0.64), 320),
+                    }),
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true,
+                    },
+                },
                 (decodedText) => this.handleDecodedText(decodedText),
                 () => {}
             );
@@ -300,12 +339,8 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
 
     async stopCamera() {
         if (this.html5QrCode) {
-            try {
-                await this.html5QrCode.stop();
-            } catch {}
-            try {
-                this.html5QrCode.clear();
-            } catch {}
+            try { await this.html5QrCode.stop(); } catch {}
+            try { this.html5QrCode.clear(); } catch {}
             this.html5QrCode = null;
         }
         if (this.$refs.cameraReader) {
@@ -324,35 +359,27 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
         window.addEventListener('beforeunload', () => this.stopCamera());
     }
 }">
-    {{-- Camera Scanner Area --}}
     <div class="relative isolate flex-shrink-0 overflow-hidden bg-black">
-        <div wire:ignore id="html5-qrcode-mobile-reader" x-ref="cameraReader" class="relative z-0 w-full aspect-[4/3] [&_video]:h-full [&_video]:w-full [&_video]:object-cover"></div>
+        <div wire:ignore id="shipper-scan-reader" x-ref="cameraReader" class="relative z-0 w-full aspect-[4/3] [&_video]:h-full [&_video]:w-full [&_video]:object-cover"></div>
 
-        {{-- Scan frame overlay --}}
         <div class="pointer-events-none absolute inset-0 z-10">
-            {{-- Dark overlay around scan area --}}
             <div class="absolute inset-0 bg-black/40"></div>
-            {{-- Clear scan zone --}}
             <div class="absolute inset-x-[10%] top-[15%] bottom-[15%] bg-transparent border-2 border-white/80 rounded-xl"
                  style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.4);"></div>
-            {{-- Corner markers --}}
             <div class="absolute left-[10%] top-[15%] w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-lg"></div>
             <div class="absolute right-[10%] top-[15%] w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-lg"></div>
             <div class="absolute left-[10%] bottom-[15%] w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-lg"></div>
             <div class="absolute right-[10%] bottom-[15%] w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-lg"></div>
         </div>
 
-        {{-- Scan line animation --}}
-        <div x-show="cameraActive" x-cloak class="scan-line-mobile pointer-events-none absolute inset-x-[10%] z-20 border-t-2 border-emerald-400 shadow-[0_0_8px_#34d399]"></div>
+        <div x-show="cameraActive" x-cloak class="shipper-scan-line pointer-events-none absolute inset-x-[10%] z-20 border-t-2 border-emerald-400 shadow-[0_0_8px_#34d399]"></div>
 
-        {{-- Status bar at bottom of camera --}}
         <div class="absolute bottom-0 inset-x-0 z-30 px-4 py-2 bg-black/60 backdrop-blur-sm">
             <p class="text-center text-xs font-semibold"
                x-bind:class="statusType === 'success' ? 'text-emerald-300' : (statusType === 'error' ? 'text-red-300' : 'text-white/80')"
                x-text="statusMsg"></p>
         </div>
 
-        {{-- Camera toggle button --}}
         <button x-on:click="cameraActive ? stopCamera() : startCamera()"
                 class="absolute top-3 right-3 z-30 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white active:bg-black/70">
             <svg x-show="!cameraActive" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
@@ -360,7 +387,6 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
         </button>
     </div>
 
-    {{-- Stats bar --}}
     <div class="flex items-center justify-between px-4 py-2 bg-white border-b border-neutral-200">
         <div class="flex items-center gap-4 text-xs font-semibold">
             <span class="flex items-center gap-1 text-emerald-700">
@@ -387,7 +413,6 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
         </div>
     </div>
 
-    {{-- Manual input (collapsible) --}}
     <div x-show="showManualInput" x-cloak x-transition.opacity class="px-4 py-3 bg-neutral-50 border-b border-neutral-200">
         <div class="flex gap-2">
             <input type="text"
@@ -401,66 +426,88 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
         </div>
     </div>
 
-    {{-- Last scan result --}}
-    @if($scanResult['package_code'])
-        <div class="px-4 py-3 border-b border-neutral-200 {{ $scanResult['updated'] ? 'bg-emerald-50' : 'bg-red-50' }}">
+    @if($scanResult['message'])
+        <div class="px-4 py-3 border-b border-neutral-200 {{ $scanResult['type'] === 'error' ? 'bg-red-50' : 'bg-emerald-50' }}">
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2">
-                        @if($scanResult['updated'])
-                            <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                        @else
+                        @if($scanResult['type'] === 'error')
                             <svg class="w-5 h-5 text-red-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                        @else
+                            <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                         @endif
-                        <span class="font-mono text-sm font-bold {{ $scanResult['updated'] ? 'text-emerald-800' : 'text-red-800' }}">
-                            {{ $scanResult['package_code'] }}
+                        <span class="font-mono text-sm font-bold {{ $scanResult['type'] === 'error' ? 'text-red-800' : 'text-emerald-800' }}">
+                            {{ $scanResult['package_code'] ?: $scanResult['pickup_code'] }}
                         </span>
                     </div>
-                    <p class="mt-1 text-xs {{ $scanResult['updated'] ? 'text-emerald-700' : 'text-red-700' }}">
+                    <p class="mt-1 text-xs {{ $scanResult['type'] === 'error' ? 'text-red-700' : 'text-emerald-700' }}">
                         {{ $scanResult['message'] }}
                     </p>
                 </div>
-                @if($scanResult['order_code'])
-                    <span class="shrink-0 text-xs font-semibold text-neutral-600">{{ $scanResult['order_code'] }}</span>
+                @if($scanResult['package_count'])
+                    <span class="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-bold text-neutral-700">{{ $scanResult['package_count'] }} kiện</span>
                 @endif
             </div>
-            @if($scanResult['updated'] && $scanResult['from_status'])
-                <div class="mt-2 flex items-center gap-2 text-xs">
-                    <span class="px-2 py-0.5 rounded bg-neutral-200 text-neutral-700 font-medium">{{ $scanResult['from_status'] }}</span>
-                    <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                    <span class="px-2 py-0.5 rounded bg-emerald-200 text-emerald-800 font-medium">{{ $scanResult['current_status'] }}</span>
+
+            @if($scanResult['pickup_code'])
+                <div class="mt-3 rounded-xl bg-white/70 p-3 text-xs text-neutral-700">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <p class="text-neutral-500">Pickup</p>
+                            <p class="font-mono font-bold text-primary-700">{{ $scanResult['pickup_code'] }}</p>
+                        </div>
+                        <div>
+                            <p class="text-neutral-500">Đơn hàng</p>
+                            <p class="font-mono font-bold text-neutral-900">{{ $scanResult['order_code'] }}</p>
+                        </div>
+                        <div class="col-span-2">
+                            <p class="text-neutral-500">Khách hàng</p>
+                            <p class="font-bold text-neutral-900">{{ $scanResult['customer'] }}</p>
+                        </div>
+                        @if($scanResult['address'])
+                            <div class="col-span-2">
+                                <p class="text-neutral-500">Địa chỉ</p>
+                                <p class="font-medium text-neutral-800">{{ $scanResult['address'] }}</p>
+                            </div>
+                        @endif
+                        @if($scanResult['phone'])
+                            <div>
+                                <p class="text-neutral-500">SĐT</p>
+                                <a href="tel:{{ $scanResult['phone'] }}" class="font-bold text-primary-700">{{ $scanResult['phone'] }}</a>
+                            </div>
+                        @endif
+                        <div>
+                            <p class="text-neutral-500">Trạng thái</p>
+                            <p class="font-bold text-neutral-900">{{ $scanResult['pickup_status'] }}</p>
+                        </div>
+                    </div>
+
+                    <button type="button"
+                            wire:click="receiveScannedPickup"
+                            wire:loading.attr="disabled"
+                            @disabled(! $scanResult['can_receive'])
+                            class="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white active:bg-emerald-700 disabled:bg-emerald-200">
+                        Nhận hàng
+                    </button>
                 </div>
-            @endif
-            @if($scanResult['customer'] && $scanResult['customer'] !== '-')
-                <p class="mt-1.5 text-[11px] text-neutral-600">KH: {{ $scanResult['customer'] }} @if($scanResult['receiver'] && $scanResult['receiver'] !== '-')· Nhận: {{ $scanResult['receiver'] }}@endif</p>
             @endif
         </div>
     @endif
 
-    {{-- Scan log --}}
     <div class="flex-1 overflow-y-auto">
-        @if(count($scanLog) > 1)
+        @if(count($scanLog) > 0)
             <div class="divide-y divide-neutral-100">
-                @foreach($scanLog as $index => $log)
-                    @if($index > 0)
-                        <div class="px-4 py-2.5 flex items-center justify-between gap-3
-                            {{ $log['type'] === 'success' ? 'bg-white' : ($log['type'] === 'error' ? 'bg-red-50/50' : 'bg-amber-50/50') }}">
-                            <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2">
-                                    @if($log['type'] === 'success')
-                                        <svg class="w-3.5 h-3.5 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-                                    @elseif($log['type'] === 'error')
-                                        <svg class="w-3.5 h-3.5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg>
-                                    @else
-                                        <svg class="w-3.5 h-3.5 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                    @endif
-                                    <span class="font-mono text-xs font-bold text-neutral-800 truncate">{{ $log['code'] }}</span>
-                                </div>
-                                <p class="mt-0.5 text-[11px] text-neutral-500 truncate">{{ $log['message'] }}</p>
+                @foreach($scanLog as $log)
+                    <div class="px-4 py-2.5 flex items-center justify-between gap-3
+                        {{ $log['type'] === 'success' ? 'bg-white' : ($log['type'] === 'error' ? 'bg-red-50/50' : 'bg-amber-50/50') }}">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-mono text-xs font-bold text-neutral-800 truncate">{{ $log['code'] }}</span>
                             </div>
-                            <span class="shrink-0 text-[10px] text-neutral-400 font-medium">{{ $log['time'] }}</span>
+                            <p class="mt-0.5 text-[11px] text-neutral-500 truncate">{{ $log['message'] }}</p>
                         </div>
-                    @endif
+                        <span class="shrink-0 text-[10px] text-neutral-400 font-medium">{{ $log['time'] }}</span>
+                    </div>
                 @endforeach
             </div>
         @else
@@ -469,18 +516,18 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/>
                 </svg>
                 <p class="text-sm font-medium">Chưa có lần quét nào</p>
-                <p class="text-xs mt-1">Đưa barcode vào khung hình camera</p>
+                <p class="text-xs mt-1">Đưa barcode kiện hàng vào khung hình</p>
             </div>
         @endif
     </div>
 </div>
 
 <style>
-    @keyframes scan-line-mobile {
+    @keyframes shipper-scan-line {
         0%, 100% { top: 18%; }
         50% { top: 80%; }
     }
-    .scan-line-mobile {
-        animation: scan-line-mobile 1.8s ease-in-out infinite;
+    .shipper-scan-line {
+        animation: shipper-scan-line 1.8s ease-in-out infinite;
     }
 </style>

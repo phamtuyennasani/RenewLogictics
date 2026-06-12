@@ -34,6 +34,11 @@ dependencies:
   # Xin quyền camera/location
   permission_handler: ^11.3.1
 
+  # Bản đồ VietMap (chỉ đường shipper pickup) + định vị
+  # geolocator 13.x: tránh geolocator_linux (kéo package_info_plus ^10 xung đột).
+  vietmap_flutter_gl: ^4.1.0
+  geolocator: ^13.0.4
+
   # Mở map / gọi điện
   url_launcher: ^6.3.1
 

@@ -99,6 +99,12 @@ class PickupDetailScreen extends ConsumerWidget {
           _CustomerCard(
             customer: detail.pickup.customer,
             location: detail.pickup.location,
+            onOpenInAppMap: detail.pickup.location.hasLocation
+                ? () => context.push(
+                      AppRoutes.pickupRouteLocation(detail.pickup.id),
+                      extra: detail.pickup,
+                    )
+                : null,
           ),
           const SizedBox(height: 12),
           _InfoCard(detail: detail),
@@ -280,10 +286,17 @@ class _CardTitle extends StatelessWidget {
 }
 
 class _CustomerCard extends StatelessWidget {
-  const _CustomerCard({required this.customer, required this.location});
+  const _CustomerCard({
+    required this.customer,
+    required this.location,
+    this.onOpenInAppMap,
+  });
 
   final PickupCustomer customer;
   final PickupLocation location;
+
+  /// Mở bản đồ chỉ đường trong app (null khi pickup chưa có toạ độ).
+  final VoidCallback? onOpenInAppMap;
 
   @override
   Widget build(BuildContext context) {
@@ -348,14 +361,25 @@ class _CustomerCard extends StatelessWidget {
                     const SizedBox(width: 10),
                   if (location.hasLocation)
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openMap(context, customer),
+                      child: FilledButton.icon(
+                        onPressed: onOpenInAppMap,
                         icon: const Icon(Icons.directions_outlined, size: 18),
                         label: const Text('Chỉ đường'),
                       ),
                     ),
                 ],
               ),
+              if (location.hasLocation) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => _openMap(context, customer),
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: const Text('Mở bằng Google Maps'),
+                  ),
+                ),
+              ],
             ],
           ],
         ),

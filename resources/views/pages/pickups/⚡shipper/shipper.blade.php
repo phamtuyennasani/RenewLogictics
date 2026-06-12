@@ -15,6 +15,188 @@
             </svg>
         </div>
     </div>
+    <div id="shipper-pickup-scan" class="hidden scroll-mt-20 bg-white border-b border-neutral-200 p-4" x-data="{
+        cameraActive: false,
+        html5QrCode: null,
+        scannerPromise: null,
+        lastCode: '',
+        lastAt: 0,
+        duplicateWindowMs: 4000,
+        statusMsg: 'Nhấn để bật camera quét mã kiện',
+        statusType: 'neutral',
+
+        async loadScanner() {
+            if (typeof window.loadHtml5Qrcode !== 'function') {
+                throw new Error('Scanner assets not available.');
+            }
+            this.scannerPromise ??= window.loadHtml5Qrcode();
+            return this.scannerPromise;
+        },
+
+        cameraErrorMessage(error) {
+            const name = error?.name || '';
+            if (name === 'NotAllowedError') return 'Bạn đã từ chối quyền camera.';
+            if (name === 'NotFoundError') return 'Không tìm thấy camera trên thiết bị.';
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                return 'Camera chỉ hoạt động trên HTTPS hoặc localhost.';
+            }
+            return error?.message || 'Không thể bật camera.';
+        },
+
+        handleDecodedText(decodedText) {
+            const text = decodedText?.trim().toUpperCase();
+            if (!text) return;
+            if (!/^[A-Z0-9-]+-\d{2,}$/.test(text)) {
+                this.statusMsg = 'Mã không hợp lệ: ' + text;
+                this.statusType = 'neutral';
+                return;
+            }
+            const now = Date.now();
+            if (text === this.lastCode && now - this.lastAt < this.duplicateWindowMs) return;
+            this.lastCode = text;
+            this.lastAt = now;
+            this.statusMsg = 'Đã đọc: ' + text;
+            this.statusType = 'success';
+            $wire.processShipperScan(text).finally(() => {
+                setTimeout(() => this.recoverCameraAfterScan(), 250);
+            });
+        },
+
+        async recoverCameraAfterScan() {
+            if (!this.cameraActive) return;
+
+            const reader = this.$refs.pickupScannerReader;
+            if (!reader || !reader.querySelector('video')) {
+                await this.startCamera();
+                return;
+            }
+
+            this.statusMsg = 'Đưa barcode tiếp theo vào khung hình';
+            this.statusType = 'success';
+        },
+
+        async startCamera() {
+            await this.stopCamera();
+            this.statusMsg = 'Đang bật camera...';
+            this.statusType = 'neutral';
+            try {
+                const { Html5Qrcode, Html5QrcodeSupportedFormats } = await this.loadScanner();
+                this.$refs.pickupScannerReader.innerHTML = '';
+                this.html5QrCode = new Html5Qrcode(this.$refs.pickupScannerReader.id, false);
+                await this.html5QrCode.start(
+                    { facingMode: 'environment' },
+                    {
+                        fps: 12,
+                        aspectRatio: 4 / 3,
+                        rememberLastUsedCamera: true,
+                        formatsToSupport: [Html5QrcodeSupportedFormats.CODE_128],
+                        qrbox: (width, height) => ({
+                            width: Math.floor(width * 0.78),
+                            height: Math.min(Math.floor(height * 0.58), 260),
+                        }),
+                    },
+                    (decodedText) => this.handleDecodedText(decodedText),
+                    () => {}
+                );
+                this.cameraActive = true;
+                this.statusMsg = 'Đưa barcode vào khung hình';
+                this.statusType = 'success';
+            } catch (error) {
+                this.statusMsg = this.cameraErrorMessage(error);
+                this.statusType = 'error';
+            }
+        },
+
+        async stopCamera() {
+            if (this.html5QrCode) {
+                try { await this.html5QrCode.stop(); } catch {}
+                try { this.html5QrCode.clear(); } catch {}
+                this.html5QrCode = null;
+            }
+            if (this.$refs.pickupScannerReader) {
+                this.$refs.pickupScannerReader.innerHTML = '';
+            }
+            this.cameraActive = false;
+        },
+    }">
+        <div class="overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-950">
+            <div class="relative isolate overflow-hidden">
+                <div wire:ignore id="shipper-pickup-barcode-reader" x-ref="pickupScannerReader" class="relative z-0 aspect-[4/3] w-full [&_video]:h-full [&_video]:w-full [&_video]:object-cover"></div>
+                <div class="pointer-events-none absolute inset-0 z-10">
+                    <div class="absolute inset-0 bg-black/35"></div>
+                    <div class="absolute inset-x-[11%] top-[19%] bottom-[19%] rounded-xl border-2 border-white/80" style="box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);"></div>
+                    <div class="absolute left-[11%] top-[19%] h-6 w-6 rounded-tl-lg border-l-4 border-t-4 border-emerald-400"></div>
+                    <div class="absolute right-[11%] top-[19%] h-6 w-6 rounded-tr-lg border-r-4 border-t-4 border-emerald-400"></div>
+                    <div class="absolute left-[11%] bottom-[19%] h-6 w-6 rounded-bl-lg border-b-4 border-l-4 border-emerald-400"></div>
+                    <div class="absolute right-[11%] bottom-[19%] h-6 w-6 rounded-br-lg border-b-4 border-r-4 border-emerald-400"></div>
+                </div>
+                <div class="absolute bottom-0 inset-x-0 z-20 bg-black/65 px-4 py-2 text-center text-xs font-semibold"
+                     x-bind:class="statusType === 'success' ? 'text-emerald-300' : (statusType === 'error' ? 'text-red-300' : 'text-white/80')"
+                     x-text="statusMsg"></div>
+                <button type="button"
+                        x-on:click="cameraActive ? stopCamera() : startCamera()"
+                        class="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm active:bg-black/75">
+                    <svg x-show="!cameraActive" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <svg x-show="cameraActive" x-cloak class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                </button>
+            </div>
+            <div class="flex gap-2 border-t border-white/10 bg-neutral-900 p-3">
+                <input type="text"
+                       wire:model="scanBarcodeInput"
+                       x-on:keydown.enter.prevent="$wire.submitShipperScan()"
+                       placeholder="Nhập mã kiện..."
+                       class="h-10 min-w-0 flex-1 rounded-xl border border-white/10 bg-white px-3 font-mono text-sm font-bold text-neutral-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500">
+                <button type="button"
+                        wire:click="submitShipperScan"
+                        wire:loading.attr="disabled"
+                        class="h-10 rounded-xl bg-primary-600 px-4 text-sm font-bold text-white active:bg-primary-700">
+                    Quét
+                </button>
+            </div>
+        </div>
+
+        @if($scanResult['message'])
+            <div class="mt-3 rounded-2xl border {{ $scanResult['type'] === 'error' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50' }} p-3">
+                <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold {{ $scanResult['type'] === 'error' ? 'text-red-800' : 'text-emerald-800' }}">
+                            {{ $scanResult['message'] }}
+                        </p>
+                        @if($scanResult['pickup_code'])
+                            <p class="mt-1 font-mono text-xs font-bold text-primary-700">{{ $scanResult['pickup_code'] }} / {{ $scanResult['order_code'] }}</p>
+                        @elseif($scanResult['package_code'])
+                            <p class="mt-1 font-mono text-xs font-bold text-neutral-700">{{ $scanResult['package_code'] }}</p>
+                        @endif
+                    </div>
+                    @if($scanResult['package_count'])
+                        <span class="shrink-0 rounded-full bg-white px-2 py-1 text-xs font-bold text-neutral-700">{{ $scanResult['package_count'] }} kiện</span>
+                    @endif
+                </div>
+
+                @if($scanResult['pickup_code'])
+                    <div class="mt-3 space-y-1.5 text-xs text-neutral-700">
+                        <p><span class="font-semibold text-neutral-950">Khách hàng:</span> {{ $scanResult['customer'] }}</p>
+                        @if($scanResult['address'])
+                            <p><span class="font-semibold text-neutral-950">Địa chỉ:</span> {{ $scanResult['address'] }}</p>
+                        @endif
+                        @if($scanResult['phone'])
+                            <p><span class="font-semibold text-neutral-950">SĐT:</span> <a href="tel:{{ $scanResult['phone'] }}" class="font-semibold text-primary-700">{{ $scanResult['phone'] }}</a></p>
+                        @endif
+                        <p><span class="font-semibold text-neutral-950">Trạng thái:</span> {{ $scanResult['pickup_status'] }}</p>
+                    </div>
+
+                    <button type="button"
+                            wire:click="receiveScannedPickup"
+                            wire:loading.attr="disabled"
+                            @disabled($scanResult['pickup_status'] === \App\Enums\PickupStatusEnum::PICKUP_DA_LAY->label())
+                            class="mt-3 flex h-11 w-full items-center justify-center rounded-xl bg-emerald-600 text-sm font-bold text-white active:bg-emerald-700 disabled:bg-emerald-200">
+                        Nhận hàng
+                    </button>
+                @endif
+            </div>
+        @endif
+    </div>
+
     <div class="bg-white border-b border-neutral-200 px-4 py-3">
         <div class="relative">
             <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

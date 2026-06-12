@@ -23,7 +23,7 @@ new #[Layout('layouts.mobile')] #[Title('Thông báo')] class extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()?->hasRole('shipper'), 403);
+        abort_unless(auth()->user()?->hasAnyRole(['shipper', 'ops', 'admin', 'manager', 'cs']), 403);
         abort_unless(\Gate::allows('notifications.view'), 403);
     }
 
