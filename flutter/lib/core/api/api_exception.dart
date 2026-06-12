@@ -5,6 +5,7 @@ import 'api_envelope.dart';
 /// Phân loại lỗi API để UI hiển thị message tiếng Việt theo contract §1.4.
 enum ApiErrorKind {
   network, // mất mạng / timeout
+  badRequest, // 400 — request sai format / proxy trả lỗi
   unauthorized, // 401 — token hỏng, cần logout
   forbidden, // 403 — sai quyền/role
   notFound, // 404
@@ -88,6 +89,8 @@ class ApiException implements Exception {
 
   static ApiErrorKind _kindFromStatus(int? status) {
     switch (status) {
+      case 400:
+        return ApiErrorKind.badRequest;
       case 401:
         return ApiErrorKind.unauthorized;
       case 403:
@@ -127,6 +130,8 @@ class ApiException implements Exception {
         return 'Lỗi hệ thống. Vui lòng thử lại sau.';
       case ApiErrorKind.network:
         return 'Không có kết nối mạng. Vui lòng thử lại.';
+      case ApiErrorKind.badRequest:
+        return 'Yêu cầu không hợp lệ. Vui lòng kiểm tra cấu hình API.';
       case ApiErrorKind.unknown:
         return 'Đã có lỗi xảy ra. Vui lòng thử lại.';
     }

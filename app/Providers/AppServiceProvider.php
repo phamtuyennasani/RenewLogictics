@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Order;
 use App\Models\Pickup;
+use App\Observers\OrderObserver;
 use App\Observers\PickupObserver;
 use App\Services\TrackingMore\TrackingMore;
 use App\Support\ThirdPartyTrackingApi;
@@ -26,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Order::observe(OrderObserver::class);
         Pickup::observe(PickupObserver::class);
 
         RateLimiter::for('third-party-tracking', function (Request $request) {

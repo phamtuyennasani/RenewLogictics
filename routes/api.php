@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\Api\Mobile\MobileAuthController;
 use App\Http\Controllers\Api\Mobile\MobileDeviceTokenController;
+use App\Http\Controllers\Api\Mobile\MobileLocationController;
+use App\Http\Controllers\Api\Mobile\MobileOpsOrderController;
+use App\Http\Controllers\Api\Mobile\MobileOpsPickupController;
 use App\Http\Controllers\Api\Mobile\MobileOpsScanController;
 use App\Http\Controllers\Api\Mobile\MobileShipperPickupController;
 use App\Http\Controllers\Api\ThirdPartyOrderTrackingController;
@@ -66,6 +69,21 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
             Route::post('/orders/bulk-receive', [MobileOpsScanController::class, 'bulkReceive'])
                 ->middleware('throttle:mobile-receive')
                 ->name('orders.bulk-receive');
+
+            // OPS orders — đơn được giao cho OPS này (id_ops = auth id).
+            Route::get('/orders', [MobileOpsOrderController::class, 'index'])->name('orders.index');
+            Route::get('/orders/{order}', [MobileOpsOrderController::class, 'show'])->name('orders.show');
+            Route::post('/orders/{order}/pickups', [MobileOpsOrderController::class, 'createPickup'])->name('orders.pickups.create');
+
+            // OPS pickups — phiếu pickup OPS này sở hữu (id_user = auth id).
+            Route::get('/pickups', [MobileOpsPickupController::class, 'index'])->name('pickups.index');
+            Route::get('/pickups/{pickup}', [MobileOpsPickupController::class, 'show'])->name('pickups.show');
+            Route::post('/pickups/{pickup}/assign-shipper', [MobileOpsPickupController::class, 'assignShipper'])->name('pickups.assign-shipper');
+
+            // Danh mục dùng chung cho form tạo pickup.
+            Route::get('/shippers', [MobileOpsPickupController::class, 'shippers'])->name('shippers.index');
+            Route::get('/locations/provinces', [MobileLocationController::class, 'provinces'])->name('locations.provinces');
+            Route::get('/locations/wards', [MobileLocationController::class, 'wards'])->name('locations.wards');
         });
     });
 });

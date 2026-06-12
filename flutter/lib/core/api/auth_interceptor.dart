@@ -7,10 +7,7 @@ import '../storage/secure_token_storage.dart';
 /// Khi backend trả 401 (token hỏng/hết hạn), gọi [onUnauthorized] để app
 /// xóa token và điều hướng về Login. Interceptor KHÔNG tự retry login.
 class AuthInterceptor extends Interceptor {
-  AuthInterceptor({
-    required SecureTokenStorage tokenStorage,
-    required this.onUnauthorized,
-  }) : _tokenStorage = tokenStorage;
+  AuthInterceptor({required this._tokenStorage, required this.onUnauthorized});
 
   final SecureTokenStorage _tokenStorage;
   final Future<void> Function() onUnauthorized;
@@ -36,7 +33,8 @@ class AuthInterceptor extends Interceptor {
     DioException err,
     ErrorInterceptorHandler handler,
   ) async {
-    if (err.response?.statusCode == 401 && err.requestOptions.extra['skipAuth'] != true) {
+    if (err.response?.statusCode == 401 &&
+        err.requestOptions.extra['skipAuth'] != true) {
       await _tokenStorage.clear();
       await onUnauthorized();
     }

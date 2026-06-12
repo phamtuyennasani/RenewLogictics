@@ -9,20 +9,33 @@ import '../../firebase_options.dart';
 
 /// Dữ liệu định tuyến rút ra từ payload push (contract Phase 6: tối thiểu).
 class PushRoute {
-  const PushRoute({required this.type, this.pickupId, this.pickupCode});
+  const PushRoute({
+    required this.type,
+    this.pickupId,
+    this.pickupCode,
+    this.orderId,
+    this.orderCode,
+  });
 
   final String type;
   final int? pickupId;
   final String? pickupCode;
+  final int? orderId;
+  final String? orderCode;
 
   static PushRoute? fromData(Map<String, dynamic> data) {
     final type = (data['type'] ?? '').toString();
     if (type.isEmpty) return null;
-    final rawId = data['pickup_id']?.toString();
+
+    final rawPickupId = data['pickup_id']?.toString();
+    final rawOrderId = data['order_id']?.toString();
+
     return PushRoute(
       type: type,
-      pickupId: rawId == null ? null : int.tryParse(rawId),
+      pickupId: rawPickupId == null ? null : int.tryParse(rawPickupId),
       pickupCode: data['pickup_code']?.toString(),
+      orderId: rawOrderId == null ? null : int.tryParse(rawOrderId),
+      orderCode: data['id_bill']?.toString(),
     );
   }
 }
@@ -33,9 +46,7 @@ class PushRoute {
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Isolate nền cần init Firebase riêng trước khi dùng bất kỳ API nào.
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // Không thao tác UI ở đây. Tap sẽ được xử lý qua getInitialMessage/onMessageOpenedApp.
 }
 
@@ -46,10 +57,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 /// đánh dấu [isAvailable] = false; toàn bộ API khác trở thành no-op, app vẫn chạy.
 class PushNotificationService {
   PushNotificationService({
-    FirebaseMessaging? messaging,
+    this._messaging,
     FlutterLocalNotificationsPlugin? localNotifications,
-  })  : _messaging = messaging,
-        _local = localNotifications ?? FlutterLocalNotificationsPlugin();
+  }) : _local = localNotifications ?? FlutterLocalNotificationsPlugin();
 
   FirebaseMessaging? _messaging;
   final FlutterLocalNotificationsPlugin _local;
@@ -87,21 +97,35 @@ class PushNotificationService {
       return;
     }
 
-    await _setupLocalNotifications();
+    try {
+      await _setupLocalNotifications();
 
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    // Foreground: tự hiển thị local notification (FCM không tự hiện khi foreground).
-    FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+      // Foreground: tự hiển thị local notification (FCM không tự hiện khi foreground).
+      FirebaseMessaging.onMessage.listen(_onForegroundMessage);
 
-    // Tap khi app ở background và được đưa lên foreground.
-    FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpened);
+      // Tap khi app ở background và được đưa lên foreground.
+      FirebaseMessaging.onMessageOpenedApp.listen(_onMessageOpened);
+    } catch (e) {
+      debugPrint('[Push] Lỗi khi cấu hình listener/local notifications ($e).');
+    }
 
     // Tap khi app bị terminated rồi mở từ notification.
-    final initial = await _messaging!.getInitialMessage();
-    if (initial != null) {
-      _onMessageOpened(initial);
-    }
+    //
+    // Fire-and-forget: trên iOS simulator getInitialMessage() có thể chờ APNS
+    // token rất lâu/vô hạn. Không await để không treo init; route (nếu có) được
+    // giữ lại trong _pendingRoute và flush khi UI gắn onRouteSelected.
+    unawaited(
+      _messaging!
+          .getInitialMessage()
+          .then((initial) {
+            if (initial != null) _onMessageOpened(initial);
+          })
+          .catchError((Object e) {
+            debugPrint('[Push] getInitialMessage lỗi ($e).');
+          }),
+    );
   }
 
   Future<void> _setupLocalNotifications() async {
@@ -124,7 +148,8 @@ class PushNotificationService {
 
     await _local
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(_androidChannel);
   }
 

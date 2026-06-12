@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -31,8 +33,14 @@ Future<void> main() async {
     overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
   );
 
-  // Khởi tạo push notification (degrade an toàn nếu chưa cấu hình Firebase).
-  await container.read(pushNotificationServiceProvider).init();
+  // Render UI ngay, KHÔNG chặn bởi push init.
+  //
+  // Trên iOS simulator, FirebaseMessaging.getInitialMessage() chờ APNS token
+  // vô thời hạn (simulator không có môi trường APNS) → nếu await trước runApp
+  // thì main() treo và app trắng màn hình. Push được khởi tạo nền, fire-and-forget;
+  // route từ notification mở-khi-terminated được giữ lại (_pendingRoute) và flush
+  // khi UI gắn onRouteSelected, nên không mất sự kiện tap.
+  unawaited(container.read(pushNotificationServiceProvider).init());
 
   runApp(
     UncontrolledProviderScope(

@@ -28,6 +28,10 @@
 /storage/framework
 /storage/pail
 /vendor
+/flutter/.dart_tool
+/flutter/.idea
+/flutter/build
+/flutter/.vscode
 _ide_helper.php
 Homestead.json
 Homestead.yaml

@@ -53,7 +53,7 @@ class SendPickupAssignedPush implements ShouldQueue
         }
 
         $code = $pickup->ma_pickup ?? (string) $pickup->id;
-
+        
         $sender->sendToTokens(
             $tokens,
             'Pickup mới được giao',

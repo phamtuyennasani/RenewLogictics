@@ -24,9 +24,29 @@ class _ShipperOpsAppState extends ConsumerState<ShipperOpsApp> {
   }
 
   void _handlePushRoute(PushRoute route) {
-    if (route.type == 'pickup_assigned' && route.pickupId != null) {
-      final router = ref.read(routerProvider);
-      router.go('/shipper/pickups/${route.pickupId}');
+    final router = ref.read(routerProvider);
+
+    switch (route.type) {
+      case 'pickup_assigned':
+        if (route.pickupId != null) {
+          router.go(AppRoutes.pickupDetailLocation(route.pickupId!));
+        }
+        break;
+
+      case 'order_assigned':
+        if (route.orderId != null) {
+          router.go(AppRoutes.opsOrderDetailLocation(route.orderId!));
+        }
+        break;
+
+      case 'pickup_assigned_ops':
+        if (route.pickupId != null) {
+          router.go(AppRoutes.opsPickupDetailLocation(route.pickupId!));
+        }
+        break;
+
+      default:
+        debugPrint('[Push] Unknown type: ${route.type}');
     }
   }
 

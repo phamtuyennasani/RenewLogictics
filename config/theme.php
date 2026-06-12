@@ -70,7 +70,7 @@ return [
     |------------------------------------------------------------
     */
     'brand' => [
-        'name'   => env('BRAND_NAME', 'VAU TRANS'),
+        'name'   => env('BRAND_NAME', 'BEE EXPRESS'),
         'slogan' => env('BRAND_SLOGAN', 'Hệ thống quản lý vận chuyển'),
         'logo'   => env('BRAND_LOGO', null),
     ],

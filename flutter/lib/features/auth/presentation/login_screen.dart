@@ -258,7 +258,7 @@ class _BrandHeader extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Text(
-          'VAU TRANS',
+          'Bee Express',
           textAlign: TextAlign.center,
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
@@ -267,7 +267,7 @@ class _BrandHeader extends StatelessWidget {
         ),
         const SizedBox(height: 5),
         Text(
-          'Shipper & OPS Mobile',
+          'Hệ thống quản lý vận chuyển',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
@@ -391,7 +391,7 @@ class _LoginPanel extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Truy cập nhanh vào hệ thống vận hành.',
+                          'Truy cập vào hệ thống vận hành.',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w600,

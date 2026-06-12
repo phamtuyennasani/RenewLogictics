@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../core/utils/contact_actions.dart';
 import '../../../core/utils/date_formatters.dart';
 import '../../../shared/widgets/error_state.dart';
@@ -51,6 +53,13 @@ class PickupDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: Navigator.of(context).canPop()
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Quay lại',
+                onPressed: () => context.go(AppRoutes.shipper),
+              ),
         title: Text(state.detail?.pickup.maPickup ?? 'Chi tiết pickup'),
       ),
       body: _buildBody(context, ref, state, notifier),

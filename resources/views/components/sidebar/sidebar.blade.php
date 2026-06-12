@@ -16,7 +16,7 @@
             {{-- Brand name --}}
             <div class="min-w-0">
                 <h2 class="text-base font-bold text-neutral-900 truncate">
-                    {{ config('system.name', 'VAU TRANS') }}
+                    {{ config('system.name', 'Bee Express') }}
                 </h2>
                 <p class="text-xs text-neutral-500 truncate">
                     {{ config('system.slogan', 'Quản lý vận chuyển') }}
@@ -121,7 +121,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-xs text-neutral-600 mb-0 font-bold">
-                    {{ config('system.name', 'VAU TRANS') }}
+                    {{ config('system.name', 'Bee Express') }}
                 </p>
                 <span class="text-xs text-neutral-400">
                     Version {{ config('system.version', '1.0.0') }}

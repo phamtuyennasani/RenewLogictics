@@ -7,6 +7,11 @@ import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/module_chooser_screen.dart';
 import '../features/auth/presentation/splash_screen.dart';
+import '../features/ops_orders/presentation/create_pickup_screen.dart';
+import '../features/ops_orders/presentation/ops_order_detail_screen.dart';
+import '../features/ops_orders/presentation/ops_order_list_screen.dart';
+import '../features/ops_pickups/presentation/ops_pickup_detail_screen.dart';
+import '../features/ops_pickups/presentation/ops_pickup_list_screen.dart';
 import '../features/ops_scan/presentation/ops_scanner_screen.dart';
 import '../features/ops_scan/presentation/recent_scans_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
@@ -20,9 +25,23 @@ abstract class AppRoutes {
   static const chooser = '/chooser';
   static const shipper = '/shipper';
   static const pickupDetail = '/shipper/pickups/:id';
+  static const pickupDetailChild = 'pickups/:id';
   static const ops = '/ops';
   static const opsRecent = '/ops/recent';
+  static const opsOrders = '/ops/orders';
+  static const opsOrderDetail = '/ops/orders/:id';
+  static const opsOrderDetailChild = 'orders/:id';
+  static const opsOrderCreatePickup = '/ops/orders/:id/create-pickup';
+  static const opsOrderCreatePickupChild = 'create-pickup';
+  static const opsPickups = '/ops/pickups';
+  static const opsPickupDetail = '/ops/pickups/:id';
+  static const opsPickupDetailChild = 'pickups/:id';
   static const profile = '/profile';
+
+  static String pickupDetailLocation(int id) => '/shipper/pickups/$id';
+  static String opsOrderDetailLocation(int id) => '/ops/orders/$id';
+  static String opsOrderCreatePickupLocation(int id) => '/ops/orders/$id/create-pickup';
+  static String opsPickupDetailLocation(int id) => '/ops/pickups/$id';
 }
 
 /// Router toàn app + auth guard.
@@ -53,8 +72,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       final loggedIn = status == AuthStatus.authenticated;
-      final atAuthFlow =
-          loc == AppRoutes.login || loc == AppRoutes.splash;
+      final atAuthFlow = loc == AppRoutes.login || loc == AppRoutes.splash;
 
       // Chưa đăng nhập: ép về login.
       if (!loggedIn) {
@@ -80,40 +98,66 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: AppRoutes.splash,
-        builder: (_, __) => const SplashScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.login,
-        builder: (_, __) => const LoginScreen(),
-      ),
+      GoRoute(path: AppRoutes.splash, builder: (_, _) => const SplashScreen()),
+      GoRoute(path: AppRoutes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(
         path: AppRoutes.chooser,
-        builder: (_, __) => const ModuleChooserScreen(),
+        builder: (_, _) => const ModuleChooserScreen(),
       ),
       GoRoute(
         path: AppRoutes.shipper,
-        builder: (_, __) => const PickupListScreen(),
+        builder: (_, _) => const PickupListScreen(),
+        routes: [
+          GoRoute(
+            path: AppRoutes.pickupDetailChild,
+            builder: (_, state) {
+              final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+              return PickupDetailScreen(pickupId: id);
+            },
+          ),
+        ],
+      ),
+      GoRoute(path: AppRoutes.ops, builder: (_, _) => const OpsScannerScreen()),
+      GoRoute(
+        path: AppRoutes.opsRecent,
+        builder: (_, _) => const RecentScansScreen(),
       ),
       GoRoute(
-        path: AppRoutes.pickupDetail,
+        path: AppRoutes.opsOrders,
+        builder: (_, _) => const OpsOrderListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.opsOrderDetail,
         builder: (_, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-          return PickupDetailScreen(pickupId: id);
+          return OpsOrderDetailScreen(orderId: id);
         },
       ),
       GoRoute(
-        path: AppRoutes.ops,
-        builder: (_, __) => const OpsScannerScreen(),
+        path: AppRoutes.opsOrderCreatePickup,
+        builder: (_, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          final detail = state.extra;
+          return CreatePickupScreen(
+            orderId: id,
+            orderDetail: detail as dynamic,
+          );
+        },
       ),
       GoRoute(
-        path: AppRoutes.opsRecent,
-        builder: (_, __) => const RecentScansScreen(),
+        path: AppRoutes.opsPickups,
+        builder: (_, _) => const OpsPickupListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.opsPickupDetail,
+        builder: (_, state) {
+          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+          return OpsPickupDetailScreen(pickupId: id);
+        },
       ),
       GoRoute(
         path: AppRoutes.profile,
-        builder: (_, __) => const ProfileScreen(),
+        builder: (_, _) => const ProfileScreen(),
       ),
     ],
   );
@@ -145,7 +189,7 @@ class _AuthRefreshNotifier extends ChangeNotifier {
   _AuthRefreshNotifier(Ref ref) {
     _sub = ref.listen<AuthState>(
       authControllerProvider,
-      (_, __) => notifyListeners(),
+      (_, _) => notifyListeners(),
       fireImmediately: false,
     );
   }

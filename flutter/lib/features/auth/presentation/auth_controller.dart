@@ -111,7 +111,9 @@ class AuthController extends Notifier<AuthState> {
 
     final ok = await ref
         .read(biometricAuthProvider)
-        .authenticate(reason: 'Xác thực để mở khóa phiên đăng nhập VAU TRANS.');
+        .authenticate(
+          reason: 'Xác thực để mở khóa phiên đăng nhập Bee Express.',
+        );
     if (!ok) {
       state = state.copyWith(isSubmitting: false);
       return;

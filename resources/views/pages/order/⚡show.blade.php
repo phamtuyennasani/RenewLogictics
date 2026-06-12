@@ -1330,7 +1330,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 <div style="display:grid;grid-template-columns:34% 38% 28%;border-bottom:1px solid #111827;">
                     <div style="min-height:31mm;padding:8px;border-right:1px solid #111827;display:flex;align-items:center;">
                         <div>
-                            <div style="font-size:24px;font-weight:900;letter-spacing:.03em;">VAU TRANS</div>
+                            <div style="font-size:24px;font-weight:900;letter-spacing:.03em;">Bee Express</div>
                             <div style="margin-top:4px;font-size:10px;color:#374151;">International Express & Logistics</div>
                         </div>
                     </div>
@@ -1440,7 +1440,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
             </div>
 
             <div style="margin-top:10px;border:1px solid #111827;padding:8px;font-size:10px;line-height:1.45;">
-                <b>Lưu ý / Notes:</b> Khách hàng xác nhận thông tin trên bill là chính xác và đồng ý với chính sách vận chuyển, khai báo hàng hóa, bồi thường và xử lý phát sinh của VAU TRANS.
+                <b>Lưu ý / Notes:</b> Khách hàng xác nhận thông tin trên bill là chính xác và đồng ý với chính sách vận chuyển, khai báo hàng hóa, bồi thường và xử lý phát sinh của Bee Express.
             </div>
         </section>
 
@@ -1461,7 +1461,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                         <p style="margin:0 0 0 54px;">- Ban soi chiếu an ninh hàng không Tân Sơn Nhất</p>
                         <p style="margin:0 0 0 54px;">- Công ty TNHH dịch vụ hàng hóa Tân Sơn Nhất (TCS/TECS)</p>
                         <p style="margin:0 0 0 54px;">- Công ty TNHH dịch vụ hàng hóa Sài Gòn (SCSC)</p>
-                        <p style="margin:0 0 0 54px;">- Công Ty TNHH Xuất Nhập Khẩu VAU TRANS</p>
+                        <p style="margin:0 0 0 54px;">- Công Ty TNHH Xuất Nhập Khẩu Bee Express</p>
                     </div>
 
                     <div style="margin-top:18px;">

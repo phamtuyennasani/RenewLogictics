@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>{{ $title ?? 'Shipper — ' . config('system.name', 'VAU TRANS') }}</title>
+    <title>{{ $title ?? 'Shipper — ' . config('system.name', 'Bee Express') }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,7 +34,7 @@
                         @endif
                     </div>
                     <div class="min-w-0">
-                        <span class="block truncate text-lg font-bold leading-tight text-neutral-950">{{ config('system.name', 'VAU TRANS') }}</span>
+                        <span class="block truncate text-lg font-bold leading-tight text-neutral-950">{{ config('system.name', 'Bee Express') }}</span>
                         <span class="block truncate text-[11px] font-medium leading-tight text-neutral-500">{{ config('system.slogan', 'Quan ly van chuyen') }}</span>
                     </div>
                 </a>

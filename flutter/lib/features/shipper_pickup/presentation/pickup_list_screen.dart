@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../core/utils/date_formatters.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../domain/pickup_repository.dart';
@@ -149,7 +150,8 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
           final pickup = state.items[index];
           return PickupCard(
             pickup: pickup,
-            onTap: () => context.push('/shipper/pickups/${pickup.id}'),
+            onTap: () =>
+                context.push(AppRoutes.pickupDetailLocation(pickup.id)),
           );
         },
       ),

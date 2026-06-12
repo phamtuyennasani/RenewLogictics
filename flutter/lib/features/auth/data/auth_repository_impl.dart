@@ -6,11 +6,7 @@ import 'auth_api.dart';
 /// Triển khai [AuthRepository]: gọi [AuthApi], map envelope → domain,
 /// và quản lý lưu/xóa token trong secure storage.
 class AuthRepositoryImpl implements AuthRepository {
-  AuthRepositoryImpl({
-    required AuthApi api,
-    required SecureTokenStorage tokenStorage,
-  })  : _api = api,
-        _tokenStorage = tokenStorage;
+  AuthRepositoryImpl({required this._api, required this._tokenStorage});
 
   final AuthApi _api;
   final SecureTokenStorage _tokenStorage;

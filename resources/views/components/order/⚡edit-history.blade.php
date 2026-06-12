@@ -150,7 +150,7 @@ new class extends Component
             ->implode(', ');
         $roleText = $roles !== '' ? ' - '.$roles : '';
 
-        return 'VAU Trans'.$code.$roleText.' chỉnh sửa thông tin '.$payload['label'];
+        return 'Bee Express'.$code.$roleText.' chỉnh sửa thông tin '.$payload['label'];
     }
 
     public function render()

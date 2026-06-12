@@ -45,8 +45,8 @@ class PickupApi {
       body: {
         'status': status,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
-        if (lat != null) 'lat': lat,
-        if (lng != null) 'lng': lng,
+        'lat': ?lat,
+        'lng': ?lng,
       },
     );
   }
