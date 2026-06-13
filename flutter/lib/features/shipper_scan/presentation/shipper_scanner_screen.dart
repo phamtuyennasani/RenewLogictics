@@ -178,7 +178,7 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
               MobileScanner(
                 controller: _scanner,
                 onDetect: _onDetect,
-                errorBuilder: (context, error, child) =>
+                errorBuilder: (context, error) =>
                     _CameraError(error: error),
               ),
               DecoratedBox(

@@ -29,7 +29,7 @@ dependencies:
   shared_preferences: ^2.3.3
 
   # Quét QR/Barcode
-  mobile_scanner: ^5.2.3
+  mobile_scanner: ^7.0.0
 
   # Xin quyền camera/location
   permission_handler: ^11.3.1

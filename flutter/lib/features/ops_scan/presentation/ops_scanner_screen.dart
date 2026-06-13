@@ -230,7 +230,7 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
               MobileScanner(
                 controller: _scanner,
                 onDetect: _onDetect,
-                errorBuilder: (context, error, child) =>
+                errorBuilder: (context, error) =>
                     _CameraError(error: error),
               ),
               DecoratedBox(
