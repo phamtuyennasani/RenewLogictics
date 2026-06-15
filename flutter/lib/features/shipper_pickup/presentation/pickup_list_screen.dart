@@ -150,6 +150,7 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
           }
           final pickup = state.items[index];
           return PickupCard(
+            key: ValueKey(pickup.id),
             pickup: pickup,
             onTap: () =>
                 context.push(AppRoutes.pickupDetailLocation(pickup.id)),

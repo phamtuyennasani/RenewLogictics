@@ -162,6 +162,7 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
         }
         final pickup = state.items[i];
         return PickupCard(
+          key: ValueKey(pickup.id),
           pickup: pickup,
           onTap: () => context.push('/ops/pickups/${pickup.id}'),
         );

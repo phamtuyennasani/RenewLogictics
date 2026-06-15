@@ -89,7 +89,9 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
                   target: LatLng(_destination.lat, _destination.lng),
                   zoom: 14,
                 ),
-                trackCameraPosition: true,
+                // Không đọc cameraPosition ở đâu → tắt tracking để khỏi tốn
+                // CPU lắng nghe mỗi lần user pan/zoom bản đồ.
+                trackCameraPosition: false,
                 onMapCreated: (controller) => _mapController = controller,
                 onStyleLoadedCallback: _onStyleLoaded,
               ),

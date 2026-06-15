@@ -6,11 +6,12 @@ enum AppToastType { success, error, warning, info }
 /// Toast dùng chung cho toàn app.
 ///
 /// Thay cho `SnackBar` mặc định: bo góc, có icon tròn, dải màu theo loại,
-/// nền sáng tách khỏi nội dung và hiệu ứng nổi nhẹ.
+/// nền sáng tách khỏi nội dung và hiệu ứng nổi nhẹ. Hiển thị floating ở đáy
+/// màn hình, trải đều hai bên.
 ///
 /// Dùng nhanh:
 /// ```dart
-/// AppToast.error(context, 'Tài khoản không có quyền sử dụng ứng dụng.');
+/// AppToast.error(context, 'Tài khoản hoặc mật khẩu không đúng.');
 /// AppToast.success(context, 'Đã lưu thành công');
 /// ```
 abstract class AppToast {
@@ -75,6 +76,9 @@ abstract class AppToast {
     Duration? duration,
   }) {
     final messenger = ScaffoldMessenger.of(context);
+    // Dùng property `width` của SnackBar (căn giữa, full ngang trừ 28px hai bên).
+    // `width` và `margin` loại trừ nhau nên không set margin.
+    final width = MediaQuery.sizeOf(context).width - 28;
     messenger
       ..clearSnackBars()
       ..showSnackBar(
@@ -85,7 +89,7 @@ abstract class AppToast {
           padding: EdgeInsets.zero,
           duration: duration ?? _defaultDuration(type),
           dismissDirection: DismissDirection.horizontal,
-          margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+          width: width,
           content: _ToastBody(type: type, title: title, message: message),
         ),
       );
@@ -160,7 +164,7 @@ class _ToastBody extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 460),
+        width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),

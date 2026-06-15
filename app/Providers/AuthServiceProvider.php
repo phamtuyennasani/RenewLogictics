@@ -36,9 +36,9 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'cs', 'sale', 'ctv']);
         });
 
-        // Gate for pickups — creator: admin, manager, ops; sale: pickup của order mình; shipper: read-only
+        // Gate for pickups — creator: admin, manager, ops; sale/ctv: pickup của order mình; cs: xem tất cả; shipper: read-only
         Gate::define('pickups.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'manager', 'ops', 'shipper', 'sale']);
+            return $user->hasAnyRole(['admin', 'manager', 'ops', 'shipper', 'sale', 'cs', 'ctv']);
         });
 
         // Gate for scan

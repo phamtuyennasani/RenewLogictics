@@ -363,17 +363,17 @@
                         <flux:button type="button" wire:click="openEdit({{ $selectedPickup->id }})" wire:loading.attr="disabled" variant="outline">Sửa</flux:button>
                     @endif
 
-                    @if($selectedPickup->status === \App\Enums\PickupStatusEnum::MOI_TAO_PICKUP)
-                        <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::DA_XAC_NHAN->value }}')" wire:loading.attr="disabled" variant="primary">Đã xác nhận</flux:button>
-                    @elseif($selectedPickup->status === \App\Enums\PickupStatusEnum::DA_XAC_NHAN)
-                        <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY->value }}')" wire:loading.attr="disabled" variant="primary">Đang lấy hàng</flux:button>
-                    @elseif($selectedPickup->status === \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY)
-                        <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::PICKUP_DA_LAY->value }}')" wire:loading.attr="disabled" variant="primary">Đã lấy hàng</flux:button>
-                    @endif
+                    @if($this->canManagePickupStatus($selectedPickup))
+                        @if($selectedPickup->status === \App\Enums\PickupStatusEnum::MOI_TAO_PICKUP)
+                            <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::DA_XAC_NHAN->value }}')" wire:loading.attr="disabled" variant="primary">Đã xác nhận</flux:button>
+                        @elseif($selectedPickup->status === \App\Enums\PickupStatusEnum::DA_XAC_NHAN)
+                            <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY->value }}')" wire:loading.attr="disabled" variant="primary">Đang lấy hàng</flux:button>
+                        @elseif($selectedPickup->status === \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY)
+                            <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::PICKUP_DA_LAY->value }}')" wire:loading.attr="disabled" variant="primary">Đã lấy hàng</flux:button>
+                        @endif
 
-                    @if(! $selectedPickup->status->isFinal())
                         <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::DA_HUY->value }}')" wire:confirm="Hủy phiếu Pickup này?" wire:loading.attr="disabled" variant="danger">Hủy</flux:button>
-                    @else
+                    @elseif($selectedPickup->status->isFinal())
                         <p class="self-center text-sm font-medium text-neutral-500">Phiếu đã khóa thao tác.</p>
                     @endif
                 </div>

@@ -53,7 +53,10 @@ class PushRegistration {
       await _sendToken(token);
     }
 
-    _refreshSub ??= _service.onTokenRefresh.listen(_sendToken);
+    // Hủy sub cũ trước khi đăng ký lại: tránh lắng nghe kép nếu
+    // registerCurrentDevice() chạy nhiều lần trong một phiên (restore + login).
+    await _refreshSub?.cancel();
+    _refreshSub = _service.onTokenRefresh.listen(_sendToken);
   }
 
   Future<void> _sendToken(String token) async {

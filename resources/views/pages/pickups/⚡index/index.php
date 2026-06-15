@@ -105,6 +105,13 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         return $user?->hasRole('sale') && ! $user->hasAnyRole(['admin', 'manager']);
     }
 
+    protected function shouldScopeToCurrentCtv(): bool
+    {
+        $user = auth()->user();
+
+        return $user?->hasRole('ctv') && ! $user->hasAnyRole(['admin', 'manager', 'cs']);
+    }
+
     protected function pickupAccessQuery()
     {
         return Pickup::query()
@@ -118,6 +125,10 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             ->when($this->shouldScopeToCurrentSale(), function ($query) {
                 // Sale: chỉ thấy pickup thuộc order mà sale phụ trách.
                 $query->whereHas('orders', fn ($orderQuery) => $orderQuery->where('id_sale', auth()->id()));
+            })
+            ->when($this->shouldScopeToCurrentCtv(), function ($query) {
+                // CTV: chỉ thấy pickup do chính mình tạo (pivot pickup_orders.added_by).
+                $query->whereHas('orders', fn ($orderQuery) => $orderQuery->where('pickup_orders.added_by', auth()->id()));
             });
     }
 
@@ -139,6 +150,20 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
     protected function currentSaleCreatedPickup(?Pickup $pickup): bool
     {
         if (! $pickup || ! $this->shouldScopeToCurrentSale()) {
+            return false;
+        }
+
+        return $pickup->orders()
+            ->wherePivot('added_by', auth()->id())
+            ->exists();
+    }
+
+    /**
+     * CTV chỉ được sửa pickup do chính mình tạo (pivot pickup_orders.added_by = ctv.id).
+     */
+    protected function currentCtvCreatedPickup(?Pickup $pickup): bool
+    {
+        if (! $pickup || ! $this->shouldScopeToCurrentCtv()) {
             return false;
         }
 
@@ -411,6 +436,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
     {
         $pickup = $this->selectedPickup;
         abort_unless($pickup, 404);
+        abort_unless($this->canManagePickupStatus($pickup), 403);
 
         try {
             TransitionPickupStatusAction::execute($pickup, PickupStatusEnum::from($status));
@@ -495,6 +521,11 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return $this->canEditSenderForPickup($pickup);
         }
 
+        if ($this->shouldScopeToCurrentCtv()) {
+            return $this->currentCtvCreatedPickup($pickup)
+                && $this->canEditSenderForPickup($pickup);
+        }
+
         return $this->canEditOpsForPickup($pickup)
             || $this->canEditShipperForPickup($pickup)
             || $this->canEditSenderForPickup($pickup);
@@ -502,7 +533,31 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
 
     public function canEditOpsForPickup(?Pickup $pickup = null): bool
     {
-        return (bool) $pickup && auth()->user()?->hasAnyRole(['admin', 'manager']);
+        return (bool) $pickup && auth()->user()?->hasAnyRole(['admin', 'manager', 'cs']);
+    }
+
+    /**
+     * Cập nhật trạng thái / hủy phiếu Pickup.
+     * - Sale: KHÔNG bao giờ được (chỉ tạo & sửa thông tin pickup của order mình).
+     * - OPS: chỉ pickup mình phụ trách (chưa có người hoặc của chính mình).
+     * - Admin/Manager: toàn quyền.
+     * Phiếu ở trạng thái cuối thì không ai thao tác.
+     */
+    public function canManagePickupStatus(?Pickup $pickup = null): bool
+    {
+        if (! $pickup || $pickup->status?->isFinal()) {
+            return false;
+        }
+
+        if ($this->shouldScopeToCurrentSale()) {
+            return false;
+        }
+
+        if ($this->shouldScopeToCurrentOps()) {
+            return $this->currentOpsCanAccessPickup($pickup);
+        }
+
+        return auth()->user()?->hasAnyRole(['admin', 'manager', 'ops']) ?? false;
     }
 
     public function canEditShipperForPickup(?Pickup $pickup = null): bool
@@ -541,15 +596,21 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             ], true);
         }
 
-        // Sale (bị scope) chỉ được sửa thông tin người gửi trên pickup do chính mình tạo.
+        // Sale (bị scope) chỉ được sửa thông tin người gửi trên pickup do chính mình tạo, khi phiếu còn ở trạng thái Mới tạo.
         if ($this->shouldScopeToCurrentSale()) {
             return $this->currentSaleCreatedPickup($pickup)
-                && in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true);
+                && $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP;
+        }
+
+        // CTV (bị scope) chỉ được sửa thông tin người gửi trên pickup do chính mình tạo, khi phiếu còn ở trạng thái Mới tạo.
+        if ($this->shouldScopeToCurrentCtv()) {
+            return $this->currentCtvCreatedPickup($pickup)
+                && $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP;
         }
 
         return (bool) $pickup
             && in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true)
-            && auth()->user()?->hasAnyRole(['admin', 'manager', 'sale', 'ctv', 'ops']);
+            && auth()->user()?->hasAnyRole(['admin', 'manager', 'sale', 'ctv', 'ops', 'cs']);
     }
 
     public function getSelectedVehicleProperty(): ?News

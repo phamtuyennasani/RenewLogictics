@@ -22,6 +22,7 @@ class OpsScannerScreen extends ConsumerStatefulWidget {
 class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
     with WidgetsBindingObserver {
   final MobileScannerController _scanner = MobileScannerController(
+    autoStart: false,
     formats: const [BarcodeFormat.qrCode, BarcodeFormat.code128],
     detectionSpeed: DetectionSpeed.normal,
   );
@@ -32,10 +33,39 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
   Timer? _cooldown;
   bool _torchOn = false;
 
+  /// Camera mặc định tắt: người dùng chủ động bật khi cần, còn lại nhập tay.
+  bool _cameraOn = false;
+
+  /// Tab hiện đang hiển thị hay không (IndexedStack của bottom nav giữ màn sống
+  /// kể cả khi chuyển tab). Theo dõi qua TickerMode để dừng camera khi ẩn.
+  bool _visible = true;
+
+  /// Đang trong một thao tác start/stop camera. Tránh gọi chồng lệnh khi lần
+  /// đầu xin quyền: dialog quyền đẩy app sang paused → lifecycle gọi stop ngay
+  /// giữa lúc start còn chờ, gây kẹt camera. Cờ này nối tiếp các thao tác.
+  bool _busyCamera = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Bottom nav dùng IndexedStack → không dispose khi đổi tab. TickerMode tắt
+    // khi tab bị ẩn; bám theo đó để dừng/bật lại camera đúng lúc.
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (visible == _visible) return;
+    _visible = visible;
+
+    if (!_cameraOn) return;
+    if (visible) {
+      _resumeCamera();
+    } else {
+      _pauseCamera();
+    }
   }
 
   @override
@@ -49,17 +79,61 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Chỉ điều khiển camera khi người dùng đã bật và tab đang hiển thị.
+    if (!_cameraOn || !_visible) return;
+
     // Tạm dừng camera khi app nền để tiết kiệm pin / tránh leak.
     switch (state) {
       case AppLifecycleState.resumed:
-        _scanner.start();
+        _resumeCamera();
         break;
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
       case AppLifecycleState.hidden:
-        _scanner.stop();
+        _pauseCamera();
         break;
+    }
+  }
+
+  /// Bật/tắt camera quét. Khi tắt, người dùng vẫn nhập mã thủ công bên dưới.
+  Future<void> _toggleCamera() async {
+    if (_cameraOn) {
+      setState(() {
+        _cameraOn = false;
+        _torchOn = false;
+      });
+      await _pauseCamera();
+    } else {
+      setState(() => _cameraOn = true);
+      await _resumeCamera();
+    }
+  }
+
+  /// Start camera an toàn: nối tiếp thao tác, bỏ qua nếu đã chạy.
+  Future<void> _resumeCamera() async {
+    if (_busyCamera || _scanner.value.isRunning) return;
+    _busyCamera = true;
+    try {
+      await _scanner.start();
+    } catch (_) {
+      // start() có thể ném khi đang khởi tạo hoặc quyền bị từ chối —
+      // errorBuilder của MobileScanner sẽ hiển thị thông báo, không cần xử lý.
+    } finally {
+      _busyCamera = false;
+    }
+  }
+
+  /// Stop camera an toàn: chỉ dừng khi đang chạy, nối tiếp thao tác.
+  Future<void> _pauseCamera() async {
+    if (_busyCamera || !_scanner.value.isRunning) return;
+    _busyCamera = true;
+    try {
+      await _scanner.stop();
+    } catch (_) {
+      // Bỏ qua nếu camera đã dừng.
+    } finally {
+      _busyCamera = false;
     }
   }
 
@@ -117,16 +191,18 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
       appBar: AppBar(
         title: const Text('Quét nhập kho'),
         actions: [
-          IconButton(
-            icon: Icon(_torchOn ? Icons.flash_on : Icons.flash_off),
-            tooltip: 'Đèn flash',
-            onPressed: _toggleTorch,
-          ),
-          IconButton(
-            icon: const Icon(Icons.cameraswitch_outlined),
-            tooltip: 'Đổi camera',
-            onPressed: () => _scanner.switchCamera(),
-          ),
+          if (_cameraOn) ...[
+            IconButton(
+              icon: Icon(_torchOn ? Icons.flash_on : Icons.flash_off),
+              tooltip: 'Đèn flash',
+              onPressed: _toggleTorch,
+            ),
+            IconButton(
+              icon: const Icon(Icons.cameraswitch_outlined),
+              tooltip: 'Đổi camera',
+              onPressed: () => _scanner.switchCamera(),
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.history),
             tooltip: 'Lịch sử quét',
@@ -167,89 +243,148 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
         height: 280,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Stack(
-            fit: StackFit.expand,
+          child: _cameraOn
+              ? _buildCameraStack(state, theme)
+              : _buildCameraOff(theme),
+        ),
+      ),
+    );
+  }
+
+  /// Khung hiển thị khi camera đang tắt: nút bật + gợi ý nhập tay.
+  Widget _buildCameraOff(ThemeData theme) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              MobileScanner(
-                controller: _scanner,
-                onDetect: _onDetect,
-                errorBuilder: (context, error) =>
-                    _CameraError(error: error),
+              Icon(
+                Icons.photo_camera_outlined,
+                size: 40,
+                color: theme.colorScheme.onSurfaceVariant,
               ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.2),
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.46),
-                    ],
-                  ),
+              const SizedBox(height: 12),
+              Text(
+                'Camera đang tắt',
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Bật camera để quét, hoặc nhập mã thủ công bên dưới.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              Center(
-                child: Container(
-                  width: 230,
-                  height: 132,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      width: 2,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: _toggleCamera,
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Bật camera'),
               ),
-              Positioned(
-                left: 14,
-                right: 14,
-                bottom: 14,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Đưa mã vận đơn vào khung để tra cứu',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.22),
-                        ),
-                      ),
-                      child: const Text(
-                        'LIVE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (state.isLooking)
-                Container(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  child: const Center(child: CircularProgressIndicator()),
-                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildCameraStack(ScanState state, ThemeData theme) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        MobileScanner(
+          controller: _scanner,
+          onDetect: _onDetect,
+          errorBuilder: (context, error) => _CameraError(error: error),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withValues(alpha: 0.2),
+                Colors.transparent,
+                Colors.black.withValues(alpha: 0.46),
+              ],
+            ),
+          ),
+        ),
+        Center(
+          child: Container(
+            width: 230,
+            height: 132,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.95),
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 14,
+          right: 14,
+          top: 14,
+          child: Align(
+            alignment: Alignment.topRight,
+            child: _CameraOffButton(onPressed: _toggleCamera),
+          ),
+        ),
+        Positioned(
+          left: 14,
+          right: 14,
+          bottom: 14,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Đưa mã vận đơn vào khung để tra cứu',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: const Text(
+                  'LIVE',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (state.isLooking)
+          Container(
+            color: Colors.black.withValues(alpha: 0.35),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+      ],
     );
   }
 
@@ -357,6 +492,43 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
           backgroundColor: isError ? Theme.of(context).colorScheme.error : null,
         ),
       );
+  }
+}
+
+/// Nút nhỏ nổi trên khung camera để tắt nhanh, chuyển sang nhập tay.
+class _CameraOffButton extends StatelessWidget {
+  const _CameraOffButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onPressed,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.videocam_off_outlined, color: Colors.white, size: 16),
+              SizedBox(width: 6),
+              Text(
+                'Tắt camera',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

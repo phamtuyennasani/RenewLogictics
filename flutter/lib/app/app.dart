@@ -23,6 +23,16 @@ class _ShipperOpsAppState extends ConsumerState<ShipperOpsApp> {
     push.onRouteSelected = _handlePushRoute;
   }
 
+  @override
+  void dispose() {
+    // Xóa callback để tránh giữ reference tới widget đã dispose.
+    final push = ref.read(pushNotificationServiceProvider);
+    if (push.onRouteSelected == _handlePushRoute) {
+      push.onRouteSelected = null;
+    }
+    super.dispose();
+  }
+
   void _handlePushRoute(PushRoute route) {
     final router = ref.read(routerProvider);
 

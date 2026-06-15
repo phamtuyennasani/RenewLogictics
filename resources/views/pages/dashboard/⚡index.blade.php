@@ -195,7 +195,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     <div class="system-filter-section-heading">
                         <div>
                             <h3>Phụ trách</h3>
-                            <p>Sale và CTV / khách hàng trong phạm vi dữ liệu</p>
+                            <p>Sale và khách hàng trong phạm vi dữ liệu</p>
                         </div>
                     </div>
                     <div class="system-filter-section-grid @if (data_get($report, 'scope.canUseSaleFilter') && data_get($report, 'scope.canUseCustomerFilter')) system-filter-section-grid-2 @endif">
@@ -213,9 +213,9 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
 
                         @if (data_get($report, 'scope.canUseCustomerFilter'))
                             <label class="system-filter-field" wire:ignore>
-                                <span class="system-filter-label">CTV / Khách hàng</span>
-                                <select data-placeholder="Tất cả CTV" data-livewire-model="pendingFilters.customerId" data-livewire-live="false" class="system-filter-control tomselectEml system-filter-tomselect">
-                                    <option value="">Tất cả CTV</option>
+                                <span class="system-filter-label">Khách hàng</span>
+                                <select data-placeholder="Tất cả khách hàng" data-livewire-model="pendingFilters.customerId" data-livewire-live="false" class="system-filter-control tomselectEml system-filter-tomselect">
+                                    <option value="">Tất cả khách hàng</option>
                                     @foreach ($options['customers'] ?? [] as $customer)
                                         <option value="{{ $customer['id'] }}" @selected((string) ($pendingFilters['customerId'] ?? '') === (string) $customer['id'])>{{ $customer['label'] }}</option>
                                     @endforeach
@@ -361,7 +361,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                 data-hide-money="{{ $hideMoney ? '1' : '0' }}"
                 data-hide-cost-profit="{{ $hideCostProfit ? '1' : '0' }}"
             >
-                <div class="relative h-72 min-h-72 w-full">
+                <div class="relative h-56 min-h-56 w-full">
                     <canvas data-yearly-timeline-canvas class="!h-full !w-full" aria-label="Biểu đồ thống kê trong năm"></canvas>
                 </div>
             </div>

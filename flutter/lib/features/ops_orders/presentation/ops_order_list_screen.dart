@@ -134,7 +134,7 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        return _OrderCard(order: state.items[index]);
+        return _OrderCard(key: ValueKey(state.items[index].id), order: state.items[index]);
       },
     );
   }
@@ -209,7 +209,7 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _OrderCard extends StatelessWidget {
-  const _OrderCard({required this.order});
+  const _OrderCard({super.key, required this.order});
 
   final OpsOrder order;
 
