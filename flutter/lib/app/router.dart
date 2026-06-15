@@ -7,12 +7,14 @@ import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/module_chooser_screen.dart';
 import '../features/auth/presentation/splash_screen.dart';
+import '../features/ops_notifications/presentation/ops_notifications_screen.dart';
 import '../features/ops_orders/presentation/create_pickup_screen.dart';
 import '../features/ops_orders/presentation/ops_order_detail_screen.dart';
 import '../features/ops_orders/presentation/ops_order_list_screen.dart';
 import '../features/ops_pickups/presentation/ops_pickup_detail_screen.dart';
 import '../features/ops_pickups/presentation/ops_pickup_list_screen.dart';
 import '../features/ops_scan/presentation/ops_scanner_screen.dart';
+import '../features/ops_scan/presentation/ops_shell_screen.dart';
 import '../features/ops_scan/presentation/recent_scans_screen.dart';
 import '../features/profile/presentation/profile_screen.dart';
 import '../features/shipper_pickup/domain/pickup.dart';
@@ -43,6 +45,8 @@ abstract class AppRoutes {
   static const opsPickups = '/ops/pickups';
   static const opsPickupDetail = '/ops/pickups/:id';
   static const opsPickupDetailChild = 'pickups/:id';
+  static const opsNotifications = '/ops/notifications';
+  static const opsAccount = '/ops/account';
   static const profile = '/profile';
 
   static String pickupDetailLocation(int id) => '/shipper/pickups/$id';
@@ -66,8 +70,13 @@ final routerProvider = Provider<GoRouter>((ref) {
   final refresh = _AuthRefreshNotifier(ref);
   ref.onDispose(refresh.dispose);
 
+  // Navigator gốc: dùng để push các màn full-screen (chi tiết, form) đè lên
+  // shell OPS, che bottom navigation.
+  final rootNavigatorKey = GlobalKey<NavigatorState>();
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
+    navigatorKey: rootNavigatorKey,
     refreshListenable: refresh,
     redirect: (context, state) {
       final auth = ref.read(authControllerProvider);
@@ -137,43 +146,103 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      GoRoute(path: AppRoutes.ops, builder: (_, _) => const OpsScannerScreen()),
-      GoRoute(
-        path: AppRoutes.opsRecent,
-        builder: (_, _) => const RecentScansScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.opsOrders,
-        builder: (_, _) => const OpsOrderListScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.opsOrderDetail,
-        builder: (_, state) {
-          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-          return OpsOrderDetailScreen(orderId: id);
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.opsOrderCreatePickup,
-        builder: (_, state) {
-          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-          final detail = state.extra;
-          return CreatePickupScreen(
-            orderId: id,
-            orderDetail: detail as dynamic,
-          );
-        },
-      ),
-      GoRoute(
-        path: AppRoutes.opsPickups,
-        builder: (_, _) => const OpsPickupListScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.opsPickupDetail,
-        builder: (_, state) {
-          final id = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-          return OpsPickupDetailScreen(pickupId: id);
-        },
+      // Module OPS: bottom navigation 5 tab với nút quét QR nổi giữa.
+      // Mỗi branch giữ state riêng (indexedStack). Màn chi tiết/form push lên
+      // root navigator để che bottom bar.
+      StatefulShellRoute.indexedStack(
+        builder: (_, _, navigationShell) =>
+            OpsShellScreen(navigationShell: navigationShell),
+        branches: [
+          // 0 — Đơn hàng
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.opsOrders,
+                builder: (_, _) => const OpsOrderListScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (_, state) {
+                      final id =
+                          int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+                      return OpsOrderDetailScreen(orderId: id);
+                    },
+                    routes: [
+                      GoRoute(
+                        path: AppRoutes.opsOrderCreatePickupChild,
+                        parentNavigatorKey: rootNavigatorKey,
+                        builder: (_, state) {
+                          final id =
+                              int.tryParse(state.pathParameters['id'] ?? '') ??
+                                  0;
+                          return CreatePickupScreen(
+                            orderId: id,
+                            orderDetail: state.extra as dynamic,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // 1 — Pickup
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.opsPickups,
+                builder: (_, _) => const OpsPickupListScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (_, state) {
+                      final id =
+                          int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+                      return OpsPickupDetailScreen(pickupId: id);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // 2 — Quét QR (nút nổi giữa)
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.ops,
+                builder: (_, _) => const OpsScannerScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'recent',
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (_, _) => const RecentScansScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          // 3 — Thông báo
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.opsNotifications,
+                builder: (_, _) => const OpsNotificationsScreen(),
+              ),
+            ],
+          ),
+          // 4 — Tài khoản
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.opsAccount,
+                builder: (_, _) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: AppRoutes.profile,

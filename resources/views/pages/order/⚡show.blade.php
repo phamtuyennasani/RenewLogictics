@@ -732,8 +732,6 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
 @endphp
 
 <div class="space-y-5">
-
-
     <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
             <p class="text-sm text-neutral-500">Đơn hàng / Chi tiết</p>
@@ -756,9 +754,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 @endif
             </div>
         </div>
-
         <div class="flex flex-wrap items-center gap-2">
-            
             <a href="{{ route('orders.index') }}" wire:navigate
                 class="inline-flex items-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-xs transition-all hover:bg-neutral-50">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
@@ -1463,7 +1459,6 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                         <p style="margin:0 0 0 54px;">- Công ty TNHH dịch vụ hàng hóa Sài Gòn (SCSC)</p>
                         <p style="margin:0 0 0 54px;">- Công Ty TNHH Xuất Nhập Khẩu Bee Express</p>
                     </div>
-
                     <div style="margin-top:18px;">
                         <p style="margin:0 0 5px;">Chúng tôi là / <i>We're</i>: <b>{{ $this->labelText($cvckName) }}</b></p>
                         <p style="margin:0 0 5px;">MST / CMND số: <b>{{ $this->labelText($cvckId) }}</b></p>

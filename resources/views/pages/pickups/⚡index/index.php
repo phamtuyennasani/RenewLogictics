@@ -98,6 +98,13 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         return $user?->hasRole('ops') && ! $user->hasAnyRole(['admin', 'manager']);
     }
 
+    protected function shouldScopeToCurrentSale(): bool
+    {
+        $user = auth()->user();
+
+        return $user?->hasRole('sale') && ! $user->hasAnyRole(['admin', 'manager']);
+    }
+
     protected function pickupAccessQuery()
     {
         return Pickup::query()
@@ -107,6 +114,10 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
                         ->orWhere('id_user', 0)
                         ->orWhere('id_user', auth()->id());
                 });
+            })
+            ->when($this->shouldScopeToCurrentSale(), function ($query) {
+                // Sale: chỉ thấy pickup thuộc order mà sale phụ trách.
+                $query->whereHas('orders', fn ($orderQuery) => $orderQuery->where('id_sale', auth()->id()));
             });
     }
 
@@ -119,6 +130,21 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         return blank($pickup->id_user)
             || (int) $pickup->id_user === 0
             || (int) $pickup->id_user === (int) auth()->id();
+    }
+
+    /**
+     * Sale chỉ được sửa pickup do chính mình tạo (pivot pickup_orders.added_by = sale.id).
+     * Pickup do người khác tạo (dù thuộc order sale quản lý) thì sale chỉ được xem.
+     */
+    protected function currentSaleCreatedPickup(?Pickup $pickup): bool
+    {
+        if (! $pickup || ! $this->shouldScopeToCurrentSale()) {
+            return false;
+        }
+
+        return $pickup->orders()
+            ->wherePivot('added_by', auth()->id())
+            ->exists();
     }
 
     protected function pickupsQuery(bool $includeStatus = true, bool $includeRelations = true)
@@ -465,6 +491,10 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return true;
         }
 
+        if ($this->currentSaleCreatedPickup($pickup)) {
+            return $this->canEditSenderForPickup($pickup);
+        }
+
         return $this->canEditOpsForPickup($pickup)
             || $this->canEditShipperForPickup($pickup)
             || $this->canEditSenderForPickup($pickup);
@@ -509,6 +539,12 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
                 PickupStatusEnum::PICKUP_DANG_LAY,
                 PickupStatusEnum::DA_HUY,
             ], true);
+        }
+
+        // Sale (bị scope) chỉ được sửa thông tin người gửi trên pickup do chính mình tạo.
+        if ($this->shouldScopeToCurrentSale()) {
+            return $this->currentSaleCreatedPickup($pickup)
+                && in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true);
         }
 
         return (bool) $pickup

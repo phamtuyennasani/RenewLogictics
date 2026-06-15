@@ -64,6 +64,11 @@ class AuthState {
 class AuthController extends Notifier<AuthState> {
   AuthRepository get _repo => ref.read(authRepositoryProvider);
 
+  /// Thông báo khi role không được phép dùng app (chỉ shipper & OPS).
+  static const _roleNotAllowedMessage =
+      'Tài khoản của bạn không có quyền sử dụng ứng dụng này. '
+      'Ứng dụng chỉ dành cho nhân viên Shipper và OPS.';
+
   @override
   AuthState build() {
     // Khi nhận tín hiệu 401 từ DioClient, đẩy về unauthenticated.
@@ -125,6 +130,10 @@ class AuthController extends Notifier<AuthState> {
   Future<void> _restoreStoredSession(SecureTokenStorage storage) async {
     try {
       final session = await _repo.me();
+      if (!session.canUseApp) {
+        await _rejectDisallowedRole(storage);
+        return;
+      }
       state = AuthState(status: AuthStatus.authenticated, session: session);
       _registerPushDevice();
     } catch (_) {
@@ -132,6 +141,19 @@ class AuthController extends Notifier<AuthState> {
       await storage.clear();
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
+  }
+
+  /// Role không thuộc shipper/OPS: thu hồi token đã lưu và báo lỗi.
+  Future<void> _rejectDisallowedRole(SecureTokenStorage storage) async {
+    try {
+      await _repo.logout();
+    } catch (_) {
+      await storage.clear();
+    }
+    state = const AuthState(
+      status: AuthStatus.unauthenticated,
+      errorMessage: _roleNotAllowedMessage,
+    );
   }
 
   Future<void> login({
@@ -146,6 +168,10 @@ class AuthController extends Notifier<AuthState> {
         password: password,
         deviceName: deviceName,
       );
+      if (!result.session.canUseApp) {
+        await _rejectDisallowedRole(ref.read(tokenStorageProvider));
+        return;
+      }
       state = AuthState(
         status: AuthStatus.authenticated,
         session: result.session,

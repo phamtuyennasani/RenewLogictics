@@ -61,6 +61,12 @@
                 @case('building-office')
                     <flux:icon.building-office class="size-5" />
                     @break
+                @case('cube')
+                    <flux:icon.cube class="size-5" />
+                    @break
+                @case('scale')
+                    <flux:icon.scale class="size-5" />
+                    @break
                 @default
                     <flux:icon.chart-bar class="size-5" />
             @endswitch

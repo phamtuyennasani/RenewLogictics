@@ -218,7 +218,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
 
     public function createPaymentInvoice(): void
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canCreatePaymentInvoice(), 403);
         $this->claimAccountantIfNeeded();
 
         if (! $this->debt->canCreatePaymentInvoice()) {
@@ -403,7 +403,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $invoice = CongNoPayment::query()->whereKey($invoiceId)->firstOrFail();
 
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canActOnInvoicePayment(), 403);
         abort_unless($invoice->canPay(auth()->user()), 403);
         $this->assertAccountantOwnership();
         $this->claimAccountantIfNeeded();
@@ -439,7 +439,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             return;
         }
 
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canActOnInvoicePayment(), 403);
         abort_unless($invoice->canPay(auth()->user()), 403);
         $this->assertAccountantOwnership();
         $this->claimAccountantIfNeeded();
@@ -503,7 +503,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             return;
         }
 
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canActOnInvoicePayment(), 403);
         abort_unless($invoice->canPay(auth()->user()), 403);
         $this->assertAccountantOwnership();
         $this->claimAccountantIfNeeded();
@@ -583,7 +583,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
     {
         $invoice = CongNoPayment::query()->whereKey($invoiceId)->firstOrFail();
 
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canActOnInvoicePayment(), 403);
         abort_unless($invoice->canPay(auth()->user()) || $invoice->canManageQr(auth()->user()), 403);
         $this->assertAccountantOwnership();
         $this->claimAccountantIfNeeded();
@@ -1490,6 +1490,36 @@ new #[Layout('layouts.app')] #[Title('Chi tiết công nợ')] class extends Com
             || $this->isAssignedAccountant()
             || $this->isUnassignedAccountant()
             || $this->isOwnerSaleEditable();
+    }
+
+    /**
+     * Quyền tạo hóa đơn thu từ công nợ:
+     * - admin/manager/kế toán phụ trách: như canManage.
+     * - sale phụ trách công nợ: được tạo hóa đơn khi công nợ đã chốt cước (canCreatePaymentInvoice của model).
+     *   Hóa đơn tạo ra ở trạng thái Chờ duyệt; sau khi kế toán duyệt, sale mới tạo được hình thức thanh toán.
+     */
+    public function canCreatePaymentInvoice(): bool
+    {
+        if ($this->hasDebtAdminPower()
+            || $this->isAssignedAccountant()
+            || $this->isUnassignedAccountant()) {
+            return true;
+        }
+
+        $user = auth()->user();
+
+        return $user->hasRole('sale')
+            && (int) $this->debt->id_sale === (int) $user->id;
+    }
+
+    /**
+     * Cổng cho các thao tác thanh toán hóa đơn (gửi tiền mặt, tạo QR...) ngay trên trang công nợ.
+     * Quyền chi tiết theo trạng thái hóa đơn do CongNoPayment::canPay() quyết định;
+     * helper này chỉ mở cổng cho admin/manager/kế toán phụ trách và sale phụ trách công nợ.
+     */
+    public function canActOnInvoicePayment(): bool
+    {
+        return $this->canCreatePaymentInvoice();
     }
 
     public function canEditSaleCharge(): bool

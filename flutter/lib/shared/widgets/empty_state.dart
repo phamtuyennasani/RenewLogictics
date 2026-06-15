@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// Hiển thị trạng thái rỗng (danh sách không có dữ liệu).
+///
+/// Đồng bộ phong cách với empty state bên shipper: card gradient mềm, icon bo
+/// góc viền trắng, tiêu đề đậm, nút "Làm mới" outlined.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -8,67 +11,109 @@ class EmptyState extends StatelessWidget {
     this.title,
     this.icon = Icons.inbox_outlined,
     this.onRefresh,
+    this.refreshLabel = 'Làm mới',
   });
 
   final String message;
   final String? title;
   final IconData icon;
   final VoidCallback? onRefresh;
+  final String refreshLabel;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(16),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
+          constraints: const BoxConstraints(maxWidth: 380),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  scheme.surface,
+                  scheme.primary.withValues(alpha: 0.06),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: scheme.outlineVariant),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+                  blurRadius: 24,
+                  offset: const Offset(0, 14),
+                ),
+              ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(22, 28, 22, 26),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 82,
+                    height: 82,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainer,
-                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          scheme.primary.withValues(alpha: 0.14),
+                          scheme.secondary.withValues(alpha: 0.12),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        width: 1.4,
+                      ),
                     ),
-                    child: Icon(
-                      icon,
-                      size: 30,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    child: Icon(icon, size: 38, color: scheme.primary),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 18),
                   if (title != null) ...[
                     Text(
                       title!,
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.titleMedium,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: scheme.onSurface,
+                      ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                   ],
                   Text(
                     message,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                      color: scheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
                     ),
                   ),
                   if (onRefresh != null) ...[
-                    const SizedBox(height: 18),
-                    OutlinedButton.icon(
-                      onPressed: onRefresh,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Tải lại'),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        onPressed: onRefresh,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: Text(refreshLabel),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: scheme.primary,
+                          side: BorderSide(
+                            color: scheme.primary.withValues(alpha: 0.24),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ],

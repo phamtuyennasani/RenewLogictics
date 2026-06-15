@@ -15,6 +15,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class SystemStatisticsService
 {
@@ -32,6 +33,8 @@ class SystemStatisticsService
                 'sale:id,fullname,username,code',
                 'customerAccount:id,fullname,username,code,options',
             ])
+            ->withSum('packages as gross_weight_sum', DB::raw('COALESCE(NULLIF(row_g_weight, 0), g_weight, 0)'))
+            ->withSum('packages as charged_weight_sum', DB::raw('COALESCE(NULLIF(row_c_weight, 0), c_weight, 0)'))
             ->get([
                 'id',
                 'id_bill',
@@ -79,12 +82,6 @@ class SystemStatisticsService
             'rankings' => [
                 'customers' => $this->topCustomers($orders),
                 'services' => $this->topServices($orders),
-            ],
-            'attention' => [
-                'unpaidDeliveredOrders' => $this->unpaidDeliveredOrders($orders),
-                'staleOrders' => $this->staleOrders($orders),
-                'openInvoices' => $this->openInvoices($incomeInvoices),
-                'overdueCustomerDebts' => $this->overdueCustomerDebts($customerDebts),
             ],
         ];
     }
@@ -146,6 +143,10 @@ class SystemStatisticsService
             'canUseCustomerFilter' => ! $isCtv,
             'canUseAgencyFilter' => ! $isSale && ! $isCtv && ! $isOps,
             'canSeeFinance' => ! $isSale && ! $isCtv,
+            // OPS chỉ xem số lượng đơn + cân nặng, không xem các con số liên quan tiền.
+            'hideMoney' => $isOps,
+            // Sale: trên biểu đồ năm chỉ thấy cước bán, ẩn cước vốn và lợi nhuận.
+            'hideCostProfit' => $isSale,
         ];
     }
 
@@ -270,6 +271,8 @@ class SystemStatisticsService
             'deliveryRate' => $orders->count() > 0 ? round(($delivered * 100) / $orders->count(), 1) : 0,
             'cancelRate' => $orders->count() > 0 ? round((($cancelled + $returned) * 100) / $orders->count(), 1) : 0,
             'avgPerDay' => round($orders->count() / max(1, $dateRange['from']->diffInDays($dateRange['to']) + 1), 1),
+            'grossWeight' => round((float) $orders->sum(fn (Order $order) => (float) ($order->gross_weight_sum ?? 0)), 2),
+            'chargedWeight' => round((float) $orders->sum(fn (Order $order) => (float) ($order->charged_weight_sum ?? 0)), 2),
         ];
     }
 
@@ -375,6 +378,8 @@ class SystemStatisticsService
                 'sale:id,fullname,username,code',
                 'customerAccount:id,fullname,username,code,options',
             ])
+            ->withSum('packages as gross_weight_sum', DB::raw('COALESCE(NULLIF(row_g_weight, 0), g_weight, 0)'))
+            ->withSum('packages as charged_weight_sum', DB::raw('COALESCE(NULLIF(row_c_weight, 0), c_weight, 0)'))
             ->get([
                 'id',
                 'id_bill',
@@ -406,6 +411,8 @@ class SystemStatisticsService
                 'year' => $year,
                 'label' => $monthLabels[$month - 1],
                 'orders' => $monthOrders->count(),
+                'grossWeight' => round((float) $monthOrders->sum(fn (Order $order) => (float) ($order->gross_weight_sum ?? 0)), 2),
+                'chargedWeight' => round((float) $monthOrders->sum(fn (Order $order) => (float) ($order->charged_weight_sum ?? 0)), 2),
                 'saleTotal' => $saleTotal,
                 'costTotal' => $costTotal,
                 'profit' => $profit,
@@ -460,6 +467,7 @@ class SystemStatisticsService
             ->map(fn (Order $order) => [
                 'service_id' => data_get($order->service, 'id_dichvu'),
                 'amount' => $this->moneyValue(data_get($order->payment_cuocban, 'total_tongcuoc', 0)),
+                'charged_weight' => (float) ($order->charged_weight_sum ?? 0),
             ])
             ->filter(fn (array $item) => filled($item['service_id']))
             ->groupBy('service_id');
@@ -473,79 +481,10 @@ class SystemStatisticsService
                 'label' => $names[(int) $serviceId] ?? 'Dịch vụ #'.$serviceId,
                 'count' => $items->count(),
                 'amount' => $items->sum('amount'),
+                'chargedWeight' => round((float) $items->sum('charged_weight'), 2),
             ])
             ->sortByDesc('amount')
             ->take(5)
-            ->values()
-            ->all();
-    }
-
-    protected function unpaidDeliveredOrders(Collection $orders): array
-    {
-        return $orders
-            ->filter(fn (Order $order) => $order->bill_status === OrderStatusEnum::DA_GIAO
-                && $order->customer_payment_status !== InvoicePaymentStatusEnum::DA_THANH_TOAN->value)
-            ->sortByDesc('created_at')
-            ->take(6)
-            ->map(fn (Order $order) => [
-                'id' => $order->id,
-                'code' => $order->id_bill ?: 'DH-'.$order->id,
-                'amount' => $this->moneyValue(data_get($order->payment_cuocban, 'total_tongcuoc', 0)),
-                'created_at' => $order->created_at?->format('d/m/Y'),
-            ])
-            ->values()
-            ->all();
-    }
-
-    protected function staleOrders(Collection $orders): array
-    {
-        return $orders
-            ->filter(fn (Order $order) => ! in_array($order->bill_status, [
-                OrderStatusEnum::DA_GIAO,
-                OrderStatusEnum::HUY,
-                OrderStatusEnum::RETURN_ORDER,
-            ], true) && $order->updated_at?->lt(now()->subDays(7)))
-            ->sortBy('updated_at')
-            ->take(6)
-            ->map(fn (Order $order) => [
-                'id' => $order->id,
-                'code' => $order->id_bill ?: 'DH-'.$order->id,
-                'status' => $order->bill_status?->label() ?? 'Chưa rõ',
-                'updated_at' => $order->updated_at?->format('d/m/Y'),
-            ])
-            ->values()
-            ->all();
-    }
-
-    protected function openInvoices(Collection $invoices): array
-    {
-        return $invoices
-            ->filter(fn (CongNoPayment $invoice) => $invoice->status?->isPendingPayment() ?? false)
-            ->sortByDesc('created_at')
-            ->take(6)
-            ->map(fn (CongNoPayment $invoice) => [
-                'id' => $invoice->id,
-                'code' => $invoice->ma_hoa_don,
-                'status' => $invoice->status?->label() ?? 'Chưa rõ',
-                'amount' => (float) $invoice->amount,
-                'created_at' => $invoice->created_at?->format('d/m/Y'),
-            ])
-            ->values()
-            ->all();
-    }
-
-    protected function overdueCustomerDebts(Collection $debts): array
-    {
-        return $debts
-            ->filter(fn (CongNo $debt) => $this->isOverdue($debt->hanthanhtoan, $debt->status))
-            ->sortBy('hanthanhtoan')
-            ->take(6)
-            ->map(fn (CongNo $debt) => [
-                'id' => $debt->id,
-                'code' => $debt->sohoadon,
-                'remaining' => max(0, (float) $debt->total_cuocban - (float) $debt->paid_amount),
-                'due_at' => $debt->hanthanhtoan?->format('d/m/Y'),
-            ])
             ->values()
             ->all();
     }

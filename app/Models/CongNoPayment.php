@@ -158,6 +158,26 @@ class CongNoPayment extends Model
         return $user && (int) $this->id_user === (int) $user->id;
     }
 
+    /**
+     * Hóa đơn thuộc phạm vi của sale: công nợ hoặc đơn hàng liên quan do sale đó phụ trách.
+     */
+    public function belongsToSale(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($this->id_congno && (int) ($this->congNo?->id_sale) === (int) $user->id) {
+            return true;
+        }
+
+        if ($this->id_order && (int) ($this->order?->id_sale) === (int) $user->id) {
+            return true;
+        }
+
+        return false;
+    }
+
     public function hasStaffPower(?User $user): bool
     {
         return $user instanceof User && $user->hasAnyRole(['admin', 'manager', 'ketoan']);
@@ -203,7 +223,7 @@ class CongNoPayment extends Model
             && $this->isPaymentExpired();
 
         return (in_array($this->status, $allowedFrom, true) || $expiredAndPending)
-            && ($this->isCreator($user) || $this->hasStaffPower($user) || $user->hasRole('sale'));
+            && ($this->isCreator($user) || $this->hasStaffPower($user) || ($user->hasRole('sale') && $this->belongsToSale($user)));
     }
 
     public function canApprovePayment(?User $user): bool

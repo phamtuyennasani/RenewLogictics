@@ -36,9 +36,9 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'cs', 'sale', 'ctv']);
         });
 
-        // Gate for pickups — creator: admin, manager, ops; shipper: read-only
+        // Gate for pickups — creator: admin, manager, ops; sale: pickup của order mình; shipper: read-only
         Gate::define('pickups.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'manager', 'ops', 'shipper']);
+            return $user->hasAnyRole(['admin', 'manager', 'ops', 'shipper', 'sale']);
         });
 
         // Gate for scan
@@ -66,7 +66,7 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         Gate::define('invoice.index', function ($user) {
-            return $user->hasAnyRole(['admin', 'ketoan', 'manager']);
+            return $user->hasAnyRole(['admin', 'ketoan', 'manager', 'sale']);
         });
 
         Gate::define('congno.daily', function ($user) {

@@ -111,6 +111,11 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         return number_format((float) $value, 1, ',', '.').'%';
     }
 
+    public function weight(mixed $value): string
+    {
+        return number_format((float) $value, 2, ',', '.').' KG';
+    }
+
     public function maxValue(array $items): float
     {
         return max(1, (float) max(array_column($items ?: [['value' => 0]], 'value')));
@@ -279,44 +284,91 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         <x-stat-card title="Hủy / hoàn" value="{{ $this->number(data_get($report, 'orders.cancelled', 0) + data_get($report, 'orders.returned', 0)) }}" meta="Tỷ lệ {{ $this->percent(data_get($report, 'orders.cancelRate', 0)) }}" tone="red" icon="x-circle" />
     </section>
 
-    <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <x-stat-card title="Doanh thu cước bán" value="{{ $this->money(data_get($report, 'finance.saleTotal', 0)) }}" meta="Theo đơn trong kỳ" tone="sky" icon="banknotes" />
+    @if (data_get($report, 'scope.hideMoney'))
+        <section class="grid gap-3 sm:grid-cols-2">
+            <x-stat-card title="Cân nặng ban đầu" value="{{ $this->weight(data_get($report, 'orders.grossWeight', 0)) }}" meta="Tổng trọng lượng thực tế" tone="sky" icon="cube" />
+            <x-stat-card title="Cân nặng tính phí" value="{{ $this->weight(data_get($report, 'orders.chargedWeight', 0)) }}" meta="Theo đơn trong kỳ" tone="emerald" icon="scale" />
+        </section>
+    @else
+        <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <x-stat-card title="Doanh thu cước bán" value="{{ $this->money(data_get($report, 'finance.saleTotal', 0)) }}" meta="Theo đơn trong kỳ" tone="sky" icon="banknotes" />
 
-        @if (data_get($report, 'scope.canSeeFinance'))
-            <x-stat-card title="Chi phí cước vốn" value="{{ $this->money(data_get($report, 'finance.costTotal')) }}" meta="Chỉ quyền tổng hợp" tone="slate" icon="receipt-percent" />
-            <x-stat-card title="Lợi nhuận" value="{{ $this->money(data_get($report, 'finance.profitTotal')) }}" meta="Biên {{ $this->percent(data_get($report, 'finance.margin', 0)) }}" tone="emerald" icon="chart-bar" />
-            <x-stat-card title="Công nợ đại lý còn lại" value="{{ $this->money(data_get($report, 'agencyDebt.remaining', 0)) }}" meta="{{ $this->number(data_get($report, 'agencyDebt.count', 0)) }} công nợ" tone="orange" icon="building-office" />
-        @else
-            <x-stat-card title="Hóa đơn đã thu" value="{{ $this->money(data_get($report, 'invoices.paid', 0)) }}" meta="{{ $this->number(data_get($report, 'invoices.count', 0)) }} hóa đơn" tone="emerald" icon="document-check" />
-            <x-stat-card title="Hóa đơn đang chờ" value="{{ $this->money(data_get($report, 'invoices.pending', 0)) }}" meta="Cần theo dõi thanh toán" tone="amber" icon="clock" />
-            <x-stat-card title="Công nợ còn lại" value="{{ $this->money(data_get($report, 'customerDebt.remaining', 0)) }}" meta="{{ $this->number(data_get($report, 'customerDebt.count', 0)) }} công nợ" tone="red" icon="exclamation-triangle" />
-        @endif
-    </section>
+            @if (data_get($report, 'scope.canSeeFinance'))
+                <x-stat-card title="Chi phí cước vốn" value="{{ $this->money(data_get($report, 'finance.costTotal')) }}" meta="Chỉ quyền tổng hợp" tone="slate" icon="receipt-percent" />
+                <x-stat-card title="Lợi nhuận" value="{{ $this->money(data_get($report, 'finance.profitTotal')) }}" meta="Biên {{ $this->percent(data_get($report, 'finance.margin', 0)) }}" tone="emerald" icon="chart-bar" />
+                <x-stat-card title="Công nợ đại lý còn lại" value="{{ $this->money(data_get($report, 'agencyDebt.remaining', 0)) }}" meta="{{ $this->number(data_get($report, 'agencyDebt.count', 0)) }} công nợ" tone="orange" icon="building-office" />
+            @else
+                <x-stat-card title="Hóa đơn đã thu" value="{{ $this->money(data_get($report, 'invoices.paid', 0)) }}" meta="{{ $this->number(data_get($report, 'invoices.count', 0)) }} hóa đơn" tone="emerald" icon="document-check" />
+                <x-stat-card title="Hóa đơn đang chờ" value="{{ $this->money(data_get($report, 'invoices.pending', 0)) }}" meta="Cần theo dõi thanh toán" tone="amber" icon="clock" />
+                <x-stat-card title="Công nợ còn lại" value="{{ $this->money(data_get($report, 'customerDebt.remaining', 0)) }}" meta="{{ $this->number(data_get($report, 'customerDebt.count', 0)) }} công nợ" tone="red" icon="exclamation-triangle" />
+            @endif
+        </section>
+    @endif
 
     <section class="grid gap-4 xl:grid-cols-3">
-        <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm xl:col-span-2">
-            <div class="flex items-start justify-between gap-3">
+        <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm xl:col-span-2">
+            @php ($hideMoney = (bool) data_get($report, 'scope.hideMoney', false)) @endphp
+            @php ($hideCostProfit = (bool) data_get($report, 'scope.hideCostProfit', false)) @endphp
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <h2 class="text-base font-bold text-neutral-950">Biểu đồ doanh số trong năm {{ now()->year }}</h2>
-                    <p class="mt-1 text-sm text-neutral-500">Số đơn (cột), cước vốn, cước bán, lợi nhuận (đường) theo từng tháng</p>
+                    <h2 class="text-base font-bold text-neutral-950">Biểu đồ {{ $hideMoney ? 'sản lượng' : 'doanh số' }} trong năm {{ now()->year }}</h2>
+                    <p class="mt-1 text-sm text-neutral-500">{{ $hideMoney ? 'Số đơn và cân nặng tính phí theo từng tháng' : ($hideCostProfit ? 'Số đơn, cân nặng tính phí và cước bán theo từng tháng' : 'Số đơn, cân nặng tính phí, cước vốn, cước bán và lợi nhuận theo từng tháng') }}</p>
+                </div>
+
+                {{-- Chú thích tách riêng khỏi vùng vẽ cho thoáng --}}
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">
+                    @php
+                        $legendItems = $hideMoney
+                            ? [
+                                ['label' => 'Số lượng đơn', 'color' => '#6366f1', 'shape' => 'bar'],
+                                ['label' => 'Cân nặng tính phí', 'color' => '#0ea5e9', 'shape' => 'bar'],
+                            ]
+                            : ($hideCostProfit
+                                ? [
+                                    ['label' => 'Số lượng đơn', 'color' => '#6366f1', 'shape' => 'bar'],
+                                    ['label' => 'Cân nặng tính phí', 'color' => '#0ea5e9', 'shape' => 'bar'],
+                                    ['label' => 'Cước bán', 'color' => '#10b981', 'shape' => 'line'],
+                                ]
+                                : [
+                                    ['label' => 'Số lượng đơn', 'color' => '#6366f1', 'shape' => 'bar'],
+                                    ['label' => 'Cân nặng tính phí', 'color' => '#0ea5e9', 'shape' => 'bar'],
+                                    ['label' => 'Cước bán', 'color' => '#10b981', 'shape' => 'line'],
+                                    ['label' => 'Cước vốn', 'color' => '#f59e0b', 'shape' => 'dash'],
+                                    ['label' => 'Lợi nhuận', 'color' => '#8b5cf6', 'shape' => 'line'],
+                                ]);
+                    @endphp
+                    @foreach ($legendItems as $legend)
+                        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-600">
+                            @if ($legend['shape'] === 'bar')
+                                <span class="h-2.5 w-2.5 rounded-[3px]" style="background-color: {{ $legend['color'] }}"></span>
+                            @elseif ($legend['shape'] === 'dash')
+                                <span class="h-0 w-4 border-t-2 border-dashed" style="border-color: {{ $legend['color'] }}"></span>
+                            @else
+                                <span class="h-1 w-4 rounded-full" style="background-color: {{ $legend['color'] }}"></span>
+                            @endif
+                            {{ $legend['label'] }}
+                        </span>
+                    @endforeach
                 </div>
             </div>
 
             @php($yearlyTimeline = data_get($report, 'charts.yearlyTimeline', []))
             <div
                 id="system-yearly-timeline-chart"
-                class="mt-4 overflow-hidden rounded-lg bg-neutral-50 p-3"
+                class="mt-5"
                 wire:ignore
                 data-chart='@json($yearlyTimeline)'
+                data-hide-money="{{ $hideMoney ? '1' : '0' }}"
+                data-hide-cost-profit="{{ $hideCostProfit ? '1' : '0' }}"
             >
-                <div class="relative h-64 min-h-64 w-full">
-                    <canvas data-yearly-timeline-canvas class="!h-full !w-full" aria-label="Biểu đồ doanh số trong năm"></canvas>
+                <div class="relative h-72 min-h-72 w-full">
+                    <canvas data-yearly-timeline-canvas class="!h-full !w-full" aria-label="Biểu đồ thống kê trong năm"></canvas>
                 </div>
             </div>
 
         </div>
 
-        <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
             <h2 class="text-base font-bold text-neutral-950">Trạng thái đơn hàng</h2>
             <p class="mt-1 text-sm text-neutral-500">Tỷ trọng theo trạng thái hiện tại</p>
 
@@ -340,22 +392,19 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         </div>
     </section>
 
-    
-    <livewire:dashboard.sale-statistics lazy />
+    @unless (data_get($report, 'scope.hideMoney', false))
+        <livewire:dashboard.sale-statistics lazy />
+    @endunless
 
-    <section class="grid gap-4 xl:grid-cols-2">
-        <x-ranking-panel title="Top CTV / khách hàng" :items="data_get($report, 'rankings.customers', [])" />
-        <x-ranking-panel title="Top dịch vụ" :items="data_get($report, 'rankings.services', [])" />
+    @php($hideCustomerRanking = (bool) data_get($report, 'scope.hideMoney', false))
+    <section class="grid gap-4 {{ $hideCustomerRanking ? '' : 'xl:grid-cols-2' }}">
+        @unless ($hideCustomerRanking)
+            <x-ranking-panel title="Top CTV / khách hàng" :items="data_get($report, 'rankings.customers', [])" />
+        @endunless
+        <x-ranking-panel title="Top dịch vụ" :items="data_get($report, 'rankings.services', [])" :hideMoney="$hideCustomerRanking" />
     </section>
 
     <livewire:dashboard.country-service-statistics :filters="$filters" lazy />
-
-    <section class="grid gap-4 xl:grid-cols-2">
-        <x-attention-panel title="Đơn đã giao chưa ghi nhận thanh toán" :items="data_get($report, 'attention.unpaidDeliveredOrders', [])" value-key="amount" date-key="created_at" />
-        <x-attention-panel title="Đơn lâu chưa cập nhật trạng thái" :items="data_get($report, 'attention.staleOrders', [])" value-key="status" date-key="updated_at" />
-        <x-attention-panel title="Hóa đơn đang chờ xử lý" :items="data_get($report, 'attention.openInvoices', [])" value-key="amount" date-key="created_at" />
-        <x-attention-panel title="Công nợ khách quá hạn" :items="data_get($report, 'attention.overdueCustomerDebts', [])" value-key="remaining" date-key="due_at" />
-    </section>
 </div>
 
 @once
@@ -692,6 +741,10 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     return value + ' đ';
                 }
 
+                function formatWeight(value) {
+                    return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' KG';
+                }
+
                 function buildAreaGradient(ctx, color, alpha) {
                     const gradient = ctx.createLinearGradient(0, 0, 0, 350);
                     gradient.addColorStop(0, color.replace(')', `, ${alpha})`).replace('rgb', 'rgba'));
@@ -699,7 +752,8 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     return gradient;
                 }
 
-                const chartOptions = {
+                function buildChartOptions(hideMoney) {
+                    return {
                     responsive: true,
                     maintainAspectRatio: false,
                     interaction: {
@@ -720,36 +774,28 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     },
                     plugins: {
                         legend: {
-                            display: true,
-                            position: 'top',
-                            align: 'end',
-                            labels: {
-                                usePointStyle: true,
-                                pointStyle: 'line',
-                                padding: 20,
-                                font: { size: 11.5, weight: '500', family: "'Inter', system-ui, -apple-system, sans-serif" },
-                                color: '#64748b',
-                                boxWidth: 16,
-                                boxHeight: 2,
-                            },
+                            display: false,
                         },
                         tooltip: {
                             enabled: true,
-                            backgroundColor: '#1e293b',
-                            titleColor: '#f1f5f9',
-                            bodyColor: '#cbd5e1',
-                            borderColor: '#334155',
+                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                            titleColor: '#0f172a',
+                            bodyColor: '#475569',
+                            borderColor: 'rgba(148, 163, 184, 0.3)',
                             borderWidth: 1,
-                            cornerRadius: 8,
-                            padding: 12,
-                            titleFont: { size: 12.5, weight: '600' },
-                            bodyFont: { size: 12, weight: '400' },
-                            bodySpacing: 6,
+                            cornerRadius: 12,
+                            padding: 14,
+                            titleFont: { size: 12.5, weight: '700' },
+                            bodyFont: { size: 12, weight: '500' },
+                            titleMarginBottom: 8,
+                            bodySpacing: 7,
                             boxWidth: 8,
                             boxHeight: 8,
                             boxPadding: 6,
+                            usePointStyle: true,
                             displayColors: true,
                             caretPadding: 8,
+                            caretSize: 6,
                             callbacks: {
                                 title: (items) => {
                                     if (!items.length) return '';
@@ -758,7 +804,15 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                                 },
                                 label: (context) => {
                                     const value = context.parsed.y;
-                                    const prefix = context.dataset.yAxisID === 'orders' ? `${Number(value).toLocaleString('vi-VN')} đơn` : formatMoney(value);
+                                    const axis = context.dataset.yAxisID;
+                                    let prefix;
+                                    if (axis === 'left') {
+                                        prefix = `${Number(value).toLocaleString('vi-VN')} đơn`;
+                                    } else if (axis === 'weight') {
+                                        prefix = formatWeight(value);
+                                    } else {
+                                        prefix = formatMoney(value);
+                                    }
                                     return ` ${context.dataset.label}: ${prefix}`;
                                 },
                             },
@@ -787,11 +841,14 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                                 font: { size: 10, weight: '400' },
                                 padding: 8,
                                 maxTicksLimit: 6,
+                                precision: 0,
                                 callback: (value) => value.toLocaleString('vi-VN'),
                             },
                             grid: {
-                                color: '#f1f5f9',
+                                color: 'rgba(148, 163, 184, 0.14)',
                                 drawBorder: false,
+                                lineWidth: 1,
+                                tickBorderDash: [4, 4],
                             },
                             border: {
                                 display: false,
@@ -800,6 +857,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                         right: {
                             type: 'linear',
                             position: 'right',
+                            display: ! hideMoney,
                             beginAtZero: true,
                             ticks: {
                                 color: '#94a3b8',
@@ -815,95 +873,169 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                                 display: false,
                             },
                         },
+                        weight: {
+                            type: 'linear',
+                            position: 'right',
+                            display: hideMoney,
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { size: 10, weight: '400' },
+                                padding: 8,
+                                maxTicksLimit: 6,
+                                callback: (value) => formatWeight(value),
+                            },
+                            grid: {
+                                display: false,
+                            },
+                            border: {
+                                display: false,
+                            },
+                        },
                     },
-                };
+                    };
+                }
 
-                function chartData(items) {
+                function chartData(items, hideMoney, hideCostProfit) {
                     const normalized = Array.isArray(items) ? items : [];
+
+                    const orderDataset = {
+                        type: 'bar',
+                        label: 'Số lượng đơn',
+                        data: normalized.map((item) => Number(item.orders || 0)),
+                        backgroundColor: function (context) {
+                            const chart = context.chart;
+                            const { ctx: c, chartArea } = chart;
+                            if (!chartArea) return 'rgba(129, 140, 248, 0.55)';
+                            const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            g.addColorStop(0, 'rgba(99, 102, 241, 0.85)');
+                            g.addColorStop(1, 'rgba(129, 140, 248, 0.35)');
+                            return g;
+                        },
+                        hoverBackgroundColor: 'rgba(79, 70, 229, 0.95)',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                        barPercentage: 1.0,
+                        categoryPercentage: 0.42,
+                        maxBarThickness: 14,
+                        yAxisID: 'left',
+                        order: 2,
+                    };
+
+                    const weightDataset = {
+                        type: 'bar',
+                        label: 'Cân nặng tính phí',
+                        data: normalized.map((item) => Number(item.chargedWeight || 0)),
+                        backgroundColor: function (context) {
+                            const chart = context.chart;
+                            const { ctx: c, chartArea } = chart;
+                            if (!chartArea) return 'rgba(56, 189, 248, 0.55)';
+                            const g = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+                            g.addColorStop(0, 'rgba(14, 165, 233, 0.85)');
+                            g.addColorStop(1, 'rgba(56, 189, 248, 0.35)');
+                            return g;
+                        },
+                        hoverBackgroundColor: 'rgba(2, 132, 199, 0.95)',
+                        borderRadius: 4,
+                        borderSkipped: false,
+                        barPercentage: 1.0,
+                        categoryPercentage: 0.42,
+                        maxBarThickness: 14,
+                        yAxisID: 'weight',
+                        order: 1,
+                    };
+
+                    if (hideMoney) {
+                        return {
+                            labels: normalized.map((item) => item.label),
+                            datasets: [orderDataset, weightDataset],
+                        };
+                    }
+
+                    const saleTotalDataset = {
+                        type: 'line',
+                        label: 'Tổng cước bán',
+                        data: normalized.map((item) => Number(item.saleTotal || 0)),
+                        borderColor: '#10b981',
+                        backgroundColor: function (context) {
+                            const chart = context.chart;
+                            const { ctx: c, chartArea } = chart;
+                            if (!chartArea) return 'transparent';
+                            return buildAreaGradient(c, 'rgb(16, 185, 129)', 0.12);
+                        },
+                        borderWidth: 2.5,
+                        cubicInterpolationMode: 'monotone',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#10b981',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: '#10b981',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2,
+                        yAxisID: 'right',
+                        order: 1,
+                    };
+
+                    const costTotalDataset = {
+                        type: 'line',
+                        label: 'Tổng cước vốn',
+                        data: normalized.map((item) => Number(item.costTotal || 0)),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 4],
+                        cubicInterpolationMode: 'monotone',
+                        tension: 0.4,
+                        fill: false,
+                        pointRadius: 2.5,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#f59e0b',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: '#f59e0b',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2,
+                        yAxisID: 'right',
+                        order: 1,
+                    };
+
+                    const profitDataset = {
+                        type: 'line',
+                        label: 'Lợi nhuận',
+                        data: normalized.map((item) => Number(item.profit || 0)),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: function (context) {
+                            const chart = context.chart;
+                            const { ctx: c, chartArea } = chart;
+                            if (!chartArea) return 'transparent';
+                            return buildAreaGradient(c, 'rgb(139, 92, 246)', 0.1);
+                        },
+                        borderWidth: 2.5,
+                        cubicInterpolationMode: 'monotone',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#8b5cf6',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 5,
+                        pointHoverBackgroundColor: '#8b5cf6',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2,
+                        yAxisID: 'right',
+                        order: 0,
+                    };
+
+                    const lineDatasets = hideCostProfit
+                        ? [saleTotalDataset]
+                        : [saleTotalDataset, costTotalDataset, profitDataset];
 
                     return {
                         labels: normalized.map((item) => item.label),
-                        datasets: [
-                            {
-                                type: 'bar',
-                                label: 'Số lượng đơn',
-                                data: normalized.map((item) => Number(item.orders || 0)),
-                                backgroundColor: 'rgba(99, 102, 241, 0.12)',
-                                hoverBackgroundColor: 'rgba(99, 102, 241, 0.25)',
-                                borderRadius: 4,
-                                borderSkipped: false,
-                                barPercentage: 0.45,
-                                categoryPercentage: 0.7,
-                                yAxisID: 'left',
-                                order: 2,
-                            },
-                            {
-                                type: 'line',
-                                label: 'Tổng cước bán',
-                                data: normalized.map((item) => Number(item.saleTotal || 0)),
-                                borderColor: '#10b981',
-                                backgroundColor: function (context) {
-                                    const chart = context.chart;
-                                    const { ctx: c, chartArea } = chart;
-                                    if (!chartArea) return 'transparent';
-                                    return buildAreaGradient(c, 'rgb(16, 185, 129)', 0.08);
-                                },
-                                borderWidth: 1.5,
-                                tension: 0.3,
-                                fill: true,
-                                pointRadius: 0,
-                                pointHoverRadius: 4,
-                                pointHoverBackgroundColor: '#10b981',
-                                pointHoverBorderColor: '#fff',
-                                pointHoverBorderWidth: 2,
-                                yAxisID: 'right',
-                                order: 1,
-                            },
-                            {
-                                type: 'line',
-                                label: 'Tổng cước vốn',
-                                data: normalized.map((item) => Number(item.costTotal || 0)),
-                                borderColor: '#f59e0b',
-                                backgroundColor: function (context) {
-                                    const chart = context.chart;
-                                    const { ctx: c, chartArea } = chart;
-                                    if (!chartArea) return 'transparent';
-                                    return buildAreaGradient(c, 'rgb(245, 158, 11)', 0.06);
-                                },
-                                borderWidth: 1.5,
-                                tension: 0.3,
-                                fill: true,
-                                pointRadius: 0,
-                                pointHoverRadius: 4,
-                                pointHoverBackgroundColor: '#f59e0b',
-                                pointHoverBorderColor: '#fff',
-                                pointHoverBorderWidth: 2,
-                                yAxisID: 'right',
-                                order: 1,
-                            },
-                            {
-                                type: 'line',
-                                label: 'Lợi nhuận',
-                                data: normalized.map((item) => Number(item.profit || 0)),
-                                borderColor: '#6366f1',
-                                backgroundColor: function (context) {
-                                    const chart = context.chart;
-                                    const { ctx: c, chartArea } = chart;
-                                    if (!chartArea) return 'transparent';
-                                    return buildAreaGradient(c, 'rgb(99, 102, 241)', 0.06);
-                                },
-                                borderWidth: 1.5,
-                                tension: 0.3,
-                                fill: true,
-                                pointRadius: 0,
-                                pointHoverRadius: 4,
-                                pointHoverBackgroundColor: '#6366f1',
-                                pointHoverBorderColor: '#fff',
-                                pointHoverBorderWidth: 2,
-                                yAxisID: 'right',
-                                order: 0,
-                            },
-                        ],
+                        datasets: [orderDataset, weightDataset, ...lineDatasets],
                     };
                 }
 
@@ -923,7 +1055,9 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                         return;
                     }
 
-                    const data = chartData(items ?? initialItems(container));
+                    const hideMoney = container.dataset.hideMoney === '1';
+                    const hideCostProfit = container.dataset.hideCostProfit === '1';
+                    const data = chartData(items ?? initialItems(container), hideMoney, hideCostProfit);
 
                     if (chart) {
                         chart.destroy();
@@ -933,7 +1067,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     chart = new window.Chart(canvas, {
                         type: 'bar',
                         data,
-                        options: chartOptions,
+                        options: buildChartOptions(hideMoney),
                     });
                 }
 

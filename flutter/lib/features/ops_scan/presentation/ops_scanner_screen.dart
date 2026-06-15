@@ -132,64 +132,7 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
             tooltip: 'Lịch sử quét',
             onPressed: () => context.push('/ops/recent'),
           ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Tài khoản',
-            onPressed: () => context.push('/profile'),
-          ),
         ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Icon(Icons.local_shipping, size: 48, color: Colors.white),
-                  SizedBox(height: 8),
-                  Text(
-                    'Menu OPS',
-                    style: TextStyle(color: Colors.white, fontSize: 20),
-                  ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.qr_code_scanner),
-              title: const Text('Quét nhập kho'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory_2),
-              title: const Text('Đơn hàng của tôi'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/ops/orders');
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.local_shipping),
-              title: const Text('Pickup của tôi'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/ops/pickups');
-              },
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Tài khoản'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/profile');
-              },
-            ),
-          ],
-        ),
       ),
       body: Column(
         children: [

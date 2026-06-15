@@ -91,7 +91,7 @@ class Sidebar extends Component
                     'route' => 'pickups.index',
                     'icon' => 'pickup',
                     'label' => 'Quản lý Pickup',
-                    'roles' => ['admin', 'manager', 'ops', 'shipper'],
+                    'roles' => ['admin', 'manager', 'ops', 'shipper', 'sale'],
                 ],
                 [
                     'route' => 'scan',
@@ -123,7 +123,7 @@ class Sidebar extends Component
                     'feature' => 'invoice',
                     'icon' => 'receipt',
                     'label' => 'Hóa đơn thu',
-                    'roles' => ['admin', 'manager', 'ketoan'],
+                    'roles' => ['admin', 'manager', 'ketoan', 'sale'],
                 ],
                 [
                     'route' => 'dashboard',

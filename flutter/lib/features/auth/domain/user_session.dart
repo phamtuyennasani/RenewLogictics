@@ -68,6 +68,9 @@ class UserSession {
   bool get isOpsCapable =>
       roles.any((r) => const ['ops', 'admin', 'manager', 'cs'].contains(r));
 
+  /// App hiện chỉ phục vụ shipper và OPS. Role khác không được phép dùng app.
+  bool get canUseApp => isShipper || isOpsCapable;
+
   factory UserSession.fromData(Map<String, dynamic> data) {
     return UserSession(
       user: AuthUser.fromJson(

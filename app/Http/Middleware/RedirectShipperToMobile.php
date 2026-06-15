@@ -76,9 +76,32 @@ class RedirectShipperToMobile
         }
 
         if ($user->hasRole('ops')) {
+            // OPS chỉ bị ép sang giao diện mobile khi truy cập bằng thiết bị di động.
+            // Trên PC, OPS vào giao diện desktop bình thường như các role nội bộ khác.
+            if (! $this->isMobileRequest($request)) {
+                return $next($request);
+            }
+
             return redirect()->route('ops.mobile.orders.index');
         }
 
         return redirect()->route('shipper.pickups');
+    }
+
+    /**
+     * Phát hiện request đến từ thiết bị di động (User-Agent / client hints).
+     */
+    protected function isMobileRequest(Request $request): bool
+    {
+        if ($request->header('Sec-CH-UA-Mobile') === '?1') {
+            return true;
+        }
+
+        $userAgent = $request->userAgent() ?? '';
+
+        return (bool) preg_match(
+            '/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i',
+            $userAgent
+        );
     }
 }

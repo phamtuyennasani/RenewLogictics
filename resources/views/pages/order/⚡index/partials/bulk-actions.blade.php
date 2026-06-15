@@ -1,32 +1,32 @@
 <section class="rounded-lg border border-neutral-200 bg-white shadow-sm overflow-hidden">
-    <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
-        <div class="flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
-                <flux:icon.check-circle class="size-5" />
-            </div>
-            <div>
-                <div class="text-sm font-semibold text-neutral-900">
-                    <span data-selected-count>0</span> order đã chọn
+    @php
+        $statusByValue = collect($statusOptions)->keyBy('value');
+        $quickActions = [
+            ['label' => 'Hủy', 'status' => 'huy', 'icon' => 'x-circle', 'capability' => 'canCancel'],
+            ['label' => 'Nhận hàng', 'status' => 'da_nhan_hang', 'icon' => 'archive-box-arrow-down', 'capability' => 'canReceive'],
+            ['label' => 'Duyệt Xuất', 'status' => 'duyet_xuat_hang', 'icon' => 'clipboard-document-check', 'capability' => 'canApproveExport'],
+            ['label' => 'Xuất hàng', 'status' => 'dang_phat_hang', 'icon' => 'truck', 'capability' => 'canShip'],
+        ];
+        $quickActions = collect($quickActions)
+            ->filter(fn (array $action) => $capabilities[$action['capability']] ?? false)
+            ->values();
+        $bulkActionCount = $quickActions->count() + (!empty($capabilities['canDeleteCancelled']) ? 1 : 0);
+    @endphp
+
+    @if ($bulkActionCount > 0)
+        <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
+                    <flux:icon.check-circle class="size-5" />
                 </div>
-                <div class="text-xs text-neutral-500">Chọn đơn hàng trong bảng để sử dụng thao tác hàng loạt.</div>
+                <div>
+                    <div class="text-sm font-semibold text-neutral-900">
+                        <span data-selected-count>0</span> order đã chọn
+                    </div>
+                    <div class="text-xs text-neutral-500">Chọn đơn hàng trong bảng để sử dụng thao tác hàng loạt.</div>
+                </div>
             </div>
-        </div>
 
-        @php
-            $statusByValue = collect($statusOptions)->keyBy('value');
-            $quickActions = [
-                ['label' => 'Hủy', 'status' => 'huy', 'icon' => 'x-circle', 'capability' => 'canCancel'],
-                ['label' => 'Nhận hàng', 'status' => 'da_nhan_hang', 'icon' => 'archive-box-arrow-down', 'capability' => 'canReceive'],
-                ['label' => 'Duyệt Xuất', 'status' => 'duyet_xuat_hang', 'icon' => 'clipboard-document-check', 'capability' => 'canApproveExport'],
-                ['label' => 'Xuất hàng', 'status' => 'dang_phat_hang', 'icon' => 'truck', 'capability' => 'canShip'],
-            ];
-            $quickActions = collect($quickActions)
-                ->filter(fn (array $action) => $capabilities[$action['capability']] ?? false)
-                ->values();
-            $bulkActionCount = $quickActions->count() + (!empty($capabilities['canDeleteCancelled']) ? 1 : 0);
-        @endphp
-
-        @if ($bulkActionCount > 0)
             <div class="grid gap-2 lg:min-w-[560px]" style="grid-template-columns: repeat({{ $bulkActionCount }}, minmax(0, 1fr));">
                 @if (!empty($capabilities['canDeleteCancelled']))
                     <button
@@ -53,8 +53,8 @@
                     </button>
                 @endforeach
             </div>
-        @endif
-    </div>
+        </div>
+    @endif
     <div class="order-status-nav">
         <div class="order-status-nav-header">
             <div>

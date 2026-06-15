@@ -25,6 +25,8 @@ new class extends Component
     public string $noteForm = '';
     public array $newPhotos = [];
     public array $deletedPhotoIds = [];
+    public ?string $assignCsId = null;
+    public ?string $assignOpsId = null;
 
     public function mount(): void
     {
@@ -90,6 +92,9 @@ new class extends Component
             'deliveryterm' => data_get($service, 'deliveryterm'),
             'tinhtrangdon' => data_get($service, 'tinhtrangdon'),
         ];
+
+        $this->assignCsId = $this->order->id_cs ? (string) $this->order->id_cs : null;
+        $this->assignOpsId = $this->order->id_ops ? (string) $this->order->id_ops : null;
     }
 
     public function value(array|string|null $data, string $key, mixed $fallback = '—'): mixed
@@ -303,6 +308,95 @@ new class extends Component
 
         Flux::modal('edit-service')->close();
         Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã cập nhật thông tin dịch vụ.', variant: 'success');
+    }
+
+    public function csOptions()
+    {
+        return \App\Models\User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'cs'))
+            ->orderBy('fullname')
+            ->get(['id', 'fullname', 'username']);
+    }
+
+    public function opsOptions()
+    {
+        return \App\Models\User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'ops'))
+            ->orderBy('fullname')
+            ->get(['id', 'fullname', 'username']);
+    }
+
+    public function canAssignCs(): bool
+    {
+        return OrderAccess::canAssignCs(auth()->user(), $this->order);
+    }
+
+    public function canAssignOps(): bool
+    {
+        return OrderAccess::canAssignOps(auth()->user(), $this->order);
+    }
+
+    public function saveCs(): void
+    {
+        abort_unless($this->canAssignCs(), 403);
+
+        $newId = filled($this->assignCsId) ? (int) $this->assignCsId : null;
+
+        if ($newId !== null) {
+            $valid = \App\Models\User::query()
+                ->whereKey($newId)
+                ->whereHas('roles', fn ($q) => $q->where('name', 'cs'))
+                ->exists();
+            abort_unless($valid, 422);
+        }
+
+        $before = ['id_cs' => $this->order->id_cs];
+        $this->order->forceFill(['id_cs' => $newId])->save();
+        $this->order->refresh();
+        $this->order->load('cs:id,fullname,username,code');
+        $this->fillForms();
+
+        RecordOrderEditHistoryAction::execute($this->order, 'assign_cs', 'CS phụ trách', $before, [
+            'id_cs' => $this->order->id_cs,
+        ], 'cập nhật CS phụ trách');
+
+        $this->dispatch('order-history-updated');
+        Flux::modal('edit-cs')->close();
+        Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã cập nhật CS phụ trách.', variant: 'success');
+    }
+
+    public function saveOps(): void
+    {
+        abort_unless($this->canAssignOps(), 403);
+
+        $newId = filled($this->assignOpsId) ? (int) $this->assignOpsId : null;
+
+        // Sale/CS chỉ được chọn khi đơn chưa có OPS; không cho gỡ về trống.
+        if (! auth()->user()->hasAnyRole(['admin', 'manager'])) {
+            abort_unless($newId !== null, 422);
+        }
+
+        if ($newId !== null) {
+            $valid = \App\Models\User::query()
+                ->whereKey($newId)
+                ->whereHas('roles', fn ($q) => $q->where('name', 'ops'))
+                ->exists();
+            abort_unless($valid, 422);
+        }
+
+        $before = ['id_ops' => $this->order->id_ops];
+        $this->order->forceFill(['id_ops' => $newId])->save();
+        $this->order->refresh();
+        $this->order->load('ops:id,fullname,username,code');
+        $this->fillForms();
+
+        RecordOrderEditHistoryAction::execute($this->order, 'assign_ops', 'OPS phụ trách', $before, [
+            'id_ops' => $this->order->id_ops,
+        ], 'cập nhật OPS phụ trách');
+
+        $this->dispatch('order-history-updated');
+        Flux::modal('edit-ops')->close();
+        Flux::toast(duration: 2500, heading: 'Thành công', text: 'Đã cập nhật OPS phụ trách.', variant: 'success');
     }
 
     public function removeExistingPhoto(int $photoId): void
@@ -745,8 +839,32 @@ new class extends Component
                             {{ $this->optionName('tinhtrangdon', data_get($service, 'tinhtrangdon')) }}
                         </p>
                     </div>
-                    <div><p class="text-xs text-neutral-400">CS</p><p class="font-medium text-neutral-700">{{ $order->cs?->fullname ?: $order->cs?->username ?: '—' }}</p></div>
-                    <div><p class="text-xs text-neutral-400">OPS</p><p class="font-medium text-neutral-700">{{ $order->ops?->fullname ?: $order->ops?->username ?: '—' }}</p></div>
+                    <div>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-neutral-400">CS</p>
+                            @if($this->canAssignCs())
+                                <flux:modal.trigger name="edit-cs">
+                                    <button type="button" class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-neutral-200 text-neutral-400 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600" aria-label="Sửa CS phụ trách">
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>
+                                    </button>
+                                </flux:modal.trigger>
+                            @endif
+                        </div>
+                        <p class="font-medium text-neutral-700">{{ $order->cs?->fullname ?: $order->cs?->username ?: '—' }}</p>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between gap-2">
+                            <p class="text-xs text-neutral-400">OPS</p>
+                            @if($this->canAssignOps())
+                                <flux:modal.trigger name="edit-ops">
+                                    <button type="button" class="inline-flex h-6 w-6 items-center justify-center rounded-md border border-neutral-200 text-neutral-400 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600" aria-label="Sửa OPS phụ trách">
+                                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>
+                                    </button>
+                                </flux:modal.trigger>
+                            @endif
+                        </div>
+                        <p class="font-medium text-neutral-700">{{ $order->ops?->fullname ?: $order->ops?->username ?: '—' }}</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1169,6 +1287,65 @@ new class extends Component
                         @endforeach
                     </flux:radio.group>
                 </div>
+
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="ghost">Hủy</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary">Lưu</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+
+        <flux:modal name="edit-cs" class="w-full max-w-md">
+            <form wire:submit="saveCs" class="space-y-6">
+                <div>
+                    <flux:heading size="lg">CS phụ trách</flux:heading>
+                    <flux:subheading>Chọn nhân viên CS phụ trách đơn hàng này.</flux:subheading>
+                </div>
+
+                <flux:field>
+                    <flux:label>CS phụ trách</flux:label>
+                    <flux:select wire:model="assignCsId">
+                        <flux:select.option value="">— Chưa phân công —</flux:select.option>
+                        @foreach($this->csOptions() as $cs)
+                            <flux:select.option value="{{ $cs->id }}">{{ $cs->fullname ?: $cs->username }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                </flux:field>
+
+                <div class="flex justify-end gap-2">
+                    <flux:modal.close>
+                        <flux:button type="button" variant="ghost">Hủy</flux:button>
+                    </flux:modal.close>
+                    <flux:button type="submit" variant="primary">Lưu</flux:button>
+                </div>
+            </form>
+        </flux:modal>
+
+        <flux:modal name="edit-ops" class="w-full max-w-md">
+            <form wire:submit="saveOps" class="space-y-6">
+                <div>
+                    <flux:heading size="lg">OPS phụ trách</flux:heading>
+                    <flux:subheading>Chọn nhân viên OPS phụ trách đơn hàng này.</flux:subheading>
+                </div>
+
+                <flux:field>
+                    <flux:label>OPS phụ trách</flux:label>
+                    <flux:select wire:model="assignOpsId">
+                        @if(auth()->user()->hasAnyRole(['admin', 'manager']))
+                            <flux:select.option value="">— Chưa phân công —</flux:select.option>
+                        @else
+                            <flux:select.option value="">— Chọn OPS phụ trách —</flux:select.option>
+                        @endif
+                        @foreach($this->opsOptions() as $ops)
+                            <flux:select.option value="{{ $ops->id }}">{{ $ops->fullname ?: $ops->username }}</flux:select.option>
+                        @endforeach
+                    </flux:select>
+                    @unless(auth()->user()->hasAnyRole(['admin', 'manager']))
+                        <flux:description>Chỉ được chọn khi đơn chưa có OPS phụ trách.</flux:description>
+                    @endunless
+                </flux:field>
 
                 <div class="flex justify-end gap-2">
                     <flux:modal.close>

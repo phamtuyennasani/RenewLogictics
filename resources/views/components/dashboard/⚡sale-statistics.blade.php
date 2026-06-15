@@ -118,15 +118,18 @@ new class extends Component {
 @php
     $ranking = $this->ranking();
     $podium = $this->podium();
+    $byCustomer = data_get($report, 'dimension') === 'customer';
+    $entityLabel = $byCustomer ? 'Khách hàng' : 'Sale';
+    $entityNoun = $byCustomer ? 'khách hàng của bạn' : 'sale';
 @endphp
 
 <section class="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
     <div class="border-b border-neutral-100 bg-gradient-to-r from-primary-50 via-white to-white px-5 py-5 lg:px-6">
         <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">Sales Performance</p>
-                <h2 class="mt-1 text-xl font-bold text-neutral-950">Thống kê doanh số sale trong tháng {{ $this->currentMonthLabel() }}</h2>
-                <p class="mt-1 text-sm text-neutral-500">Xếp hạng theo {{ $this->metricLabel() }} trong tháng hiện tại.</p>
+                <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">{{ $byCustomer ? 'Khách Hàng Performance' : 'Sales Performance' }}</p>
+                <h2 class="mt-1 text-xl font-bold text-neutral-950">Thống kê doanh số {{ $entityLabel }} trong tháng {{ $this->currentMonthLabel() }}</h2>
+                <p class="mt-1 text-sm text-neutral-500">Xếp hạng {{ $entityNoun }} theo {{ $this->metricLabel() }} trong tháng hiện tại.</p>
             </div>
             <div class="inline-flex w-full rounded-xl border border-neutral-200 bg-white p-1 shadow-sm sm:w-auto">
                 @foreach ([
@@ -154,7 +157,7 @@ new class extends Component {
 
     <div class="grid gap-px border-b border-neutral-100 bg-neutral-100 sm:grid-cols-3">
         <div class="bg-white px-5 py-3">
-            <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Sale hoạt động</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">{{ $byCustomer ? 'khách hàng hoạt động' : 'Sale hoạt động' }}</p>
             <p class="mt-1 text-lg font-bold text-neutral-950">{{ $this->number(data_get($report, 'summary.sales', 0)) }}</p>
         </div>
         <div class="bg-white px-5 py-3">
@@ -172,7 +175,7 @@ new class extends Component {
             <table class="min-w-[760px] w-full text-sm">
                 <thead class="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-400">
                     <tr>
-                        <th class="px-5 py-3 font-semibold">Sale</th>
+                        <th class="px-5 py-3 font-semibold">{{ $byCustomer ? 'Khách hàng' : 'Sale' }}</th>
                         <th class="px-4 py-3 text-right font-semibold">SL đơn hàng</th>
                         <th class="px-4 py-3 text-right font-semibold">Cân nặng</th>
                         <th class="px-5 py-3 text-right font-semibold">Doanh thu</th>
@@ -207,7 +210,7 @@ new class extends Component {
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="px-5 py-12 text-center text-neutral-500">Chưa có dữ liệu sale trong khoảng lọc.</td>
+                            <td colspan="4" class="px-5 py-12 text-center text-neutral-500">Chưa có dữ liệu {{ $entityLabel }} trong khoảng lọc.</td>
                         </tr>
                     @endforelse
                 </tbody>

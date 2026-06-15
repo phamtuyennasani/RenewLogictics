@@ -17,6 +17,20 @@ class SaleStatisticsService
         $packageAlias = $prefix.'package_totals';
         $revenue = $this->jsonNumber("{$ordersTable}.payment_cuocban", 'total_tongcuoc');
 
+        // Sale đăng nhập: thống kê doanh số theo CTV (khách hàng) thuộc sale đó.
+        // Các role còn lại: xếp hạng theo từng sale như cũ.
+        $isSale = $user->hasAnyRole(['sale', 'SALE']);
+        $groupColumn = $isSale ? 'id_customer' : 'id_sale';
+
+        $ctvIds = $isSale
+            ? User::query()
+                ->whereHas('roles', fn (Builder $query) => $query->whereIn('name', ['ctv', 'CTV']))
+                ->where('id_sale', $user->id)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all()
+            : [];
+
         $packageTotals = DB::table('order_package')
             ->select('id_order')
             ->selectRaw('SUM(COALESCE(NULLIF(row_g_weight, 0), g_weight, 0)) AS gross_weight')
@@ -25,38 +39,48 @@ class SaleStatisticsService
 
         $rows = Order::query()
             ->leftJoinSub($packageTotals, 'package_totals', 'package_totals.id_order', '=', 'orders.id')
-            ->whereNotNull('orders.id_sale')
+            ->whereNotNull("orders.{$groupColumn}")
             ->whereBetween('orders.created_at', $this->dateRange($filters))
-            ->tap(fn (Builder $query) => $this->applyScope($query, $user, $filters))
+            ->when($isSale, fn (Builder $query) => $query->whereIn('orders.id_customer', $ctvIds ?: [0]))
+            ->unless($isSale, fn (Builder $query) => $this->applyScope($query, $user, $filters))
             ->when(filled($filters['serviceId'] ?? null), fn (Builder $query) => $query->where('orders.service->id_dichvu', (int) $filters['serviceId']))
             ->when(filled($filters['branchId'] ?? null), fn (Builder $query) => $query->where('orders.service->id_chinhanh_nhanhang', (int) $filters['branchId']))
             ->when(filled($filters['agencyId'] ?? null), fn (Builder $query) => $query->where('orders.service->id_daily', (int) $filters['agencyId']))
-            ->selectRaw("{$ordersTable}.id_sale AS sale_id")
+            ->selectRaw("{$ordersTable}.{$groupColumn} AS entity_id")
             ->selectRaw("COUNT({$ordersTable}.id) AS order_count")
             ->selectRaw("SUM(COALESCE({$packageAlias}.gross_weight, 0)) AS gross_weight")
             ->selectRaw("SUM(COALESCE({$packageAlias}.charged_weight, 0)) AS charged_weight")
             ->selectRaw("SUM({$revenue}) AS revenue")
-            ->groupByRaw("{$ordersTable}.id_sale")
+            ->groupByRaw("{$ordersTable}.{$groupColumn}")
             ->orderByDesc('revenue')
             ->get();
 
-        $sales = User::query()
-            ->whereIn('id', $rows->pluck('sale_id')->map(fn ($id) => (int) $id))
-            ->get(['id', 'fullname', 'username', 'code', 'avatar'])
+        $entities = User::query()
+            ->whereIn('id', $rows->pluck('entity_id')->map(fn ($id) => (int) $id))
+            ->get(['id', 'fullname', 'username', 'code', 'avatar', 'options'])
             ->keyBy('id');
 
+        $fallbackPrefix = $isSale ? 'CTV #' : 'Sale #';
+
         $ranking = $rows
-            ->map(function (object $row) use ($sales): array {
-                $sale = $sales->get((int) $row->sale_id);
-                $name = $sale?->fullname ?: $sale?->username ?: 'Sale #'.$row->sale_id;
+            ->map(function (object $row) use ($entities, $fallbackPrefix, $isSale): array {
+                $entity = $entities->get((int) $row->entity_id);
+
+                // Khách hàng (CTV): ưu tiên tên công ty trong options.company.company_name.
+                $companyName = $isSale
+                    ? data_get($entity?->options, 'company.company_name')
+                    : null;
+
+                $name = $companyName
+                    ?: ($entity?->fullname ?: $entity?->username ?: $fallbackPrefix.$row->entity_id);
 
                 return [
-                    'id' => (int) $row->sale_id,
+                    'id' => (int) $row->entity_id,
                     'name' => $name,
                     'shortName' => $this->shortName($name),
                     'initials' => $this->initials($name),
-                    'code' => $sale?->code,
-                    'avatar' => $sale?->avatar,
+                    'code' => $entity?->code,
+                    'avatar' => $entity?->avatar,
                     'orderCount' => (int) $row->order_count,
                     'grossWeight' => (float) $row->gross_weight,
                     'chargedWeight' => (float) $row->charged_weight,
@@ -68,6 +92,7 @@ class SaleStatisticsService
         $maxRevenue = max(1, (float) $ranking->max('revenue'));
 
         return [
+            'dimension' => $isSale ? 'customer' : 'sale',
             'ranking' => $ranking
                 ->map(fn (array $sale, int $index) => $sale + [
                     'rank' => $index + 1,

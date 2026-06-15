@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/device/device_name_provider.dart';
 import '../../../core/providers.dart';
+import '../../../shared/widgets/app_toast.dart';
 import 'auth_controller.dart';
 
 /// Màn đăng nhập (contract §2.1). Username + password, gửi kèm device_name.
@@ -69,13 +70,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
 
-    // Hiện lỗi login dạng SnackBar.
+    // Hiện lỗi login dạng toast.
     ref.listen(authControllerProvider, (prev, next) {
       final msg = next.errorMessage;
       if (msg != null && msg != prev?.errorMessage) {
-        ScaffoldMessenger.of(context)
-          ..clearSnackBars()
-          ..showSnackBar(SnackBar(content: Text(msg)));
+        AppToast.error(context, msg);
       }
     });
 

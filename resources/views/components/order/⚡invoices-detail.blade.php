@@ -122,6 +122,7 @@ new class extends Component
         }
 
         OrderAccess::assignCsOnEdit(auth()->user(), $this->order);
+        OrderAccess::assignOpsOnAction(auth()->user(), $this->order);
 
         $this->validate([
             'invoiceForm' => 'required|array|min:1',

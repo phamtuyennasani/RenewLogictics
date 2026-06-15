@@ -31,7 +31,7 @@ class CreatePickupAction
 
             $pickup = Pickup::create([
                 'ma_pickup' => Pickup::generateCode(),
-                'id_user' => $data['ops_id'] ?? $userId ?? auth()->id(),
+                'id_user' => $data['ops_id'] ?? null,
                 'ngay_tao' => now(),
                 'total_weight' => (float) ($data['total_weight'] ?? $lockedOrder->pickup_total_weight ?? 0),
                 'total_c_weight' => (float) ($data['total_weight'] ?? $lockedOrder->pickup_total_weight ?? 0),
@@ -53,6 +53,15 @@ class CreatePickupAction
             $pickup->orders()->attach($lockedOrder->id, [
                 'added_by' => $userId ?? auth()->id(),
             ]);
+
+            // Nếu người tạo pickup là OPS và đơn chưa có OPS phụ trách → tự gán.
+            $actorId = $userId ?? auth()->id();
+            if ($actorId && blank($lockedOrder->id_ops)) {
+                $actor = \App\Models\User::find($actorId);
+                if ($actor && $actor->hasRole('ops')) {
+                    $lockedOrder->forceFill(['id_ops' => $actor->id])->save();
+                }
+            }
 
             return $pickup->fresh('orders');
         });

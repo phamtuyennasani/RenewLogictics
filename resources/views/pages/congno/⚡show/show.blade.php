@@ -299,7 +299,7 @@
 
             <livewire:debt.activity-history :debt="$debt" wire:key="customer-debt-activity-{{ $debt->id }}" />
 
-            @if ($canCreateInvoice && $this->canManage() && $availableForInvoice > 0)
+            @if ($canCreateInvoice && $this->canCreatePaymentInvoice() && $availableForInvoice > 0)
                 <section class="rounded-xl border border-primary-100 bg-white p-5 shadow-sm">
                     <div class="flex items-center justify-between gap-3">
                         <h2 class="text-base font-bold text-neutral-950">Tạo hóa đơn thu</h2>
