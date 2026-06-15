@@ -50,4 +50,39 @@ class AuthRepositoryImpl implements AuthRepository {
       await _tokenStorage.clear();
     }
   }
+
+  @override
+  Future<UserSession> updateProfile({
+    required String fullname,
+    String? email,
+    String? phone,
+    String? address,
+  }) async {
+    final env = await _api.updateProfile(
+      fullname: fullname,
+      email: email,
+      phone: phone,
+      address: address,
+    );
+    return UserSession.fromData(env.dataMap);
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    await _api.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+      confirmPassword: confirmPassword,
+    );
+  }
+
+  @override
+  Future<UserSession> updateAvatar(String filePath) async {
+    final env = await _api.uploadAvatar(filePath);
+    return UserSession.fromData(env.dataMap);
+  }
 }

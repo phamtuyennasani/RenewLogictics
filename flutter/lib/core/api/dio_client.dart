@@ -190,6 +190,41 @@ class DioClient {
     );
   }
 
+  Future<ApiEnvelope> put(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? query,
+    bool skipAuth = false,
+  }) {
+    return _send(
+      () => _dio.put(
+        path,
+        data: body,
+        queryParameters: query,
+        options: Options(extra: {'skipAuth': skipAuth}),
+      ),
+    );
+  }
+
+  /// Gửi multipart (upload file). Ghi đè contentType để Dio tự set
+  /// `multipart/form-data; boundary=...` thay vì JSON mặc định.
+  Future<ApiEnvelope> postMultipart(
+    String path, {
+    required FormData formData,
+    bool skipAuth = false,
+  }) {
+    return _send(
+      () => _dio.post(
+        path,
+        data: formData,
+        options: Options(
+          extra: {'skipAuth': skipAuth},
+          contentType: 'multipart/form-data',
+        ),
+      ),
+    );
+  }
+
   /// Gọi request, validate status + envelope, chuẩn hóa lỗi thành [ApiException].
   Future<ApiEnvelope> _send(Future<Response<dynamic>> Function() run) async {
     try {

@@ -208,6 +208,14 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  /// Cập nhật session sau khi sửa hồ sơ / đổi avatar (giữ trạng thái đăng nhập).
+  /// Mọi nơi `ref.watch(authControllerProvider)` (header, avatar...) đổi theo.
+  void refreshSession(UserSession session) {
+    if (state.status == AuthStatus.authenticated) {
+      state = state.copyWith(session: session);
+    }
+  }
+
   static String _messageOf(Object e) {
     final msg = e.toString();
     return msg.isEmpty ? 'Đăng nhập thất bại.' : _extract(e);

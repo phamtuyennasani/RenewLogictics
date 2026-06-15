@@ -110,16 +110,28 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
       return ErrorState(message: state.errorMessage!, onRetry: notifier.refresh);
     }
     if (state.items.isEmpty) {
-      return ListView(
-        children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.18),
-          EmptyState(
-            icon: Icons.inventory_2_outlined,
-            title: 'Chưa có đơn hàng',
-            message: 'Không tìm thấy đơn hàng nào khớp bộ lọc hiện tại.',
-            onRefresh: notifier.refresh,
-          ),
-        ],
+      // Giữ scroll được (để pull-to-refresh) nhưng căn giữa nội dung theo
+      // chiều cao viewport. Chừa đáy cho FAB quét mã + bottom nav khỏi đè lên.
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 96),
+                child: Center(
+                  child: EmptyState(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'Chưa có đơn hàng',
+                    message: 'Không tìm thấy đơn hàng nào khớp bộ lọc hiện tại.',
+                    onRefresh: notifier.refresh,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       );
     }
 

@@ -22,4 +22,22 @@ abstract class AuthRepository {
 
   /// Revoke token hiện tại phía server.
   Future<void> logout();
+
+  /// Cập nhật thông tin cá nhân, trả session mới.
+  Future<UserSession> updateProfile({
+    required String fullname,
+    String? email,
+    String? phone,
+    String? address,
+  });
+
+  /// Đổi mật khẩu. Ném [ApiException] (422) khi sai/không hợp lệ.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  });
+
+  /// Upload avatar từ đường dẫn file, trả session mới (avatar full URL).
+  Future<UserSession> updateAvatar(String filePath);
 }

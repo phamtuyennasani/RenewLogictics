@@ -210,28 +210,32 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildScannerView(state, theme),
-          _buildManualInput(state, theme),
-          Expanded(
-            child: state.result != null
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: ScanResultCard(
-                      result: state.result!,
-                      isReceiving: state.isReceiving,
-                      onReceive: () => ref
-                          .read(scanControllerProvider.notifier)
-                          .receiveCurrent(),
-                      onClear: () => ref
-                          .read(scanControllerProvider.notifier)
-                          .clearResult(),
-                    ),
-                  )
-                : _buildHint(state, theme),
-          ),
-        ],
+      body: Padding(
+        // Chừa đáy cho FAB quét mã + bottom nav (extendBody) khỏi đè nội dung.
+        padding: const EdgeInsets.only(bottom: 80),
+        child: Column(
+          children: [
+            _buildScannerView(state, theme),
+            _buildManualInput(state, theme),
+            Expanded(
+              child: state.result != null
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: ScanResultCard(
+                        result: state.result!,
+                        isReceiving: state.isReceiving,
+                        onReceive: () => ref
+                            .read(scanControllerProvider.notifier)
+                            .receiveCurrent(),
+                        onClear: () => ref
+                            .read(scanControllerProvider.notifier)
+                            .clearResult(),
+                      ),
+                    )
+                  : _buildHint(state, theme),
+            ),
+          ],
+        ),
       ),
     );
   }

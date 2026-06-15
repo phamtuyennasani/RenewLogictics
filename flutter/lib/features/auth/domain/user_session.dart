@@ -25,16 +25,20 @@ class AuthUser {
     required this.id,
     required this.username,
     required this.fullname,
+    this.code,
     this.phone,
     this.email,
+    this.address,
     this.avatar,
   });
 
   final int id;
   final String username;
   final String fullname;
+  final String? code;
   final String? phone;
   final String? email;
+  final String? address;
   final String? avatar;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
@@ -42,8 +46,10 @@ class AuthUser {
       id: (json['id'] as num?)?.toInt() ?? 0,
       username: (json['username'] ?? '').toString(),
       fullname: (json['fullname'] ?? '').toString(),
+      code: json['code']?.toString(),
       phone: json['phone']?.toString(),
       email: json['email']?.toString(),
+      address: json['address']?.toString(),
       avatar: json['avatar']?.toString(),
     );
   }

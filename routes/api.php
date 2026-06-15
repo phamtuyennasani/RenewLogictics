@@ -49,6 +49,12 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
         Route::get('/me', [MobileAuthController::class, 'me'])->name('me');
         Route::post('/logout', [MobileAuthController::class, 'logout'])->name('logout');
 
+        // Profile self-service (mọi role mobile sửa hồ sơ của chính mình).
+        // Avatar tách POST vì PHP không parse multipart cho method PUT.
+        Route::put('/profile', [MobileAuthController::class, 'updateProfile'])->name('profile.update');
+        Route::put('/profile/password', [MobileAuthController::class, 'updatePassword'])->name('profile.password');
+        Route::post('/profile/avatar', [MobileAuthController::class, 'updateAvatar'])->name('profile.avatar');
+
         // Device token cho push notification (mọi role mobile).
         Route::post('/device-tokens', [MobileDeviceTokenController::class, 'store'])->name('device-tokens.store');
         Route::post('/device-tokens/revoke', [MobileDeviceTokenController::class, 'revoke'])->name('device-tokens.revoke');

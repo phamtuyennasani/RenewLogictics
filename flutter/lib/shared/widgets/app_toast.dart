@@ -87,6 +87,9 @@ abstract class AppToast {
           backgroundColor: Colors.transparent,
           elevation: 0,
           padding: EdgeInsets.zero,
+          // Tắt close icon mặc định từ theme (nó chiếm chỗ bên phải, làm thẻ
+          // co lại và lệch trái). Toast đã có nút X riêng trong _ToastBody.
+          showCloseIcon: false,
           duration: duration ?? _defaultDuration(type),
           dismissDirection: DismissDirection.horizontal,
           width: width,

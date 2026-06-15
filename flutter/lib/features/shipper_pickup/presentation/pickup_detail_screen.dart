@@ -9,6 +9,7 @@ import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../domain/pickup.dart';
 import 'pickup_detail_controller.dart';
+import 'pickup_list_controller.dart';
 import 'widgets/status_action_sheet.dart';
 
 /// Màn chi tiết một pickup (contract §3.2) + đổi trạng thái (§3.3).
@@ -155,7 +156,7 @@ class PickupDetailScreen extends ConsumerWidget {
           child: FilledButton.icon(
             onPressed: state.isSubmitting
                 ? null
-                : () => _openStatusSheet(context, transitions, notifier),
+                : () => _openStatusSheet(context, ref, transitions, notifier),
             icon: state.isSubmitting
                 ? const SizedBox(
                     width: 18,
@@ -177,6 +178,7 @@ class PickupDetailScreen extends ConsumerWidget {
 
   Future<void> _openStatusSheet(
     BuildContext context,
+    WidgetRef ref,
     List transitions,
     PickupDetailController notifier,
   ) async {
@@ -185,7 +187,12 @@ class PickupDetailScreen extends ConsumerWidget {
       transitions: transitions.cast(),
     );
     if (choice == null) return;
-    await notifier.changeStatus(status: choice.status, reason: choice.reason);
+    final ok = await notifier.changeStatus(
+      status: choice.status,
+      reason: choice.reason,
+    );
+    // Đổi trạng thái xong → làm mới danh sách pickup để item nhảy đúng tab.
+    if (ok) ref.invalidate(pickupListControllerProvider);
   }
 }
 

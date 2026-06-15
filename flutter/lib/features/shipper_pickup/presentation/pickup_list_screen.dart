@@ -120,16 +120,24 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
       return RefreshIndicator(
         onRefresh: () =>
             ref.read(pickupListControllerProvider.notifier).refresh(),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-          children: [
-            _PickupEmptyState(
-              tab: state.tab,
-              hasKeyword: state.keyword.isNotEmpty,
-              onRefresh: () =>
-                  ref.read(pickupListControllerProvider.notifier).refresh(),
-            ),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Center(
+                  child: _PickupEmptyState(
+                    tab: state.tab,
+                    hasKeyword: state.keyword.isNotEmpty,
+                    onRefresh: () =>
+                        ref.read(pickupListControllerProvider.notifier).refresh(),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       );
     }

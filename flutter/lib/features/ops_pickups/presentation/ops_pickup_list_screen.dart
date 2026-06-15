@@ -125,16 +125,29 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
       return ErrorState(message: state.errorMessage!, onRetry: notifier.refresh);
     }
     if (state.items.isEmpty) {
-      return ListView(
-        children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.18),
-          EmptyState(
-            icon: Icons.local_shipping_outlined,
-            title: 'Chưa có pickup',
-            message: 'Không có phiếu lấy hàng nào trong mục "${state.tab.label}".',
-            onRefresh: notifier.refresh,
-          ),
-        ],
+      // Căn giữa theo viewport, vẫn pull-to-refresh được, chừa đáy cho
+      // FAB quét mã + bottom nav khỏi đè lên.
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 96),
+                child: Center(
+                  child: EmptyState(
+                    icon: Icons.local_shipping_outlined,
+                    title: 'Chưa có pickup',
+                    message:
+                        'Không có phiếu lấy hàng nào trong mục "${state.tab.label}".',
+                    onRefresh: notifier.refresh,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       );
     }
 

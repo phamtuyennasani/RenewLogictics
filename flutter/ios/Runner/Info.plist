@@ -71,9 +71,12 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
-	<!-- Quét QR/Code128 ở module OPS (mobile_scanner). -->
+	<!-- Quét QR/Code128 ở module OPS (mobile_scanner) + chụp ảnh đại diện. -->
 	<key>NSCameraUsageDescription</key>
-	<string>Ứng dụng cần camera để quét mã vận đơn / mã kiện khi nhập kho.</string>
+	<string>Ứng dụng cần camera để quét mã vận đơn / mã kiện khi nhập kho và chụp ảnh đại diện.</string>
+	<!-- Chọn ảnh đại diện từ thư viện (image_picker). -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần truy cập thư viện ảnh để bạn chọn ảnh đại diện.</string>
 	<!-- Định vị shipper để chỉ đường tới điểm pickup (VietMap GL + geolocator). -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Ứng dụng cần vị trí của bạn để tìm và chỉ đường tới điểm lấy hàng.</string>
