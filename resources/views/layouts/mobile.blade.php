@@ -12,11 +12,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    @include('partials.system-theme-script')
     @vite(['resources/css/app.css'])
     @livewireStyles
     @stack('styles')
 </head>
-<body class="bg-neutral-50 font-sans antialiased min-h-screen">
+<body class="system-shell mobile-shell min-h-screen bg-neutral-50 font-sans text-neutral-900 antialiased transition-colors dark:bg-neutral-950 dark:text-neutral-100">
     @php
         $__mobileUser = auth()->user();
         $__mobileRouteName = request()->route()?->getName();
@@ -33,7 +34,7 @@
     @endphp
     <div class="min-h-screen flex flex-col">
         {{-- Mobile Header --}}
-        <header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-neutral-200 safe-top">
+        <header class="sticky top-0 z-40 border-b border-neutral-200 bg-white/95 backdrop-blur safe-top dark:border-white/10 dark:bg-slate-950/95">
             <div class="flex items-center justify-between gap-3 px-4 h-16">
                 <a href="{{ route($__mobileHomeRoute) }}" wire:navigate class="flex min-w-0 items-center gap-3">
                     <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl text-white shadow-sm"
@@ -48,8 +49,8 @@
                         @endif
                     </div>
                     <div class="min-w-0">
-                        <span class="block truncate text-lg font-bold leading-tight text-neutral-950">{{ config('system.name', 'Bee Express') }}</span>
-                        <span class="block truncate text-[11px] font-medium leading-tight text-neutral-500">{{ config('system.slogan', 'Quan ly van chuyen') }}</span>
+                        <span class="block truncate text-lg font-bold leading-tight text-neutral-950 dark:text-white">{{ config('system.name', 'Bee Express') }}</span>
+                        <span class="block truncate text-[11px] font-medium leading-tight text-neutral-500 dark:text-slate-400">{{ config('system.slogan', 'Quan ly van chuyen') }}</span>
                     </div>
                 </a>
                 <div class="flex shrink-0 items-center gap-2"
@@ -62,19 +63,23 @@
                             });
                         }
                      }"
-                     @click.outside="open = false">
+                    @click.outside="open = false">
                     <livewire:notification-bell />
+
+                    @if(config('features.theme_toggle', false))
+                        <x-theme-toggle />
+                    @endif
 
                     <div class="relative">
                         <button type="button"
                                 @click="open = !open"
-                                class="flex items-center gap-1.5 rounded-full border border-primary-100 bg-white p-1 shadow-md shadow-primary-900/5 transition-colors active:bg-primary-50">
+                                class="flex items-center gap-1.5 rounded-full border border-primary-100 bg-white p-1 shadow-md shadow-primary-900/5 transition-colors active:bg-primary-50 dark:border-white/10 dark:bg-slate-900 dark:active:bg-slate-800">
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-bold text-white ring-2 ring-primary-100"
                                  style="background: linear-gradient(135deg, {{ config('theme.primary.hex', '#3b82f6') }}, {{ config('theme.accent.hex', '#0ea5e9') }});">
                                 <img x-show="avatarUrl" :src="avatarUrl" alt="avatar" class="h-full w-full rounded-full object-cover">
                                 <span x-show="!avatarUrl">{{ strtoupper(substr(auth()->user()?->username ?? 'U', 0, 1)) }}</span>
                             </div>
-                            <svg class="mr-1 h-4 w-4 text-neutral-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="mr-1 h-4 w-4 text-neutral-400 transition-transform dark:text-slate-500" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
                         </button>
@@ -86,22 +91,22 @@
                              x-transition:leave="transition ease-in duration-75"
                              x-transition:leave-start="opacity-100 scale-100"
                              x-transition:leave-end="opacity-0 scale-95"
-                             class="absolute right-0 mt-2 w-64 rounded-xl border border-neutral-200 bg-white shadow-lg overflow-hidden z-50">
-                            <div class="px-4 py-3 bg-neutral-50 border-b border-neutral-100">
-                                <p class="text-sm font-semibold text-neutral-900 truncate">{{ auth()->user()?->fullname ?? auth()->user()?->username }}</p>
-                                <p class="text-xs text-neutral-500 mt-0.5">{{ \App\Enums\RoleEnum::label(auth()->user()?->roles->first()?->name) }}</p>
+                             class="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg dark:border-white/10 dark:bg-slate-900 dark:shadow-black/30">
+                            <div class="border-b border-neutral-100 bg-neutral-50 px-4 py-3 dark:border-white/10 dark:bg-slate-950">
+                                <p class="truncate text-sm font-semibold text-neutral-900 dark:text-white">{{ auth()->user()?->fullname ?? auth()->user()?->username }}</p>
+                                <p class="mt-0.5 text-xs text-neutral-500 dark:text-slate-400">{{ \App\Enums\RoleEnum::label(auth()->user()?->roles->first()?->name) }}</p>
                             </div>
                             <a href="{{ route($__mobileProfileRoute) }}"
                                wire:navigate
-                               class="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-neutral-50 transition-colors">
-                                <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               class="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-neutral-50 dark:text-slate-200 dark:hover:bg-white/5">
+                                <svg class="h-4 w-4 text-neutral-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                                 </svg>
                                 Thông tin cá nhân
                             </a>
                             <a href="{{ route('logout') }}"
-                               class="flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 hover:bg-red-50 hover:text-red-600 transition-colors group">
-                                <svg class="w-4 h-4 text-neutral-400 group-hover:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               class="group flex items-center gap-3 px-4 py-2.5 text-sm text-neutral-700 transition-colors hover:bg-red-50 hover:text-red-600 dark:text-slate-200 dark:hover:bg-red-500/10 dark:hover:text-red-300">
+                                <svg class="h-4 w-4 text-neutral-400 transition-colors group-hover:text-red-500 dark:text-slate-500 dark:group-hover:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                                 </svg>
                                 Đăng xuất
@@ -119,7 +124,7 @@
     </div>
 
     @if($__isShipperMobile)
-        <nav class="fixed inset-x-4 bottom-4 z-[80] mx-auto max-w-md rounded-[2rem] border border-white/20 bg-gradient-to-r from-primary-600 via-blue-600 to-primary-700 p-1.5 shadow-2xl shadow-primary-950/25 backdrop-blur">
+        <nav data-mobile-nav class="fixed inset-x-4 bottom-4 z-[80] mx-auto max-w-md rounded-[2rem] border border-white/20 bg-gradient-to-r from-primary-600 via-blue-600 to-primary-700 p-1.5 shadow-2xl shadow-primary-950/25 backdrop-blur dark:border-white/10 dark:from-slate-900 dark:via-primary-950 dark:to-slate-950 dark:shadow-black/40">
             <div class="grid grid-cols-3 items-center gap-1">
                 <a href="{{ route('shipper.pickups') }}"
                    wire:navigate
@@ -199,7 +204,7 @@
                 ],
             ];
         @endphp
-        <nav class="fixed inset-x-3 bottom-4 z-[80] mx-auto max-w-lg rounded-[1.75rem] border border-white/20 p-1.5 shadow-2xl shadow-primary-950/25 backdrop-blur"
+        <nav data-mobile-nav class="fixed inset-x-3 bottom-4 z-[80] mx-auto max-w-lg rounded-[1.75rem] border border-white/20 p-1.5 shadow-2xl shadow-primary-950/25 backdrop-blur dark:border-white/10 dark:shadow-black/40"
              style="background: linear-gradient(135deg, {{ config('theme.primary.hex', '#3b82f6') }}, {{ config('theme.accent.hex', '#0ea5e9') }});">
             <div class="grid grid-cols-5 items-center gap-1">
                 @foreach($__opsNavItems as $__item)

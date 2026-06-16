@@ -123,15 +123,15 @@ new class extends Component {
     $entityNoun = $byCustomer ? 'khách hàng của bạn' : 'sale';
 @endphp
 
-<section class="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
-    <div class="border-b border-neutral-100 bg-gradient-to-r from-primary-50 via-white to-white px-5 py-5 lg:px-6">
+<section class="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950">
+    <div class="border-b border-neutral-100 bg-gradient-to-r from-primary-50 via-white to-white px-5 py-5 dark:border-white/10 dark:from-primary-950/40 dark:via-slate-900 dark:to-slate-950 lg:px-6">
         <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
-                <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">{{ $byCustomer ? 'Khách Hàng Performance' : 'Sales Performance' }}</p>
-                <h2 class="mt-1 text-xl font-bold text-neutral-950">Thống kê doanh số {{ $entityLabel }} trong tháng {{ $this->currentMonthLabel() }}</h2>
-                <p class="mt-1 text-sm text-neutral-500">Xếp hạng {{ $entityNoun }} theo {{ $this->metricLabel() }} trong tháng hiện tại.</p>
+                <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600 dark:text-sky-300">{{ $byCustomer ? 'Khách Hàng Performance' : 'Sales Performance' }}</p>
+                <h2 class="mt-1 text-xl font-bold text-neutral-950 dark:text-white">Thống kê doanh số {{ $entityLabel }} trong tháng {{ $this->currentMonthLabel() }}</h2>
+                <p class="mt-1 text-sm text-neutral-500 dark:text-slate-400">Xếp hạng {{ $entityNoun }} theo {{ $this->metricLabel() }} trong tháng hiện tại.</p>
             </div>
-            <div class="inline-flex w-full rounded-xl border border-neutral-200 bg-white p-1 shadow-sm sm:w-auto">
+            <div class="inline-flex w-full rounded-xl border border-neutral-200 bg-white p-1 shadow-sm dark:border-white/10 dark:bg-slate-950/80 sm:w-auto">
                 @foreach ([
                     'revenue' => ['Doanh thu', 'banknotes'],
                     'chargedWeight' => ['Cân nặng', 'cube'],
@@ -143,8 +143,8 @@ new class extends Component {
                         wire:loading.attr="disabled"
                         @class([
                             'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition sm:flex-none',
-                            'bg-primary-600 text-white shadow-sm' => $metric === $value,
-                            'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900' => $metric !== $value,
+                            'bg-primary-600 text-white shadow-sm dark:bg-primary-500' => $metric === $value,
+                            'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white' => $metric !== $value,
                         ])
                     >
                         <flux:icon :name="$icon" class="size-4" />
@@ -155,25 +155,25 @@ new class extends Component {
         </div>
     </div>
 
-    <div class="grid gap-px border-b border-neutral-100 bg-neutral-100 sm:grid-cols-3">
-        <div class="bg-white px-5 py-3">
+    <div class="grid gap-px border-b border-neutral-100 bg-neutral-100 dark:border-white/10 dark:bg-white/10 sm:grid-cols-3">
+        <div class="bg-white px-5 py-3 dark:bg-slate-950">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">{{ $byCustomer ? 'khách hàng hoạt động' : 'Sale hoạt động' }}</p>
-            <p class="mt-1 text-lg font-bold text-neutral-950">{{ $this->number(data_get($report, 'summary.sales', 0)) }}</p>
+            <p class="mt-1 text-lg font-bold text-neutral-950 dark:text-white">{{ $this->number(data_get($report, 'summary.sales', 0)) }}</p>
         </div>
-        <div class="bg-white px-5 py-3">
+        <div class="bg-white px-5 py-3 dark:bg-slate-950">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Tổng đơn hàng</p>
-            <p class="mt-1 text-lg font-bold text-neutral-950">{{ $this->number(data_get($report, 'summary.orders', 0)) }}</p>
+            <p class="mt-1 text-lg font-bold text-neutral-950 dark:text-white">{{ $this->number(data_get($report, 'summary.orders', 0)) }}</p>
         </div>
-        <div class="bg-white px-5 py-3">
+        <div class="bg-white px-5 py-3 dark:bg-slate-950">
             <p class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">Tổng doanh thu</p>
-            <p class="mt-1 text-lg font-bold text-primary-700">{{ $this->money(data_get($report, 'summary.revenue', 0)) }}</p>
+            <p class="mt-1 text-lg font-bold text-primary-700 dark:text-sky-300">{{ $this->money(data_get($report, 'summary.revenue', 0)) }}</p>
         </div>
     </div>
 
     <div class="grid xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div class="overflow-x-auto">
             <table class="min-w-[760px] w-full text-sm">
-                <thead class="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-400">
+                <thead class="bg-neutral-50 text-left text-xs uppercase tracking-wide text-neutral-400 dark:bg-slate-900 dark:text-slate-400">
                     <tr>
                         <th class="px-5 py-3 font-semibold">{{ $byCustomer ? 'Khách hàng' : 'Sale' }}</th>
                         <th class="px-4 py-3 text-right font-semibold">SL đơn hàng</th>
@@ -181,29 +181,29 @@ new class extends Component {
                         <th class="px-5 py-3 text-right font-semibold">Doanh thu</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-neutral-100">
+                <tbody class="divide-y divide-neutral-100 dark:divide-white/10">
                     @forelse ($ranking as $sale)
-                        <tr class="group transition hover:bg-primary-50/50">
+                        <tr class="group transition hover:bg-primary-50/50 dark:hover:bg-primary-500/10">
                             <td class="px-5 py-3">
                                 <div class="flex items-center gap-3">
-                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">
+                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700 dark:bg-primary-500/15 dark:text-sky-200">
                                         {{ $sale['rank'] }}
                                     </span>
                                     <div class="min-w-0">
-                                        <p class="truncate font-bold text-neutral-900">{{ $sale['name'] }}</p>
+                                        <p class="truncate font-bold text-neutral-900 dark:text-white">{{ $sale['name'] }}</p>
                                         <p class="mt-0.5 text-xs font-medium text-neutral-400">{{ $sale['code'] ?: 'Chưa có mã sale' }}</p>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-4 py-3 text-right font-semibold text-neutral-700">{{ $this->number($sale['orderCount']) }} đơn</td>
-                            <td class="px-4 py-3 text-right text-neutral-500">
+                            <td class="px-4 py-3 text-right font-semibold text-neutral-700 dark:text-slate-300">{{ $this->number($sale['orderCount']) }} đơn</td>
+                            <td class="px-4 py-3 text-right text-neutral-500 dark:text-slate-400">
                                 {{ $this->number($sale['grossWeight'], 2) }}
                                 <span class="text-neutral-300">/</span>
-                                <span class="font-semibold text-primary-600">{{ $this->number($sale['chargedWeight'], 2) }} KG</span>
+                                <span class="font-semibold text-primary-600 dark:text-sky-300">{{ $this->number($sale['chargedWeight'], 2) }} KG</span>
                             </td>
                             <td class="px-5 py-3 text-right">
-                                <p class="font-bold text-primary-700">{{ $this->money($sale['revenue']) }}</p>
-                                <div class="ml-auto mt-1.5 h-1.5 w-28 overflow-hidden rounded-full bg-neutral-100">
+                                <p class="font-bold text-primary-700 dark:text-sky-300">{{ $this->money($sale['revenue']) }}</p>
+                                <div class="ml-auto mt-1.5 h-1.5 w-28 overflow-hidden rounded-full bg-neutral-100 dark:bg-white/10">
                                     <div class="h-full rounded-full bg-primary-500 transition-all duration-300" style="width: {{ max(3, $sale['metricShare']) }}%"></div>
                                 </div>
                             </td>
@@ -217,10 +217,10 @@ new class extends Component {
             </table>
         </div>
 
-        <aside class="border-t border-neutral-100 bg-neutral-50/70 p-5 xl:border-l xl:border-t-0">
+        <aside class="border-t border-neutral-100 bg-neutral-50/70 p-5 dark:border-white/10 dark:bg-slate-900/70 xl:border-l xl:border-t-0">
             <div class="text-center">
-                <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600">Top 3 nổi bật</p>
-                <h3 class="mt-1 text-lg font-bold text-neutral-950">Bảng vàng {{ $this->metricLabel() }}</h3>
+                <p class="text-xs font-bold uppercase tracking-[0.2em] text-primary-600 dark:text-sky-300">Top 3 nổi bật</p>
+                <h3 class="mt-1 text-lg font-bold text-neutral-950 dark:text-white">Bảng vàng {{ $this->metricLabel() }}</h3>
             </div>
 
             @if ($podium !== [])
@@ -245,7 +245,7 @@ new class extends Component {
                         @endphp
                         <div class="flex min-w-0 flex-1 flex-col items-center">
                             <div class="relative z-10" x-data="{ imageFailed: false }">
-                                <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-br {{ $avatarTone }} text-xs font-extrabold tracking-wide text-white shadow-md">
+                                <div class="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-gradient-to-br {{ $avatarTone }} text-xs font-extrabold tracking-wide text-white shadow-md dark:border-slate-900">
                                     @if ($sale['avatar'])
                                         <img
                                             x-show="!imageFailed"
@@ -263,17 +263,17 @@ new class extends Component {
                                 <p class="text-[11px] font-semibold opacity-80">{{ $this->number($sale['orderCount']) }} đơn</p>
                                 <p class="mt-1 truncate text-xs font-bold">{{ $this->metricDisplay($sale) }}</p>
                             </div>
-                            <p class="mt-2 w-full truncate text-center text-xs font-bold text-neutral-700">{{ $sale['shortName'] }}</p>
+                            <p class="mt-2 w-full truncate text-center text-xs font-bold text-neutral-700 dark:text-slate-200">{{ $sale['shortName'] }}</p>
                         </div>
                     @endforeach
                 </div>
             @else
-                <div class="mt-6 rounded-xl border border-dashed border-neutral-200 bg-white px-4 py-12 text-center text-sm text-neutral-500">
+                <div class="mt-6 rounded-xl border border-dashed border-neutral-200 bg-white px-4 py-12 text-center text-sm text-neutral-500 dark:border-white/10 dark:bg-slate-950 dark:text-slate-400">
                     Chưa đủ dữ liệu để hiển thị top 3.
                 </div>
             @endif
 
-            <div class="mt-5 rounded-xl border border-primary-100 bg-primary-50 px-3 py-2 text-center text-xs font-semibold text-primary-700">
+            <div class="mt-5 rounded-xl border border-primary-100 bg-primary-50 px-3 py-2 text-center text-xs font-semibold text-primary-700 dark:border-primary-400/20 dark:bg-primary-500/10 dark:text-sky-200">
                 Đang xếp hạng theo {{ $this->metricLabel() }}
             </div>
         </aside>

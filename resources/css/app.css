@@ -1740,3 +1740,625 @@ textarea.debt-create-control {
     z-index: 60;
 }
 /***************************************/
+
+/* ============================================================
+   MOBILE THEME FACTORY
+   Light keeps the existing Tailwind output. Dark is scoped to
+   .mobile-shell so desktop and current light screens stay intact.
+   ============================================================ */
+.mobile-shell {
+    --mobile-bg-base: #fafafa;
+    --mobile-bg-surface: #ffffff;
+    --mobile-bg-elevated: #ffffff;
+    --mobile-bg-muted: #f5f5f5;
+    --mobile-border: #e5e5e5;
+    --mobile-border-strong: #d4d4d4;
+    --mobile-text-primary: #0a0a0a;
+    --mobile-text-secondary: #404040;
+    --mobile-text-muted: #737373;
+    --mobile-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
+    background-color: var(--mobile-bg-base);
+    color: var(--mobile-text-primary);
+    color-scheme: light;
+}
+
+.dark .mobile-shell {
+    --mobile-bg-base: #020617;
+    --mobile-bg-surface: #0f172a;
+    --mobile-bg-elevated: #111827;
+    --mobile-bg-muted: #1e293b;
+    --mobile-border: rgb(255 255 255 / 0.1);
+    --mobile-border-strong: rgb(148 163 184 / 0.34);
+    --mobile-text-primary: #f8fafc;
+    --mobile-text-secondary: #cbd5e1;
+    --mobile-text-muted: #94a3b8;
+    --mobile-shadow: 0 18px 40px rgb(0 0 0 / 0.28);
+    background:
+        radial-gradient(circle at top left, rgb(37 99 235 / 0.15), transparent 30rem),
+        var(--mobile-bg-base);
+    color: var(--mobile-text-primary);
+    color-scheme: dark;
+}
+
+.dark .mobile-shell :where(.bg-white),
+.dark .mobile-shell :where([class~="bg-white/70"]),
+.dark .mobile-shell :where([class~="bg-white/95"]) {
+    background-color: var(--mobile-bg-surface);
+}
+
+.dark .mobile-shell :where(.bg-neutral-50),
+.dark .mobile-shell :where(.bg-neutral-100),
+.dark .mobile-shell :where([class~="bg-neutral-50/50"]) {
+    background-color: var(--mobile-bg-muted);
+}
+
+.dark .mobile-shell :where(.bg-neutral-200) {
+    background-color: rgb(51 65 85);
+}
+
+.dark .mobile-shell :where(.text-neutral-950, .text-neutral-900, .text-neutral-800) {
+    color: var(--mobile-text-primary);
+}
+
+.dark .mobile-shell :where(.text-neutral-700, .text-neutral-600) {
+    color: var(--mobile-text-secondary);
+}
+
+.dark .mobile-shell :where(.text-neutral-500, .text-neutral-400) {
+    color: var(--mobile-text-muted);
+}
+
+.dark .mobile-shell :where(.border-neutral-100, .border-neutral-200, .border-neutral-300),
+.dark .mobile-shell :where(.ring-neutral-200, .ring-neutral-100) {
+    border-color: var(--mobile-border);
+    --tw-ring-color: var(--mobile-border);
+}
+
+.dark .mobile-shell :where(.shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl) {
+    --tw-shadow-color: rgb(0 0 0 / 0.35);
+}
+
+.dark .mobile-shell :where(input, textarea, select, .ts-control) {
+    background-color: var(--mobile-bg-surface);
+    border-color: var(--mobile-border-strong);
+    color: var(--mobile-text-primary);
+}
+
+.dark .mobile-shell :where(input, textarea)::placeholder {
+    color: rgb(148 163 184 / 0.82);
+}
+
+.dark .mobile-shell :where(.bg-primary-50, .bg-blue-50) {
+    background-color: rgb(37 99 235 / 0.16);
+}
+
+.dark .mobile-shell :where(.text-primary-700, .text-blue-700) {
+    color: #93c5fd;
+}
+
+.dark .mobile-shell :where(.border-primary-100, .border-blue-100, .border-blue-200) {
+    border-color: rgb(96 165 250 / 0.24);
+}
+
+.dark .mobile-shell :where(.ring-primary-50, .ring-primary-100) {
+    --tw-ring-color: rgb(96 165 250 / 0.22);
+}
+
+.dark .mobile-shell :where(.bg-red-50) {
+    background-color: rgb(127 29 29 / 0.24);
+}
+
+.dark .mobile-shell :where(.text-red-500, .text-red-600, .text-red-700) {
+    color: #fca5a5;
+}
+
+.dark .mobile-shell :where(.bg-emerald-50, .bg-green-50) {
+    background-color: rgb(6 78 59 / 0.28);
+}
+
+.dark .mobile-shell :where(.text-emerald-600, .text-emerald-700, .text-green-600, .text-green-700) {
+    color: #6ee7b7;
+}
+
+.dark .mobile-shell :where(.border-emerald-200, .border-green-200) {
+    border-color: rgb(110 231 183 / 0.24);
+}
+
+.dark .mobile-shell :where(.bg-amber-50, .bg-yellow-50) {
+    background-color: rgb(120 53 15 / 0.28);
+}
+
+.dark .mobile-shell :where(.text-amber-600, .text-amber-700, .text-yellow-600, .text-yellow-700) {
+    color: #fcd34d;
+}
+
+.dark .mobile-shell :where(.border-amber-200, .border-yellow-200) {
+    border-color: rgb(252 211 77 / 0.24);
+}
+
+.dark .mobile-shell [data-mobile-nav] :where(.bg-white) {
+    background-color: rgb(255 255 255 / 0.94);
+}
+
+.dark .mobile-shell [data-mobile-nav] :where(.text-white, [class~="text-white/75"], [class~="text-white/80"]) {
+    color: rgb(255 255 255 / 0.86);
+}
+
+.dark .mobile-shell [data-mobile-nav] :where(.text-primary-700) {
+    color: #1d4ed8;
+}
+
+.dark .mobile-shell :where(.show-content table th) {
+    background-color: var(--mobile-bg-muted);
+    color: var(--mobile-text-secondary);
+}
+
+.dark .mobile-shell :where(.show-content table th, .show-content table td, .show-content hr) {
+    border-color: var(--mobile-border);
+}
+
+.dark .mobile-shell :where(.show-content p, .show-content ul, .show-content ol) {
+    color: var(--mobile-text-secondary);
+}
+
+.dark .mobile-shell :where(.show-content h1, .show-content h2, .show-content h3) {
+    color: var(--mobile-text-primary);
+}
+
+.dark .mobile-shell :where(
+    .pickup-status-nav,
+    .debt-status-nav,
+    .pickup-filter-section,
+    .order-filter-section,
+    .debt-filter-section
+) {
+    border-color: var(--mobile-border);
+    background: linear-gradient(180deg, var(--mobile-bg-surface), var(--mobile-bg-muted));
+    box-shadow: var(--mobile-shadow);
+}
+
+.dark .mobile-shell :where(
+    .pickup-status-tab,
+    .debt-status-tab,
+    #order-index-page .order-status-tab,
+    .pickup-filter-presets button,
+    .order-filter-presets button,
+    .debt-filter-presets button,
+    .pickup-status-count,
+    .debt-status-count,
+    #order-index-page .order-status-count
+) {
+    border-color: var(--mobile-border);
+    background: var(--mobile-bg-surface);
+    color: var(--mobile-text-secondary);
+    box-shadow: none;
+}
+
+.dark .mobile-shell :where(
+    .pickup-status-tab[data-active="true"],
+    .debt-status-tab[data-active="true"],
+    #order-index-page .order-status-tab[data-active="true"]
+) {
+    background: rgb(37 99 235 / 0.14);
+    box-shadow: inset 0 0 0 1px rgb(96 165 250 / 0.22);
+}
+
+.dark .mobile-shell :where(
+    .pickup-status-label,
+    .debt-status-label,
+    #order-index-page .order-status-label,
+    .pickup-status-nav-header h3,
+    .debt-status-nav-header h3,
+    #order-index-page .order-status-nav-header h3,
+    .pickup-filter-section-heading h3,
+    .order-filter-section-heading h3,
+    .debt-filter-section-heading h3,
+    .pickup-filter-label,
+    .order-filter-label,
+    .debt-filter-label
+) {
+    color: var(--mobile-text-primary);
+}
+
+.dark .mobile-shell :where(
+    .pickup-status-meta,
+    .debt-status-meta,
+    #order-index-page .order-status-meta,
+    .pickup-status-nav-header p,
+    .debt-status-nav-header p,
+    #order-index-page .order-status-nav-header p,
+    .pickup-filter-section-heading p,
+    .order-filter-section-heading p,
+    .debt-filter-section-heading p,
+    #order-index-page .dt-info
+) {
+    color: var(--mobile-text-muted);
+}
+
+.dark .mobile-shell :where(
+    .pickup-filter-control,
+    .pickup-filter-panel .ts-control,
+    .order-filter-control,
+    .order-filter-panel .ts-control,
+    .debt-filter-control,
+    .debt-filter-field .ts-control,
+    .debt-create-control,
+    .debt-create-field .ts-control
+) {
+    border-color: var(--mobile-border-strong);
+    background-color: var(--mobile-bg-surface);
+    color: var(--mobile-text-primary);
+}
+
+.dark .mobile-shell :where(.ts-dropdown) {
+    border-color: var(--mobile-border);
+    background-color: var(--mobile-bg-elevated);
+    color: var(--mobile-text-primary);
+}
+
+/* ============================================================
+   DESKTOP THEME FACTORY
+   Scoped to the authenticated PC shell. Light remains the
+   existing Tailwind design; dark remaps common surface tokens.
+   ============================================================ */
+.app-shell {
+    --app-bg-base: #fafafa;
+    --app-bg-surface: #ffffff;
+    --app-bg-elevated: #ffffff;
+    --app-bg-muted: #f5f5f5;
+    --app-border: #e5e5e5;
+    --app-border-strong: #d4d4d4;
+    --app-text-primary: #0a0a0a;
+    --app-text-secondary: #404040;
+    --app-text-muted: #737373;
+    --app-shadow: 0 1px 3px rgb(15 23 42 / 0.08);
+    background-color: var(--app-bg-base);
+    color: var(--app-text-primary);
+    color-scheme: light;
+}
+
+.dark .app-shell {
+    --app-bg-base: #020617;
+    --app-bg-surface: #0f172a;
+    --app-bg-elevated: #111827;
+    --app-bg-muted: #1e293b;
+    --app-border: rgb(255 255 255 / 0.1);
+    --app-border-strong: rgb(148 163 184 / 0.34);
+    --app-text-primary: #f8fafc;
+    --app-text-secondary: #cbd5e1;
+    --app-text-muted: #94a3b8;
+    --app-shadow: 0 18px 40px rgb(0 0 0 / 0.28);
+    background:
+        radial-gradient(circle at top left, rgb(37 99 235 / 0.12), transparent 34rem),
+        var(--app-bg-base);
+    color: var(--app-text-primary);
+    color-scheme: dark;
+}
+
+.dark .app-shell :where(.bg-white),
+.dark .app-shell :where([class~="bg-white/70"]),
+.dark .app-shell :where([class~="bg-white/95"]) {
+    background-color: var(--app-bg-surface);
+}
+
+.dark .app-shell :where(.bg-neutral-50),
+.dark .app-shell :where(.bg-neutral-100),
+.dark .app-shell :where([class~="bg-neutral-50/50"]),
+.dark .app-shell :where([class~="bg-neutral-50/70"]) {
+    background-color: var(--app-bg-muted);
+}
+
+.dark .app-shell :where(.bg-neutral-200, .bg-neutral-300) {
+    background-color: rgb(51 65 85);
+}
+
+.dark .app-shell :where(
+    [class~="hover:bg-white"]:hover,
+    [class~="hover:bg-neutral-50"]:hover,
+    [class~="hover:bg-neutral-100"]:hover
+) {
+    background-color: rgb(255 255 255 / 0.05);
+}
+
+.dark .app-shell :where(
+    [class~="hover:bg-neutral-200"]:hover,
+    [class~="hover:bg-neutral-300"]:hover
+) {
+    background-color: rgb(255 255 255 / 0.08);
+}
+
+.dark .app-shell :where(
+    [class~="hover:bg-primary-50"]:hover,
+    [class~="hover:bg-primary-50/50"]:hover,
+    [class~="hover:bg-blue-50"]:hover
+) {
+    background-color: rgb(37 99 235 / 0.12);
+}
+
+.dark .app-shell :where(.text-neutral-950, .text-neutral-900, .text-neutral-800) {
+    color: var(--app-text-primary);
+}
+
+.dark .app-shell :where(.text-neutral-700, .text-neutral-600) {
+    color: var(--app-text-secondary);
+}
+
+.dark .app-shell :where(.text-neutral-500, .text-neutral-400, .text-neutral-300) {
+    color: var(--app-text-muted);
+}
+
+.dark .app-shell :where(
+    [class~="hover:text-neutral-950"]:hover,
+    [class~="hover:text-neutral-900"]:hover,
+    [class~="hover:text-neutral-800"]:hover,
+    [class~="hover:text-neutral-700"]:hover
+) {
+    color: var(--app-text-primary);
+}
+
+.dark .app-shell :where(
+    [class~="hover:text-neutral-600"]:hover,
+    [class~="hover:text-neutral-500"]:hover
+) {
+    color: var(--app-text-secondary);
+}
+
+.dark .app-shell :where(
+    [class~="hover:text-primary-700"]:hover,
+    [class~="hover:text-primary-600"]:hover,
+    [class~="hover:text-blue-700"]:hover
+) {
+    color: #93c5fd;
+}
+
+.dark .app-shell :where(.border-neutral-50, .border-neutral-100, .border-neutral-200, .border-neutral-300),
+.dark .app-shell :where(.ring-neutral-100, .ring-neutral-200),
+.dark .app-shell :where(.divide-neutral-100, .divide-neutral-200) > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--app-border);
+    --tw-ring-color: var(--app-border);
+}
+
+.dark .app-shell :where(.shadow-sm, .shadow, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl) {
+    --tw-shadow-color: rgb(0 0 0 / 0.35);
+}
+
+.dark .app-shell :where(input, textarea, select, .ts-control) {
+    background-color: var(--app-bg-surface);
+    border-color: var(--app-border-strong);
+    color: var(--app-text-primary);
+}
+
+.dark .app-shell :where(input, textarea)::placeholder {
+    color: rgb(148 163 184 / 0.82);
+}
+
+.dark .app-shell :where(.ts-dropdown) {
+    border-color: var(--app-border);
+    background-color: var(--app-bg-elevated);
+    color: var(--app-text-primary);
+}
+
+.dark .app-shell :where(.bg-primary-50, .bg-blue-50) {
+    background-color: rgb(37 99 235 / 0.16);
+}
+
+.dark .app-shell :where(.text-primary-600, .text-primary-700, .text-blue-600, .text-blue-700) {
+    color: #93c5fd;
+}
+
+.dark .app-shell :where(.border-primary-100, .border-blue-100, .border-blue-200) {
+    border-color: rgb(96 165 250 / 0.24);
+}
+
+.dark .app-shell :where(.ring-primary-50, .ring-primary-100) {
+    --tw-ring-color: rgb(96 165 250 / 0.22);
+}
+
+.dark .app-shell :where(.bg-red-50) {
+    background-color: rgb(127 29 29 / 0.24);
+}
+
+.dark .app-shell :where(.text-red-500, .text-red-600, .text-red-700) {
+    color: #fca5a5;
+}
+
+.dark .app-shell :where(.bg-emerald-50, .bg-green-50) {
+    background-color: rgb(6 78 59 / 0.28);
+}
+
+.dark .app-shell :where(.text-emerald-600, .text-emerald-700, .text-green-600, .text-green-700) {
+    color: #6ee7b7;
+}
+
+.dark .app-shell :where(.border-emerald-200, .border-green-200) {
+    border-color: rgb(110 231 183 / 0.24);
+}
+
+.dark .app-shell :where(.bg-amber-50, .bg-yellow-50) {
+    background-color: rgb(120 53 15 / 0.28);
+}
+
+.dark .app-shell :where(.text-amber-600, .text-amber-700, .text-yellow-600, .text-yellow-700) {
+    color: #fcd34d;
+}
+
+.dark .app-shell :where(.border-amber-200, .border-yellow-200) {
+    border-color: rgb(252 211 77 / 0.24);
+}
+
+.dark .app-shell :where(.from-neutral-50) {
+    --tw-gradient-from: var(--app-bg-muted) var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(30 41 59 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-via-stops, var(--tw-gradient-position), var(--tw-gradient-from) var(--tw-gradient-from-position), var(--tw-gradient-to) var(--tw-gradient-to-position));
+}
+
+.dark .app-shell :where(.to-white) {
+    --tw-gradient-to: var(--app-bg-surface) var(--tw-gradient-to-position);
+}
+
+.dark .app-shell :where(.show-content table th) {
+    background-color: var(--app-bg-muted);
+    color: var(--app-text-secondary);
+}
+
+.dark .app-shell :where(.show-content table th, .show-content table td, .show-content hr) {
+    border-color: var(--app-border);
+}
+
+.dark .app-shell :where(.show-content p, .show-content ul, .show-content ol) {
+    color: var(--app-text-secondary);
+}
+
+.dark .app-shell :where(.show-content h1, .show-content h2, .show-content h3),
+.dark .app-shell :where(.notification-bell-article, .notification-bell-article strong, .notification-bell-article b) {
+    color: var(--app-text-primary);
+}
+
+.dark .app-shell :where(
+    .pickup-status-nav,
+    .debt-status-nav,
+    .pickup-filter-section,
+    .order-filter-section,
+    .debt-filter-section
+) {
+    border-color: var(--app-border);
+    background: linear-gradient(180deg, var(--app-bg-surface), var(--app-bg-muted));
+    box-shadow: var(--app-shadow);
+}
+
+.dark .app-shell :where(
+    .pickup-status-tab,
+    .debt-status-tab,
+    #order-index-page .order-status-tab,
+    .pickup-filter-presets button,
+    .order-filter-presets button,
+    .debt-filter-presets button,
+    .pickup-status-count,
+    .debt-status-count,
+    #order-index-page .order-status-count
+) {
+    border-color: var(--app-border);
+    background: var(--app-bg-surface);
+    color: var(--app-text-secondary);
+    box-shadow: none;
+}
+
+.dark .app-shell :where(
+    .pickup-status-tab[data-active="true"],
+    .debt-status-tab[data-active="true"],
+    #order-index-page .order-status-tab[data-active="true"]
+) {
+    background: rgb(37 99 235 / 0.14);
+    box-shadow: inset 0 0 0 1px rgb(96 165 250 / 0.22);
+}
+
+.dark .app-shell :where(
+    .pickup-status-label,
+    .debt-status-label,
+    #order-index-page .order-status-label,
+    .pickup-status-nav-header h3,
+    .debt-status-nav-header h3,
+    #order-index-page .order-status-nav-header h3,
+    .pickup-filter-section-heading h3,
+    .order-filter-section-heading h3,
+    .debt-filter-section-heading h3,
+    .pickup-filter-label,
+    .order-filter-label,
+    .debt-filter-label
+) {
+    color: var(--app-text-primary);
+}
+
+.dark .app-shell :where(
+    .pickup-status-meta,
+    .debt-status-meta,
+    #order-index-page .order-status-meta,
+    .pickup-status-nav-header p,
+    .debt-status-nav-header p,
+    #order-index-page .order-status-nav-header p,
+    .pickup-filter-section-heading p,
+    .order-filter-section-heading p,
+    .debt-filter-section-heading p,
+    #order-index-page .dt-info
+) {
+    color: var(--app-text-muted);
+}
+
+.dark .app-shell :where(
+    .pickup-filter-control,
+    .pickup-filter-panel .ts-control,
+    .order-filter-control,
+    .order-filter-panel .ts-control,
+    .debt-filter-control,
+    .debt-filter-field .ts-control,
+    .debt-create-control,
+    .debt-create-field .ts-control
+) {
+    border-color: var(--app-border-strong);
+    background-color: var(--app-bg-surface);
+    color: var(--app-text-primary);
+}
+
+/* Dark table borders: normalize row separators across Tailwind tables,
+   DataTables, PowerGrid, and inline CRUD tables. */
+.dark .app-shell table,
+.dark .app-shell table :where(thead, tbody, tfoot, tr, th, td),
+.dark .app-shell .dt-container table,
+.dark .app-shell .dt-container table :where(thead, tbody, tfoot, tr, th, td),
+.dark .app-shell .dt-tailwindcss table,
+.dark .app-shell .dt-tailwindcss table :where(thead, tbody, tfoot, tr, th, td),
+.dark .app-shell .power-grid-table,
+.dark .app-shell .power-grid-table :where(thead, tbody, tfoot, tr, th, td) {
+    border-color: var(--app-border) !important;
+}
+
+.dark .app-shell table :where(.divide-y, .divide-x) > :not([hidden]) ~ :not([hidden]),
+.dark .app-shell .dt-container table :where(.divide-y, .divide-x) > :not([hidden]) ~ :not([hidden]),
+.dark .app-shell .dt-tailwindcss table :where(.divide-y, .divide-x) > :not([hidden]) ~ :not([hidden]),
+.dark .app-shell .power-grid-table :where(.divide-y, .divide-x) > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--app-border) !important;
+}
+
+/* Dark table hover guard: keeps all table/list rows readable across DataTables,
+   PowerGrid, and hand-written CRUD tables. */
+.dark .app-shell table tbody tr:hover,
+.dark .app-shell .dt-container table tbody tr:hover,
+.dark .app-shell .dt-tailwindcss table tbody tr:hover,
+.dark .app-shell .power-grid-table tbody tr:hover,
+.dark .app-shell [role="row"]:hover {
+    background-color: rgb(30 41 59 / 0.86) !important;
+    color: var(--app-text-primary) !important;
+}
+
+.dark .app-shell table tbody tr:hover > *,
+.dark .app-shell .dt-container table tbody tr:hover > *,
+.dark .app-shell .dt-tailwindcss table tbody tr:hover > *,
+.dark .app-shell .power-grid-table tbody tr:hover > *,
+.dark .app-shell [role="row"]:hover > * {
+    background-color: transparent !important;
+    color: inherit;
+}
+
+.dark .app-shell table tbody tr:hover :where(.text-neutral-950, .text-neutral-900, .text-neutral-800, .text-neutral-700),
+.dark .app-shell .dt-container table tbody tr:hover :where(.text-neutral-950, .text-neutral-900, .text-neutral-800, .text-neutral-700),
+.dark .app-shell .dt-tailwindcss table tbody tr:hover :where(.text-neutral-950, .text-neutral-900, .text-neutral-800, .text-neutral-700),
+.dark .app-shell .power-grid-table tbody tr:hover :where(.text-neutral-950, .text-neutral-900, .text-neutral-800, .text-neutral-700),
+.dark .app-shell [role="row"]:hover :where(.text-neutral-950, .text-neutral-900, .text-neutral-800, .text-neutral-700) {
+    color: var(--app-text-primary) !important;
+}
+
+.dark .app-shell table tbody tr:hover :where(.text-neutral-600, .text-neutral-500, .text-neutral-400, .text-neutral-300),
+.dark .app-shell .dt-container table tbody tr:hover :where(.text-neutral-600, .text-neutral-500, .text-neutral-400, .text-neutral-300),
+.dark .app-shell .dt-tailwindcss table tbody tr:hover :where(.text-neutral-600, .text-neutral-500, .text-neutral-400, .text-neutral-300),
+.dark .app-shell .power-grid-table tbody tr:hover :where(.text-neutral-600, .text-neutral-500, .text-neutral-400, .text-neutral-300),
+.dark .app-shell [role="row"]:hover :where(.text-neutral-600, .text-neutral-500, .text-neutral-400, .text-neutral-300) {
+    color: var(--app-text-secondary) !important;
+}
+
+.dark .app-shell table tbody tr:hover :where(.text-primary-700, .text-primary-600, .text-blue-700, .text-blue-600),
+.dark .app-shell .dt-container table tbody tr:hover :where(.text-primary-700, .text-primary-600, .text-blue-700, .text-blue-600),
+.dark .app-shell .dt-tailwindcss table tbody tr:hover :where(.text-primary-700, .text-primary-600, .text-blue-700, .text-blue-600),
+.dark .app-shell .power-grid-table tbody tr:hover :where(.text-primary-700, .text-primary-600, .text-blue-700, .text-blue-600),
+.dark .app-shell [role="row"]:hover :where(.text-primary-700, .text-primary-600, .text-blue-700, .text-blue-600) {
+    color: #93c5fd !important;
+}

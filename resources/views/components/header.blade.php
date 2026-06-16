@@ -41,7 +41,7 @@
     };
 @endphp
 
-<header class="h-16 bg-white border-b border-neutral-200 flex items-center justify-between gap-4 px-6 shrink-0 z-10">
+<header class="h-16 bg-white border-b border-neutral-200 flex items-center justify-between gap-4 px-6 shrink-0 z-10 dark:border-white/10 dark:bg-slate-950">
     <div class="min-w-0 flex-1">
         @if (!empty($breadcrumbs))
             <nav class="flex items-center gap-2 text-sm min-w-0" aria-label="Breadcrumb">
@@ -200,6 +200,10 @@
          @click.outside="open = false">
         {{-- Notifications --}}
         <livewire:notification-bell />
+
+        @if(config('features.theme_toggle', false))
+            <x-theme-toggle />
+        @endif
 
         {{-- User dropdown --}}
         <div class="relative">

@@ -49,7 +49,7 @@
                         @endphp
                         <div>
                             <a href="javascript:void(0)"
-                               class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group " :class="currentPath.startsWith('/{{ $item['startsWith'] }}') ? 'bg-primary-50 text-primary-600 font-medium' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'"
+                               class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group " :class="currentPath.startsWith('/{{ $item['startsWith'] }}') ? 'bg-primary-50 text-primary-600 font-medium dark:bg-primary-500/15 dark:text-sky-200' : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white'"
                                data-menu-toggle
                                @click.prevent="openItem = openItem === '{{ $itemKey }}' ? null : '{{ $itemKey }}'"
                             >
@@ -83,8 +83,8 @@
                                     <a href="{{ $childUrl }}" wire:navigate
                                        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group"
                                        :class="(currentPath === '{{ $childPath }}' || currentPath.startsWith('{{ rtrim($childPrefix, '/') }}/'))
-                                            ? 'bg-primary-50 text-primary-700 [&>span]:bg-primary-500'
-                                            : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'">
+                                            ? 'bg-primary-50 text-primary-700 [&>span]:bg-primary-500 dark:bg-primary-500/15 dark:text-sky-200 dark:[&>span]:bg-sky-300'
+                                            : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white'">
                                         <span class="w-1.5 h-1.5 rounded-full shrink-0 bg-neutral-300"></span>
                                         {{ $child['label'] }}
                                     </a>
@@ -101,8 +101,8 @@
                         <a href="{{ $itemUrl }}" wire:navigate
                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group"
                            :class="(currentPath === '{{ $itemPath }}'{{ $hasStartsWith ? " || currentPath.startsWith('" . rtrim($activePrefix, '/') . "/')" : '' }})
-                                ? 'bg-primary-50 text-primary-700'
-                                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'"
+                                ? 'bg-primary-50 text-primary-700 dark:bg-primary-500/15 dark:text-sky-200'
+                                : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white'"
                            @click="openItem = null">
                             <span class="w-5 h-5 flex items-center justify-center shrink-0">
                                 <livewire:sidebar.icon :type="$item['icon']" :key="$item['icon']" />

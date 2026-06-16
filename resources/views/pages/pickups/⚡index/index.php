@@ -30,6 +30,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
     public array $editForm = [
         'ops_id' => null,
         'shipper_id' => null,
+        'status' => null,
         'company' => '',
         'fullname' => '',
         'phone' => '',
@@ -264,6 +265,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         $this->editForm = [
             'ops_id' => $pickup->id_user,
             'shipper_id' => $pickup->id_shipper,
+            'status' => $pickup->status?->value,
             'company' => data_get($sender, 'company', ''),
             'fullname' => data_get($sender, 'fullname', ''),
             'phone' => data_get($sender, 'phone', ''),
@@ -287,6 +289,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         $this->editForm = [
             'ops_id' => null,
             'shipper_id' => null,
+            'status' => null,
             'company' => '',
             'fullname' => '',
             'phone' => '',
@@ -314,12 +317,17 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         $canEditOps = $this->canEditOpsForPickup($pickup);
         $canEditShipper = $this->canEditShipperForPickup($pickup);
         $canEditSender = $this->canEditSenderForPickup($pickup);
+        $canEditStatus = $this->canEditStatusForPickup($pickup);
 
         try {
             $rules = [];
 
             if ($canEditOps) {
                 $rules['editForm.ops_id'] = ['nullable', Rule::exists((new User())->getTable(), 'id')];
+            }
+
+            if ($canEditStatus) {
+                $rules['editForm.status'] = ['nullable', Rule::in(PickupStatusEnum::values())];
             }
 
             if ($canEditShipper) {
@@ -351,7 +359,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         }
 
         if ($canEditOps && $this->shouldScopeToCurrentOps() && filled($data['ops_id'] ?? null) && (int) $data['ops_id'] !== (int) auth()->id()) {
-            $this->addError('editForm.ops_id', 'OPS chi duoc nhan Pickup cho chinh minh.');
+            $this->addError('editForm.ops_id', 'OPS chỉ được nhận Pickup cho chính mình.');
             return;
         }
 
@@ -401,10 +409,18 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             $updates['id_user'] = (int) $data['ops_id'];
         }
 
+        // Admin/Manager đổi trạng thái trực tiếp. Nếu đổi shipper bên dưới thì rule
+        // "về Mới tạo" sẽ ghi đè lựa chọn này.
+        if ($canEditStatus && filled($data['status'] ?? null)) {
+            $updates['status'] = PickupStatusEnum::from($data['status']);
+        }
+
         if ($canEditShipper && filled($data['shipper_id'] ?? null)) {
             $updates['id_shipper'] = (int) $data['shipper_id'];
 
-            if ($pickup->status === PickupStatusEnum::DA_HUY) {
+            // Đổi shipper (khác shipper hiện tại) → đưa phiếu về Mới tạo để shipper mới xác nhận lại.
+            if ((int) $data['shipper_id'] !== (int) $pickup->id_shipper
+                && $pickup->status !== PickupStatusEnum::MOI_TAO_PICKUP) {
                 $updates['status'] = PickupStatusEnum::MOI_TAO_PICKUP;
             }
         }
@@ -509,31 +525,58 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
             return false;
         }
 
-        if ($pickup->status === PickupStatusEnum::PICKUP_DA_LAY) {
+        // Mở được modal Sửa nếu có quyền chỉnh ít nhất một nhóm field.
+        return $this->canEditOpsForPickup($pickup)
+            || $this->canEditShipperForPickup($pickup)
+            || $this->canEditSenderForPickup($pickup)
+            || $this->canEditStatusForPickup($pickup);
+    }
+
+    /**
+     * Quyền đổi trực tiếp trạng thái phiếu trong modal Sửa.
+     * Chỉ Admin/Manager, và chỉ khi phiếu chưa ở trạng thái cuối (đã lấy / đã hủy).
+     */
+    public function canEditStatusForPickup(?Pickup $pickup = null): bool
+    {
+        if (! $pickup || $pickup->status?->isFinal()) {
             return false;
         }
 
-        if ($this->currentOpsCanAccessPickup($pickup)) {
+        return auth()->user()?->hasAnyRole(['admin', 'manager']) ?? false;
+    }
+
+    /**
+     * Quyền chọn OPS phụ trách phiếu.
+     * - Admin/Manager: mọi trạng thái.
+     * - CS: mọi phiếu, chỉ khi phiếu còn Mới tạo.
+     * - Sale (scoped): chỉ phiếu do mình tạo, khi còn Mới tạo.
+     * - OPS tự nhận phiếu bằng logic riêng trong saveEditPickup (không qua field này).
+     */
+    public function canEditOpsForPickup(?Pickup $pickup = null): bool
+    {
+        if (! $pickup) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['admin', 'manager'])) {
             return true;
         }
 
-        if ($this->currentSaleCreatedPickup($pickup)) {
-            return $this->canEditSenderForPickup($pickup);
+        if ($user->hasRole('cs')) {
+            return $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP;
         }
 
-        if ($this->shouldScopeToCurrentCtv()) {
-            return $this->currentCtvCreatedPickup($pickup)
-                && $this->canEditSenderForPickup($pickup);
+        if ($this->shouldScopeToCurrentSale()) {
+            return $this->currentSaleCreatedPickup($pickup)
+                && $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP;
         }
 
-        return $this->canEditOpsForPickup($pickup)
-            || $this->canEditShipperForPickup($pickup)
-            || $this->canEditSenderForPickup($pickup);
-    }
-
-    public function canEditOpsForPickup(?Pickup $pickup = null): bool
-    {
-        return (bool) $pickup && auth()->user()?->hasAnyRole(['admin', 'manager', 'cs']);
+        return false;
     }
 
     /**
@@ -560,57 +603,71 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         return auth()->user()?->hasAnyRole(['admin', 'manager', 'ops']) ?? false;
     }
 
+    /**
+     * Quyền chọn shipper cho phiếu.
+     * - Admin/Manager: mọi trạng thái.
+     * - OPS sở hữu phiếu: chỉ Mới tạo / Đã xác nhận.
+     * - CS/Sale/CTV: không bao giờ.
+     */
     public function canEditShipperForPickup(?Pickup $pickup = null): bool
     {
         if (! $pickup) {
             return false;
         }
 
+        if (auth()->user()?->hasAnyRole(['admin', 'manager'])) {
+            return true;
+        }
+
         if ($this->currentOpsCanAccessPickup($pickup)) {
             return in_array($pickup->status, [
                 PickupStatusEnum::MOI_TAO_PICKUP,
                 PickupStatusEnum::DA_XAC_NHAN,
-                PickupStatusEnum::DA_HUY,
             ], true);
-        }
-
-        if (in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true)) {
-            return auth()->user()?->hasAnyRole(['admin', 'manager', 'ops']);
-        }
-
-        if ($pickup->status === PickupStatusEnum::DA_HUY) {
-            return auth()->user()?->hasAnyRole(['admin', 'manager']);
         }
 
         return false;
     }
 
+    /**
+     * Quyền sửa thông tin người gửi.
+     * - Admin/Manager: mọi trạng thái.
+     * - OPS sở hữu phiếu: chỉ Mới tạo / Đã xác nhận.
+     * - CS: chỉ Mới tạo.
+     * - Sale/CTV (scoped): chỉ phiếu do mình tạo, khi còn Mới tạo.
+     */
     public function canEditSenderForPickup(?Pickup $pickup = null): bool
     {
+        if (! $pickup) {
+            return false;
+        }
+
+        if (auth()->user()?->hasAnyRole(['admin', 'manager'])) {
+            return true;
+        }
+
         if ($this->currentOpsCanAccessPickup($pickup)) {
             return in_array($pickup->status, [
                 PickupStatusEnum::MOI_TAO_PICKUP,
                 PickupStatusEnum::DA_XAC_NHAN,
-                PickupStatusEnum::PICKUP_DANG_LAY,
-                PickupStatusEnum::DA_HUY,
             ], true);
         }
 
-        // Sale (bị scope) chỉ được sửa thông tin người gửi trên pickup do chính mình tạo, khi phiếu còn ở trạng thái Mới tạo.
         if ($this->shouldScopeToCurrentSale()) {
             return $this->currentSaleCreatedPickup($pickup)
                 && $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP;
         }
 
-        // CTV (bị scope) chỉ được sửa thông tin người gửi trên pickup do chính mình tạo, khi phiếu còn ở trạng thái Mới tạo.
         if ($this->shouldScopeToCurrentCtv()) {
             return $this->currentCtvCreatedPickup($pickup)
                 && $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP;
         }
 
-        return (bool) $pickup
-            && in_array($pickup->status, [PickupStatusEnum::MOI_TAO_PICKUP, PickupStatusEnum::DA_XAC_NHAN], true)
-            && auth()->user()?->hasAnyRole(['admin', 'manager', 'sale', 'ctv', 'ops', 'cs']);
+        if (auth()->user()?->hasRole('cs')) {
+            return $pickup->status === PickupStatusEnum::MOI_TAO_PICKUP;
+        }
+
+        return false;
     }
 
     public function getSelectedVehicleProperty(): ?News

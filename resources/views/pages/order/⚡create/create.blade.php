@@ -2,6 +2,7 @@
     class="mx-auto space-y-6"
     x-data="{
         agreedToTerms: false,
+        submitting: false,
         isEmptyField(field) {
             if (field.type === 'checkbox') {
                 return !field.checked;
@@ -53,7 +54,14 @@
                 return;
             }
 
-            this.$wire.submit(this.agreedToTerms);
+            if (this.submitting) return;
+            this.submitting = true;
+
+            // Giữ khóa khi thành công (trang sẽ điều hướng sang chi tiết đơn);
+            // chỉ mở lại nút nếu submit ném lỗi để user thử lại.
+            this.$wire.submit(this.agreedToTerms).catch(() => {
+                this.submitting = false;
+            });
         }
     }"
 >
@@ -209,7 +217,7 @@
                     <a href="{{ route('orders.index') }}" class="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
                         Thoát
                     </a>
-                    <flux:button variant="primary" type="submit" x-bind:disabled="!agreedToTerms" :loading="false">Tạo đơn</flux:button>
+                    <flux:button variant="primary" type="submit" x-bind:disabled="!agreedToTerms || submitting" x-bind:loading="submitting">Tạo đơn</flux:button>
                 </div>
             </div>
         </div>

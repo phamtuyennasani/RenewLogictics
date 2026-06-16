@@ -10,11 +10,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    @include('partials.system-theme-script')
     @vite(['resources/css/app.css'])
     @livewireStyles
     @stack('styles')
 </head>
-<body class=" bg-neutral-50 font-sans antialiased h-screen overflow-hidden">
+<body class="system-shell app-shell h-screen overflow-hidden bg-neutral-50 font-sans text-neutral-900 antialiased transition-colors dark:bg-slate-950 dark:text-slate-100">
     @persist('loader')
     <x-global-loader />
     @endpersist
@@ -29,7 +30,7 @@
             @persist('header')
             <x-header :page-title="$pageTitle ?? null" />
             @endpersist
-            <main class="overflow-y-auto p-6 flex-1">
+            <main class="flex-1 overflow-y-auto p-6">
                 {{$slot}}
             </main>
             @persist('footer')
@@ -41,7 +42,7 @@
                     return optional(\Illuminate\Support\Facades\DB::table('static')->where('type', 'bao-mat')->first())->contentvi ?? '';
                 });
             @endphp
-            <footer class="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-6 shrink-0 z-10">
+            <footer class="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-6 shrink-0 z-10 dark:border-white/10 dark:bg-slate-950">
                 <div class="text-sm text-neutral-500 mb-0 flex items-center">
                     <flux:modal.trigger name="footer-dieu-khoan">
                     <a href="javascript:void(0)" class="hover:text-primary-700">Điều khoản sử dụng</a>

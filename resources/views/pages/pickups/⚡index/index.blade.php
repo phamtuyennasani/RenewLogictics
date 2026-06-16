@@ -388,6 +388,7 @@
                 $canEditOps = $this->canEditOpsForPickup($editingPickup);
                 $canEditShipper = $this->canEditShipperForPickup($editingPickup);
                 $canEditSender = $this->canEditSenderForPickup($editingPickup);
+                $canEditStatus = $this->canEditStatusForPickup($editingPickup);
             @endphp
 
             <form id="pickup-edit-form" wire:submit="saveEditPickup" class="space-y-5">
@@ -437,8 +438,27 @@
                         </flux:field>
                     @endif
 
+                    @if($canEditStatus)
+                        <flux:field class="pickup-create-field">
+                            <flux:label>Trạng thái phiếu</flux:label>
+                            <select
+                                wire:model="editForm.status"
+                                data-livewire-model="editForm.status"
+                                data-livewire-live="false"
+                                data-placeholder="Chọn trạng thái"
+                                class="tomselectEml pickup-create-select"
+                                autocomplete="off"
+                            >
+                                @foreach(\App\Enums\PickupStatusEnum::cases() as $statusCase)
+                                    <option value="{{ $statusCase->value }}">{{ $statusCase->label() }}</option>
+                                @endforeach
+                            </select>
+                            @error('editForm.status') <flux:error>{{ $message }}</flux:error> @enderror
+                        </flux:field>
+                    @endif
+
                     @if($canEditSender)
-                        @if($canEditOps || $canEditShipper)
+                        @if($canEditOps || $canEditShipper || $canEditStatus)
                             <div class="md:col-span-3 border-t border-neutral-100"></div>
                         @endif
 

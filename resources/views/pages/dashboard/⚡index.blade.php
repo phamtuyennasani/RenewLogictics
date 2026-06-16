@@ -624,6 +624,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         <script>
             (() => {
                 let chart = null;
+                let latestTimelineItems = null;
                 let filterRetryCount = 0;
 
                 const filterRoot = () => document.getElementById('system-statistics-page');
@@ -749,6 +750,10 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     return Number(value || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' KG';
                 }
 
+                function isDarkTheme() {
+                    return document.documentElement.classList.contains('dark');
+                }
+
                 function buildAreaGradient(ctx, color, alpha) {
                     const gradient = ctx.createLinearGradient(0, 0, 0, 350);
                     gradient.addColorStop(0, color.replace(')', `, ${alpha})`).replace('rgb', 'rgba'));
@@ -757,6 +762,8 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                 }
 
                 function buildChartOptions(hideMoney) {
+                    const dark = isDarkTheme();
+
                     return {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -782,10 +789,10 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                         },
                         tooltip: {
                             enabled: true,
-                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
-                            titleColor: '#0f172a',
-                            bodyColor: '#475569',
-                            borderColor: 'rgba(148, 163, 184, 0.3)',
+                            backgroundColor: dark ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.98)',
+                            titleColor: dark ? '#f8fafc' : '#0f172a',
+                            bodyColor: dark ? '#cbd5e1' : '#475569',
+                            borderColor: dark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(148, 163, 184, 0.3)',
                             borderWidth: 1,
                             cornerRadius: 12,
                             padding: 14,
@@ -1062,7 +1069,8 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     const hideMoney = container.dataset.hideMoney === '1';
                     const hideCostProfit = container.dataset.hideCostProfit === '1';
                     const saleLabel = container.dataset.saleLabel || 'Tổng cước bán';
-                    const data = chartData(items ?? initialItems(container), hideMoney, hideCostProfit, saleLabel);
+                    latestTimelineItems = items ?? latestTimelineItems ?? initialItems(container);
+                    const data = chartData(latestTimelineItems, hideMoney, hideCostProfit, saleLabel);
 
                     if (chart) {
                         chart.destroy();
@@ -1087,6 +1095,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                 });
                 window.addEventListener('system-statistics-filters-synced', (event) => syncSystemFilters(event.detail?.filters || {}));
                 window.addEventListener('system-yearly-timeline-updated', (event) => render(event.detail?.data || []));
+                window.addEventListener('system-theme-changed', () => render(latestTimelineItems));
                 window.addEventListener('system-customers-updated', (event) => updateCtvTomSelect(event.detail?.customers || []));
             })();
         </script>

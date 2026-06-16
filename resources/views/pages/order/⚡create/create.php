@@ -702,21 +702,39 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             return;
         }
         try {
-            $order = app(CreateOrderAction::class)->execute(new OrderFormData(
-                idSale: $this->idSale,
-                idCustomer: $this->idCustomer,
-                service: $service,
-                sender: $sender,
-                receiver: $receiver,
-                packages: $packages,
-                invoiceItems: $this->invoices,
-                notes: trim((string) ($this->ghichu['note'] ?? '')),
-                saveInfoSender: $this->saveInfoSender ?? false,
-                saveInfoReceiver: $this->saveInfoReceiver ?? false,
-                dim: $this->dim,
-                phuphihaiquan: $phuphihaiquan,
-                orderPhotos: $this->ghichu['photos'] ?? [],
-            ));
+            // Atomic lock theo user: chặn tạo đơn trùng khi double-submit / mở 2 tab
+            // (request thứ hai lọt tới server trước khi nút client kịp disable).
+            $lock = Cache::lock('order:create:user:' . auth()->id(), 15);
+
+            if (! $lock->get()) {
+                Flux::toast(
+                    duration: 5000,
+                    heading: 'Đang xử lý',
+                    text: 'Đơn hàng của bạn đang được tạo, vui lòng đợi trong giây lát.',
+                    variant: 'warning'
+                );
+                return;
+            }
+
+            try {
+                $order = app(CreateOrderAction::class)->execute(new OrderFormData(
+                    idSale: $this->idSale,
+                    idCustomer: $this->idCustomer,
+                    service: $service,
+                    sender: $sender,
+                    receiver: $receiver,
+                    packages: $packages,
+                    invoiceItems: $this->invoices,
+                    notes: trim((string) ($this->ghichu['note'] ?? '')),
+                    saveInfoSender: $this->saveInfoSender ?? false,
+                    saveInfoReceiver: $this->saveInfoReceiver ?? false,
+                    dim: $this->dim,
+                    phuphihaiquan: $phuphihaiquan,
+                    orderPhotos: $this->ghichu['photos'] ?? [],
+                ));
+            } finally {
+                $lock->release();
+            }
 
             Flux::toast(
                 duration: 5000,
