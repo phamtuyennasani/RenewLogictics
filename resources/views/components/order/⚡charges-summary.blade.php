@@ -206,6 +206,7 @@ new class extends Component
                 @endif
             @endif
             {{-- Trạng thái chốt cước --}}
+            @unless(auth()->user()?->hasRole('ctv'))
             <div class="mt-4 rounded-lg border {{ $this->chotCuocStatus() ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50' }} p-3">
                 <p class="text-sm font-semibold {{ $this->chotCuocStatus() ? 'text-emerald-800' : 'text-amber-800' }}">
                     {{ $this->chotCuocStatus() ? 'Cước bán đã được chốt' : 'Cước bán chưa được chốt' }}
@@ -214,6 +215,7 @@ new class extends Component
                     {{ $this->chotCuocLabel() }}
                 </p>
             </div>
+            @endunless
         </div>
 
         {{-- ===================== CƯỚC VỐN ===================== --}}

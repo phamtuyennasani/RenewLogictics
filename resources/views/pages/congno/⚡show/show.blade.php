@@ -297,7 +297,9 @@
                 </dl>
             </section>
 
-            <livewire:debt.activity-history :debt="$debt" wire:key="customer-debt-activity-{{ $debt->id }}" />
+            @unless (auth()->user()->hasRole('ctv'))
+                <livewire:debt.activity-history :debt="$debt" wire:key="customer-debt-activity-{{ $debt->id }}" />
+            @endunless
 
             @if ($canCreateInvoice && $this->canCreatePaymentInvoice() && $availableForInvoice > 0)
                 <section class="rounded-xl border border-primary-100 bg-white p-5 shadow-sm">
@@ -350,7 +352,7 @@
         </aside>
     </div>
 
-    @if ($canCreateInvoice || $sortedInvoices->isNotEmpty())
+    @if (! auth()->user()->hasRole('ctv') && ($canCreateInvoice || $sortedInvoices->isNotEmpty()))
         <section class="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div class="flex flex-col gap-3 border-b border-neutral-100 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
                 <div>

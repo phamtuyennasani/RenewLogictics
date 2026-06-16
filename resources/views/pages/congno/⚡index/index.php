@@ -46,12 +46,14 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
     public ?string $note = null;
 
     public bool $isSaleUser = false;
+    public bool $isCtvUser = false;
 
     public function mount(): void
     {
         $user = auth()->user();
 
         $this->isSaleUser = $user->hasRole('sale');
+        $this->isCtvUser = $user->hasRole('ctv');
         $this->fromDate ??= now()->subDays(30)->format('Y-m-d');
         $this->toDate ??= now()->format('Y-m-d');
         $this->saleId = $this->isSaleUser ? $user->id : null;

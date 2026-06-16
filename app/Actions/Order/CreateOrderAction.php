@@ -171,16 +171,16 @@ class CreateOrderAction
         $totalPhuphi = array_sum(array_map(fn ($item) => (float) ($item['total'] ?? 0), $phuphihaiquan));
 
         $priceMeta = [
-            'service_price_list_id' => $priceList->id,
-            'service_price_list_name' => $priceList->name,
-            'service_price_detail_id' => $detail->id,
-            'service_price_quycach' => $detail->quycach,
+            'service_price_list_id' => $priceList?->id,
+            'service_price_list_name' => $priceList?->name,
+            'service_price_detail_id' => $detail?->id,
+            'service_price_quycach' => $detail?->quycach,
             'service_price_weight' => $chargeableWeight,
-            'service_price_weight_from' => (float) $detail->weight_from,
-            'service_price_weight_to' => (float) $detail->weight_to,
-            'service_price_sale_unit' => (float) $detail->sale_price,
-            'service_price_cost_unit' => (float) $detail->cost_price,
-            'service_price_base_unit' => (float) $detail->base_price,
+            'service_price_weight_from' => (float) ($detail?->weight_from ?? 0),
+            'service_price_weight_to' => (float) ($detail?->weight_to ?? 0),
+            'service_price_sale_unit' => (float) ($detail?->sale_price ?? 0),
+            'service_price_cost_unit' => (float) ($detail?->cost_price ?? 0),
+            'service_price_base_unit' => (float) ($detail?->base_price ?? 0),
             'service_price_sale_amount' => (float) $resolvedPrice['sale_price'],
             'service_price_cost_amount' => (float) $resolvedPrice['cost_price'],
             'service_price_base_amount' => (float) $resolvedPrice['base_price'],
@@ -191,21 +191,21 @@ class CreateOrderAction
             priceKey: 'dongiaban',
             price: (float) $resolvedPrice['sale_price'],
             totalPhuphi: $totalPhuphi,
-            meta: $priceMeta + ['service_price_unit' => (float) $detail->sale_price],
+            meta: $priceMeta + ['service_price_unit' => (float) ($detail?->sale_price ?? 0)],
         );
         $this->paymentDefault['cuocvon'] = $this->buildPaymentGroup(
             group: $this->paymentDefault['cuocvon'],
             priceKey: 'dongiavon',
             price: (float) $resolvedPrice['cost_price'],
             totalPhuphi: $totalPhuphi,
-            meta: $priceMeta + ['service_price_unit' => (float) $detail->cost_price],
+            meta: $priceMeta + ['service_price_unit' => (float) ($detail?->cost_price ?? 0)],
         );
         $this->paymentDefault['cuocgoc'] = $this->buildPaymentGroup(
             group: $this->paymentDefault['cuocgoc'],
             priceKey: 'dongiagoc',
             price: (float) $resolvedPrice['base_price'],
             totalPhuphi: $totalPhuphi,
-            meta: $priceMeta + ['service_price_unit' => (float) $detail->base_price],
+            meta: $priceMeta + ['service_price_unit' => (float) ($detail?->base_price ?? 0)],
         );
 
         $this->paymentDefault['payment_loinhuan'] = $this->profitSnapshot(
@@ -429,7 +429,7 @@ class CreateOrderAction
 
     protected function saveContacts(OrderFormData $formData, Order $order): void
     {
-        if ($formData->saveInfoSender && $formData->idCtv) {
+        if ($formData->saveInfoSender) {
             $this->saveSenderContact($formData, $order);
         }
 
@@ -463,7 +463,7 @@ class CreateOrderAction
                 'email' => $sender['email'] ?? null,
                 'id_province' => $sender['province_id'] ?? null,
                 'id_ward' => $sender['ward_id'] ?? null,
-                'id_ctv' => $formData->idCtv,
+                'id_ctv' => $formData->idCustomer ?: null,
                 'type' => 'sender',
                 'options' => [
                     'tenlienhe' => $sender['fullname'],
@@ -483,7 +483,7 @@ class CreateOrderAction
                 'fullname' => $receiver['company'],
                 'phone' => $receiver['phone'],
                 'email' => $receiver['email'] ?? null,
-                'id_ctv' => $formData->idCtv,
+                'id_ctv' => $formData->idCustomer ?: null,
                 'id_sale' => $formData->idSale,
                 'id_khachhang' => $formData->sender['type'] === 'ctv' ? 0 : ($formData->sender['id'] ?? 0),
                 'type' => 'receiver',

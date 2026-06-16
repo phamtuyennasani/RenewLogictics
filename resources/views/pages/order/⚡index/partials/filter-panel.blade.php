@@ -15,7 +15,7 @@
         </div>
 
         <div class="order-filter-content">
-            <section class="order-filter-section order-filter-section-time">
+            <section class="order-filter-section order-filter-section-time{{ $role === 'ctv' ? ' order-filter-section-wide' : '' }}">
                 <div class="order-filter-section-heading">
                     <div>
                         <h3>Thời gian</h3>
@@ -43,6 +43,7 @@
                 </div>
             </section>
 
+            @if ($role !== 'ctv')
             <section class="order-filter-section">
                 <div class="order-filter-section-heading">
                     <div>
@@ -76,6 +77,7 @@
                     </div>
                 </div>
             </section>
+            @endif
 
             <section class="order-filter-section order-filter-section-wide">
                 <div class="order-filter-section-heading">

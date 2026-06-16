@@ -91,7 +91,7 @@ class Sidebar extends Component
                     'route' => 'pickups.index',
                     'icon' => 'pickup',
                     'label' => 'Quản lý Pickup',
-                    'roles' => ['admin', 'manager', 'ops', 'shipper', 'sale'],
+                    'roles' => ['admin', 'manager', 'ops', 'shipper', 'sale', 'ctv'],
                 ],
                 [
                     'route' => 'scan',

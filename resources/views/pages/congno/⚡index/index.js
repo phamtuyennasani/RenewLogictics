@@ -128,6 +128,7 @@
         const selected = new Set();
         const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
         let customerRequestId = 0;
+        const isCtvUser = root.dataset.isCtv === 'true';
 
         const filters = () => ({
             status: field('status')?.value || '',
@@ -136,6 +137,28 @@
             saleId: field('saleId')?.value || '',
             customerId: field('customerId')?.value || '',
         });
+
+        const allColumns = [
+            { data: 'check', orderable: false, searchable: false },
+            { data: 'debt_code', orderable: false, searchable: false },
+            { data: 'einvoice_info', orderable: false, searchable: false },
+            { data: 'status_badge', orderable: false, searchable: false },
+            { data: 'customer_info', orderable: false, searchable: false },
+            { data: 'sale_info', orderable: false, searchable: false },
+            { data: 'total_amount', orderable: false, searchable: false },
+            { data: 'paid_amount_html', orderable: false, searchable: false },
+            { data: 'remaining_amount_html', orderable: false, searchable: false },
+            { data: 'actions', orderable: false, searchable: false },
+        ];
+        const allColumnWidths = ['40px', '100px', '100px', '200px', '300px', '200px', '100px', '100px', '100px', '100px'];
+
+        const columns = isCtvUser
+            ? allColumns.filter((column) => !['check', 'einvoice_info', 'customer_info'].includes(column.data))
+            : allColumns;
+        const columnWidths = isCtvUser
+            ? allColumnWidths.filter((_width, index) => !['check', 'einvoice_info', 'customer_info'].includes(allColumns[index].data))
+            : allColumnWidths;
+        const columnDefs = columnWidths.map((width, index) => ({ targets: index, width }));
 
         const table = jQuery(tableEl).DataTable({
             processing: true,
@@ -159,30 +182,8 @@
                 emptyTable: emptyStateHtml(),
                 zeroRecords: emptyStateHtml('Không có công nợ phù hợp', 'Thử đổi từ khóa, nới rộng bộ lọc hoặc tạo công nợ mới từ các order chưa chốt.'),
             },
-            columns: [
-                { data: 'check', orderable: false, searchable: false },
-                { data: 'debt_code', orderable: false, searchable: false },
-                { data: 'einvoice_info', orderable: false, searchable: false },
-                { data: 'status_badge', orderable: false, searchable: false },
-                { data: 'customer_info', orderable: false, searchable: false },
-                { data: 'sale_info', orderable: false, searchable: false },
-                { data: 'total_amount', orderable: false, searchable: false },
-                { data: 'paid_amount_html', orderable: false, searchable: false },
-                { data: 'remaining_amount_html', orderable: false, searchable: false },
-                { data: 'actions', orderable: false, searchable: false },
-            ],
-            columnDefs: [
-                { targets: 0, width: '40px' },
-                { targets: 1, width: '100px' },
-                { targets: 2, width: '100px' },
-                { targets: 3, width: '200px' },
-                { targets: 4, width: '300px' },
-                { targets: 5, width: '200px' },
-                { targets: 6, width: '100px' },
-                { targets: 7, width: '100px' },
-                { targets: 8, width: '100px' },
-                { targets: 9, width: '100px' },
-            ],
+            columns,
+            columnDefs,
             initComplete: markReady,
         });
         markReady();

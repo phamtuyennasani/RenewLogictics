@@ -12,13 +12,15 @@ new class extends Component
     #[Reactive]
     public $listSender = [];
     public $showSelectSender = false;
+    public bool $lockSender = false;
     #[Modelable]
     public $sender;
     public $idSale;
-    public function mount($listCustomer, $listSender, $idSale){
+    public function mount($listCustomer, $listSender, $idSale, $lockSender = false){
         $this->listCustomer = $listCustomer;
         $this->listSender = $listSender;
         $this->idSale = $idSale;
+        $this->lockSender = $lockSender;
     }
 
     public function toggleSelectSender()
@@ -65,10 +67,12 @@ $inputErrorClass = 'border-red-500 focus:ring-red-500 focus:border-red-500';
             <div wire:ignore wire:key="select-sender-{{$idSale}}">
                  <flux:field >
                     <flux:label>Chọn người gủi từ danh sách có sẵn</flux:label>
-                    <select data-template='custom-sender' class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="sender-select" autocomplete="off">
-                        <option value=0>Người Gửi Mới</option>
+                    <select data-template='custom-sender' @disabled($lockSender) class="tomselectEml tomselectEml-getCustomer" data-placeholder="Chọn người gửi từ danh sách" id="sender-select" autocomplete="off">
+                        @unless($lockSender)
+                            <option value=0>Người Gửi Mới</option>
+                        @endunless
                         @foreach($listCustomer as $item)
-                            <option value="{{ $item['id'] }}" data-attr='@json($item)'>AccNo. {{ $item['code'] }} - {{ $item['fullname'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['company_name'] }} </option>
+                            <option value="{{ $item['id'] }}" data-attr='@json($item)' @selected($lockSender && ($sender['id'] ?? null) == $item['id'])>AccNo. {{ $item['code'] }} - {{ $item['fullname'] }} - {{ $item['phone'] }} - {{ $item['email'] }} - {{ $item['company_name'] }} </option>
                         @endforeach
                     </select>
                 </flux:field>

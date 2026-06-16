@@ -83,7 +83,7 @@
                 <div class="hidden lg:block"></div>
             @endif
             <div class="hidden lg:block"></div>
-            <div><livewire:order.sender wire:model="sender" :list-customer="$listCustomer" :list-sender="$listSender" :id-sale="$idSale" wire:key="sender" /></div>
+            <div><livewire:order.sender wire:model="sender" :list-customer="$listCustomer" :list-sender="$listSender" :id-sale="$idSale" :lock-sender="$lockSender" wire:key="sender" /></div>
             <div><livewire:order.receiver wire:model="receiver" :list-receiver="$listReceiver" :id-sale="$idSale" :sender-id="$this->sender['id']" wire:key="receiver" /></div>
             <div class="col-span-full">
                 <livewire:order.service wire:model="service" :item-services="$itemServices" :can-see-extra-services="auth()->user()->hasAnyRole(['admin','cs'])" wire:key="service" />

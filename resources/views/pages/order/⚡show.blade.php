@@ -745,13 +745,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 @endif
             </div>
             <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500">
-                <span>Tạo lúc {{ $order->created_at?->format('d/m/Y H:i') ?? '—' }}</span>
+                                <span>Tạo lúc {{ $order->created_at?->format('d/m/Y H:i') ?? '—' }}</span>
+                @unless(auth()->user()->hasRole('ctv'))
                 <span>-</span>
                 <span>Sale: <span class="font-medium text-neutral-700">{{ $order->sale?->fullname ?: $order->sale?->username ?: '—' }}</span></span>
                 @if($customerCompanyName)
                     <span>-</span>
                     <span>Khách hàng: <span class="font-medium text-neutral-700">{{ $customerCompanyName }}</span></span>
                 @endif
+                @endunless
             </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">

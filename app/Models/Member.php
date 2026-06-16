@@ -122,10 +122,15 @@ class Member extends Model
 
     public function scopeVisibleTo($query, ?User $user = null)
     {
-        return $query->when(
-            $user?->hasAnyRole(['sale', 'SALE']),
-            fn ($query) => $query->where('id_sale', $user->id)
-        );
+        return $query
+            ->when(
+                $user?->hasAnyRole(['sale', 'SALE']),
+                fn ($query) => $query->where('id_sale', $user->id)
+            )
+            ->when(
+                $user?->hasAnyRole(['ctv', 'CTV']),
+                fn ($query) => $query->where('id_ctv', $user->id)
+            );
     }
 
     // Computed attributes

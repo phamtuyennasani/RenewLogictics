@@ -102,6 +102,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
     public bool $saveInfoReceiver = false;
     public bool $agreedToTerms = false;
     public bool $showSaleSelector = true;
+    public bool $lockSender = false;
     #[Locked]
     public float $dim;
 
@@ -120,6 +121,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             $this->dim = $user->options['dim'] ?? $this->dim;
             $this->idSale = $user->id_sale;
             $this->showSaleSelector = false;
+            $this->lockSender = true;
         }
 
         $this->listSale = User::query()
@@ -128,7 +130,11 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             ->get(['id', 'fullname', 'username','code'])
             ->toArray();
 
-        if ($this->idSale) {
+        if ($user->hasRole('ctv')) {
+            $this->loadCurrentCtvAsCustomer($user);
+            $this->fillSenderFromCurrentCustomer();
+            $this->syncDanhSachGui();
+        } elseif ($this->idSale) {
             $this->loadCustomersBySale($this->idSale);
         }
         $this->syncReceivers();
@@ -295,6 +301,53 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             ->orderBy('user.fullname')
             ->get()
             ->toArray();
+    }
+
+    protected function loadCurrentCtvAsCustomer(User $user): void
+    {
+        $this->listCustomer = User::query()
+            ->select([
+                'user.id',
+                'user.fullname',
+                'user.username',
+                'user.code',
+                'user.email',
+                'user.phone',
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.company_name')) as company_name"),
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.company_short_name')) as company_short_name"),
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.address_detail')) as address"),
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.city_id')) as city_id"),
+                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(table_user.options, '$.company.ward_id')) as ward_id"),
+                DB::raw("'khachhang' as type")
+            ])
+            ->whereKey($user->id)
+            ->get()
+            ->toArray();
+    }
+
+    protected function fillSenderFromCurrentCustomer(): void
+    {
+        $customer = $this->listCustomer[0] ?? null;
+
+        if (!$customer) {
+            return;
+        }
+
+        $this->sender = [
+            'id' => $customer['id'] ?? null,
+            'company' => $customer['company_name'] ?? '',
+            'company_short_name' => $customer['company_short_name'] ?? '',
+            'fullname' => $customer['fullname'] ?? '',
+            'phone' => $customer['phone'] ?? '',
+            'email' => $customer['email'] ?? '',
+            'country' => 'VIETNAM',
+            'address' => $customer['address'] ?? '',
+            'id_city' => $customer['city_id'] ?? '',
+            'id_ward' => $customer['ward_id'] ?? '',
+            'type' => $customer['type'] ?? 'khachhang',
+        ];
+
+        $this->lastSyncedSenderId = $this->sender['id'];
     }
 
     protected function refreshCustomerSelectOptions(): void

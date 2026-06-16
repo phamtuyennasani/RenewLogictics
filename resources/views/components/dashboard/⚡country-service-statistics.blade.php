@@ -63,14 +63,17 @@ new class extends Component {
     </div>
 
     <div class="overflow-x-auto">
+        @php $isCtv = auth()->user()->hasRole('ctv'); @endphp
         <table class="min-w-[1000px] w-full text-sm">
             <thead class="bg-neutral-50 text-left text-neutral-500">
                 <tr>
                     <th class="px-4 py-3 font-medium">Tên quốc gia</th>
                     <th class="px-4 py-3 font-medium">SL đơn hàng</th>
                     <th class="px-4 py-3 text-right font-medium">Cân nặng tính phí</th>
-                    <th class="px-4 py-3 text-right font-medium">Doanh thu</th>
+                                        <th class="px-4 py-3 text-right font-medium">{{ $isCtv ? 'Tổng cước' : 'Doanh thu' }}</th>
+                    @unless ($isCtv)
                     <th class="px-4 py-3 text-right font-medium">Tỷ suất</th>
+                    @endunless
                     <th class="px-4 py-3 text-right font-medium">Tỷ lệ giao</th>
                     <th class="w-12 px-4 py-3"></th>
                 </tr>
@@ -95,8 +98,10 @@ new class extends Component {
                             </div>
                         </td>
                         <td class="px-4 py-3 text-right text-neutral-500">{{ $this->number($country['chargedWeight'], 2) }} KG</td>
-                        <td class="px-4 py-3 text-right font-semibold text-primary-600">{{ $this->money($country['revenue']) }}</td>
+                                                <td class="px-4 py-3 text-right font-semibold text-primary-600">{{ $this->money($country['revenue']) }}</td>
+                        @unless ($isCtv)
                         <td class="px-4 py-3 text-right">{{ data_get($report, 'canSeeFinance') ? $this->percent($country['profitMargin']) : '—' }}</td>
+                        @endunless
                         <td class="px-4 py-3 text-right">{{ $this->percent($country['deliveryRate']) }}</td>
                         <td class="px-4 py-3 text-right">
                             <button type="button" class="rounded p-1 text-primary-600 hover:bg-primary-50" @click="expanded[{{ $index }}] = !expanded[{{ $index }}]" aria-label="Xem chi tiết dịch vụ">
@@ -106,8 +111,8 @@ new class extends Component {
                             </button>
                         </td>
                     </tr>
-                    <tr x-show="expanded[{{ $index }}]" x-cloak>
-                        <td colspan="7" class="bg-neutral-50 px-4 py-3">
+                                        <tr x-show="expanded[{{ $index }}]" x-cloak>
+                        <td colspan="{{ $isCtv ? 6 : 7 }}" class="bg-neutral-50 px-4 py-3">
                             <div class="grid grid-cols-7 gap-x-4 gap-y-2">
                                 <div class="text-neutral-500">Dịch vụ</div>
                                 <div class="text-neutral-500">Số lượng</div>
@@ -131,7 +136,7 @@ new class extends Component {
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-10 text-center text-neutral-500">
+                        <td colspan="{{ $isCtv ? 6 : 7 }}" class="px-4 py-10 text-center text-neutral-500">
                             Chưa có dữ liệu quốc gia trong khoảng lọc.
                         </td>
                     </tr>

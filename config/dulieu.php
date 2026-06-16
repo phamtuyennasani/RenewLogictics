@@ -46,10 +46,9 @@ return [
         'group'  => 'Dịch vụ',
         'title'  => 'Dịch vụ đi kèm',
         'route_group' => 'dichvu',
-        'columns'    => ['namevi' => 'Tên dịch vụ', 'descvi' => 'Mô tả'],
+        'columns'    => ['namevi' => 'Tên dịch vụ'],
         'formFields' => [
             'namevi' => ['label' => 'Tên dịch vụ', 'type' => 'text', 'required' => true],
-            'descvi' => ['label' => 'Mô tả', 'type' => 'textarea'],
             'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
         ],
         'canCreate' => true,
@@ -61,10 +60,9 @@ return [
         'group'  => 'Dịch vụ',
         'route_group' => 'dichvu',
         'title'  => 'Chi nhánh nhận hàng',
-        'columns'    => ['namevi' => 'Tên chi nhánh', 'descvi' => 'Địa chỉ'],
+        'columns'    => ['namevi' => 'Tên chi nhánh'],
         'formFields' => [
             'namevi' => ['label' => 'Tên chi nhánh', 'type' => 'text', 'required' => true],
-            'descvi' => ['label' => 'Địa chỉ', 'type' => 'textarea'],
             'numb'   => ['label' => 'Số thứ tự', 'type' => 'number'],
         ],
         'canCreate' => true,

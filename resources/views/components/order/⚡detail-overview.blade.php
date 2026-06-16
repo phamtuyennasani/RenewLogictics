@@ -839,6 +839,7 @@ new class extends Component
                             {{ $this->optionName('tinhtrangdon', data_get($service, 'tinhtrangdon')) }}
                         </p>
                     </div>
+                                        @unless(auth()->user()->hasRole('ctv'))
                     <div>
                         <div class="flex items-center justify-between gap-2">
                             <p class="text-xs text-neutral-400">CS</p>
@@ -865,6 +866,7 @@ new class extends Component
                         </div>
                         <p class="font-medium text-neutral-700">{{ $order->ops?->fullname ?: $order->ops?->username ?: '—' }}</p>
                     </div>
+                    @endunless
                 </div>
             </div>
         </section>

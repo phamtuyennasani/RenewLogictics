@@ -95,11 +95,12 @@
                         @php
                             $itemUrl = route($item['route'], ($item['route_params'] ?? []));
                             $itemPath = parse_url($itemUrl, PHP_URL_PATH) ?: '/';
-                            $activePrefix = '/' . ltrim($item['startsWith'] ?? trim($itemPath, '/'), '/');
+                            $hasStartsWith = ! empty($item['startsWith']);
+                            $activePrefix = $hasStartsWith ? '/' . ltrim($item['startsWith'], '/') : $itemPath;
                         @endphp
                         <a href="{{ $itemUrl }}" wire:navigate
                            class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 group"
-                           :class="(currentPath === '{{ $itemPath }}' || currentPath.startsWith('{{ rtrim($activePrefix, '/') }}/'))
+                           :class="(currentPath === '{{ $itemPath }}'{{ $hasStartsWith ? " || currentPath.startsWith('" . rtrim($activePrefix, '/') . "/')" : '' }})
                                 ? 'bg-primary-50 text-primary-700'
                                 : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'"
                            @click="openItem = null">

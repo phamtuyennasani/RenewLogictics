@@ -145,8 +145,14 @@ class SystemStatisticsService
             'canSeeFinance' => ! $isSale && ! $isCtv,
             // OPS chỉ xem số lượng đơn + cân nặng, không xem các con số liên quan tiền.
             'hideMoney' => $isOps,
-            // Sale: trên biểu đồ năm chỉ thấy cước bán, ẩn cước vốn và lợi nhuận.
-            'hideCostProfit' => $isSale,
+            // Sale & CTV: trên biểu đồ năm chỉ thấy cước bán, ẩn cước vốn và lợi nhuận.
+            'hideCostProfit' => $isSale || $isCtv,
+            // CTV/OPS không xem box so sánh doanh số giữa các sale.
+            'hideSaleStats' => $isOps || $isCtv,
+            // CTV/OPS không xem bảng xếp hạng CTV / khách hàng.
+            'hideCustomerRanking' => $isOps || $isCtv,
+            // CTV: biểu đồ là góc nhìn khách hàng → gọi "Cước bán" là "Tổng cước".
+            'isCustomerChart' => $isCtv,
         ];
     }
 
@@ -295,9 +301,10 @@ class SystemStatisticsService
         $total = $debts->sum(fn (CongNo $debt) => (float) $debt->total_cuocban);
         $paid = $debts->sum(fn (CongNo $debt) => (float) $debt->paid_amount);
         $overdue = $debts->filter(fn (CongNo $debt) => $this->isOverdue($debt->hanthanhtoan, $debt->status));
+        $unpaid = $debts->filter(fn (CongNo $debt) => (float) $debt->total_cuocban - (float) $debt->paid_amount > 0);
 
         return [
-            'count' => $debts->count(),
+            'count' => $unpaid->count(),
             'total' => $total,
             'paid' => $paid,
             'remaining' => max(0, $total - $paid),

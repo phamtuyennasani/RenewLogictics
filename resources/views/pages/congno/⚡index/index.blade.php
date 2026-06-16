@@ -5,6 +5,7 @@
     data-ready="false"
     data-routes='@json($this->routes())'
     data-datatables-language-url="{{ asset('assets/datatables/vi.json') }}"
+    data-is-ctv="{{ $isCtvUser ? 'true' : 'false' }}"
 >
     <div class="component-cloak-content space-y-4">
         <section class="space-y-4">
@@ -136,8 +137,10 @@
             <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <flux:input type="search" id="debts-search" icon="magnifying-glass" placeholder="Tìm mã công nợ, sale, khách hàng..." class="lg:max-w-md" />
                 <div class="flex items-center gap-2 text-sm text-neutral-600">
+                    @unless ($isCtvUser)
                     <span><span data-selected-count>0</span> công nợ đã chọn</span>
                     <span class="h-1 w-1 rounded-full bg-neutral-300"></span>
+                    @endunless
                     <label class="inline-flex items-center gap-2">
                         <span>Hiển thị</span>
                         <select id="debts-page-size" class="h-8 rounded-lg border border-neutral-200 bg-white px-2 text-sm font-medium text-neutral-700">
@@ -155,6 +158,7 @@
                     <table id="debts-table" class="w-full min-w-[1280px] text-left text-sm">
                         <thead class="bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                             <tr>
+                                @unless ($isCtvUser)
                                 <th class="w-12 px-4 py-3 text-center">
                                     <label class="relative mx-auto flex w-fit cursor-pointer select-none items-center justify-center">
                                         <input type="checkbox" id="debts-check-all" class="peer sr-only">
@@ -164,10 +168,15 @@
                                         </svg>
                                     </label>
                                 </th>
+                                @endunless
                                 <th class="px-3 py-3">Mã công nợ</th>
+                                @unless ($isCtvUser)
                                 <th class="px-3 py-3">Số hóa đơn</th>
+                                @endunless
                                 <th class="px-3 py-3">Trạng thái</th>
+                                @unless ($isCtvUser)
                                 <th class="px-3 py-3">Khách hàng</th>
+                                @endunless
                                 <th class="px-3 py-3">Sale phụ trách</th>
                                 <th class="px-3 py-3 text-center">Tổng cước</th>
                                 <th class="px-3 py-3 text-center">Đã thu</th>
@@ -216,6 +225,7 @@
                     </div>
                 </section>
 
+                @unless ($isCtvUser)
                 <section class="debt-filter-section">
                     <div class="debt-filter-section-heading">
                         <div>
@@ -257,6 +267,7 @@
                         </div>
                     </div>
                 </section>
+                @endunless
 
                 <section class="debt-filter-section">
                     <div class="debt-filter-section-heading">
@@ -265,7 +276,7 @@
                             <p>Tiến trình chốt cước và thanh toán</p>
                         </div>
                     </div>
-                    <div class="debt-filter-grid debt-filter-grid-3">
+                    <div class="debt-filter-grid debt-filter-grid-1">
                         <div class="debt-filter-field">
                             <label class="debt-filter-label">Trạng thái công nợ</label>
                             <select

@@ -290,17 +290,18 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
             <x-stat-card title="Cân nặng tính phí" value="{{ $this->weight(data_get($report, 'orders.chargedWeight', 0)) }}" meta="Theo đơn trong kỳ" tone="emerald" icon="scale" />
         </section>
     @else
+        @php $isCtv = auth()->user()->hasRole('ctv'); @endphp
         <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <x-stat-card title="Doanh thu cước bán" value="{{ $this->money(data_get($report, 'finance.saleTotal', 0)) }}" meta="Theo đơn trong kỳ" tone="sky" icon="banknotes" />
+            <x-stat-card title="{{ $isCtv ? 'Tổng cước' : 'Doanh thu cước bán' }}" value="{{ $this->money(data_get($report, 'finance.saleTotal', 0)) }}" meta="Theo đơn trong kỳ" tone="sky" icon="banknotes" />
 
             @if (data_get($report, 'scope.canSeeFinance'))
                 <x-stat-card title="Chi phí cước vốn" value="{{ $this->money(data_get($report, 'finance.costTotal')) }}" meta="Chỉ quyền tổng hợp" tone="slate" icon="receipt-percent" />
                 <x-stat-card title="Lợi nhuận" value="{{ $this->money(data_get($report, 'finance.profitTotal')) }}" meta="Biên {{ $this->percent(data_get($report, 'finance.margin', 0)) }}" tone="emerald" icon="chart-bar" />
                 <x-stat-card title="Công nợ đại lý còn lại" value="{{ $this->money(data_get($report, 'agencyDebt.remaining', 0)) }}" meta="{{ $this->number(data_get($report, 'agencyDebt.count', 0)) }} công nợ" tone="orange" icon="building-office" />
             @else
-                <x-stat-card title="Hóa đơn đã thu" value="{{ $this->money(data_get($report, 'invoices.paid', 0)) }}" meta="{{ $this->number(data_get($report, 'invoices.count', 0)) }} hóa đơn" tone="emerald" icon="document-check" />
-                <x-stat-card title="Hóa đơn đang chờ" value="{{ $this->money(data_get($report, 'invoices.pending', 0)) }}" meta="Cần theo dõi thanh toán" tone="amber" icon="clock" />
-                <x-stat-card title="Công nợ còn lại" value="{{ $this->money(data_get($report, 'customerDebt.remaining', 0)) }}" meta="{{ $this->number(data_get($report, 'customerDebt.count', 0)) }} công nợ" tone="red" icon="exclamation-triangle" />
+                <x-stat-card title="{{ $isCtv ? 'Hóa đơn đã thanh toán' : 'Hóa đơn đã thu' }}" value="{{ $this->money(data_get($report, 'invoices.paid', 0)) }}" meta="{{ $this->number(data_get($report, 'invoices.count', 0)) }} hóa đơn" tone="emerald" icon="document-check" />
+                <x-stat-card title="{{ $isCtv ? 'Hóa đơn chưa thanh toán' : 'Hóa đơn đang chờ' }}" value="{{ $this->money(data_get($report, 'invoices.pending', 0)) }}" meta="Cần theo dõi thanh toán" tone="amber" icon="clock" />
+                <x-stat-card title="{{ $isCtv ? 'Công nợ chưa thanh toán' : 'Công nợ còn lại' }}" value="{{ $this->money(data_get($report, 'customerDebt.remaining', 0)) }}" meta="{{ $this->number(data_get($report, 'customerDebt.count', 0)) }} công nợ" tone="red" icon="exclamation-triangle" />
             @endif
         </section>
     @endif
@@ -309,10 +310,11 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm xl:col-span-2">
             @php ($hideMoney = (bool) data_get($report, 'scope.hideMoney', false)) @endphp
             @php ($hideCostProfit = (bool) data_get($report, 'scope.hideCostProfit', false)) @endphp
+            @php ($saleLabel = data_get($report, 'scope.isCustomerChart', false) ? 'Tổng cước' : 'Cước bán') @endphp
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <h2 class="text-base font-bold text-neutral-950">Biểu đồ {{ $hideMoney ? 'sản lượng' : 'doanh số' }} trong năm {{ now()->year }}</h2>
-                    <p class="mt-1 text-sm text-neutral-500">{{ $hideMoney ? 'Số đơn và cân nặng tính phí theo từng tháng' : ($hideCostProfit ? 'Số đơn, cân nặng tính phí và cước bán theo từng tháng' : 'Số đơn, cân nặng tính phí, cước vốn, cước bán và lợi nhuận theo từng tháng') }}</p>
+                    <p class="mt-1 text-sm text-neutral-500">{{ $hideMoney ? 'Số đơn và cân nặng tính phí theo từng tháng' : ($hideCostProfit ? 'Số đơn, cân nặng tính phí và '.\Illuminate\Support\Str::lower($saleLabel).' theo từng tháng' : 'Số đơn, cân nặng tính phí, cước vốn, cước bán và lợi nhuận theo từng tháng') }}</p>
                 </div>
 
                 {{-- Chú thích tách riêng khỏi vùng vẽ cho thoáng --}}
@@ -327,7 +329,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                                 ? [
                                     ['label' => 'Số lượng đơn', 'color' => '#6366f1', 'shape' => 'bar'],
                                     ['label' => 'Cân nặng tính phí', 'color' => '#0ea5e9', 'shape' => 'bar'],
-                                    ['label' => 'Cước bán', 'color' => '#10b981', 'shape' => 'line'],
+                                    ['label' => $saleLabel, 'color' => '#10b981', 'shape' => 'line'],
                                 ]
                                 : [
                                     ['label' => 'Số lượng đơn', 'color' => '#6366f1', 'shape' => 'bar'],
@@ -360,6 +362,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                 data-chart='@json($yearlyTimeline)'
                 data-hide-money="{{ $hideMoney ? '1' : '0' }}"
                 data-hide-cost-profit="{{ $hideCostProfit ? '1' : '0' }}"
+                data-sale-label="{{ $saleLabel }}"
             >
                 <div class="relative h-56 min-h-56 w-full">
                     <canvas data-yearly-timeline-canvas class="!h-full !w-full" aria-label="Biểu đồ thống kê trong năm"></canvas>
@@ -392,16 +395,17 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
         </div>
     </section>
 
-    @unless (data_get($report, 'scope.hideMoney', false))
+    @unless (data_get($report, 'scope.hideMoney', false) || data_get($report, 'scope.hideSaleStats', false))
         <livewire:dashboard.sale-statistics lazy />
     @endunless
 
-    @php($hideCustomerRanking = (bool) data_get($report, 'scope.hideMoney', false))
+    @php($hideMoneyRanking = (bool) data_get($report, 'scope.hideMoney', false))
+    @php($hideCustomerRanking = $hideMoneyRanking || (bool) data_get($report, 'scope.hideCustomerRanking', false))
     <section class="grid gap-4 {{ $hideCustomerRanking ? '' : 'xl:grid-cols-2' }}">
         @unless ($hideCustomerRanking)
             <x-ranking-panel title="Top CTV / khách hàng" :items="data_get($report, 'rankings.customers', [])" />
         @endunless
-        <x-ranking-panel title="Top dịch vụ" :items="data_get($report, 'rankings.services', [])" :hideMoney="$hideCustomerRanking" />
+        <x-ranking-panel title="Top dịch vụ" :items="data_get($report, 'rankings.services', [])" :hideMoney="$hideMoneyRanking" />
     </section>
 
     <livewire:dashboard.country-service-statistics :filters="$filters" lazy />
@@ -896,7 +900,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
                     };
                 }
 
-                function chartData(items, hideMoney, hideCostProfit) {
+                function chartData(items, hideMoney, hideCostProfit, saleLabel) {
                     const normalized = Array.isArray(items) ? items : [];
 
                     const orderDataset = {
@@ -954,7 +958,7 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
 
                     const saleTotalDataset = {
                         type: 'line',
-                        label: 'Tổng cước bán',
+                        label: saleLabel || 'Tổng cước bán',
                         data: normalized.map((item) => Number(item.saleTotal || 0)),
                         borderColor: '#10b981',
                         backgroundColor: function (context) {
@@ -1057,7 +1061,8 @@ new #[Layout('layouts.app')] #[Title('Thống kê tổng')] class extends Compon
 
                     const hideMoney = container.dataset.hideMoney === '1';
                     const hideCostProfit = container.dataset.hideCostProfit === '1';
-                    const data = chartData(items ?? initialItems(container), hideMoney, hideCostProfit);
+                    const saleLabel = container.dataset.saleLabel || 'Tổng cước bán';
+                    const data = chartData(items ?? initialItems(container), hideMoney, hideCostProfit, saleLabel);
 
                     if (chart) {
                         chart.destroy();

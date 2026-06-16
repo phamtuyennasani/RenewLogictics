@@ -12,6 +12,7 @@ new class extends Component {
     public ?string $uuid = null;
     public array $formData = [];
     public bool $isSaving = false;
+    public bool $isCtvUser = false;
 
     public array $countries = [];
     public array $states = [];
@@ -27,6 +28,10 @@ new class extends Component {
     {
         abort_unless(\Gate::allows('receiver.index'), 403);
         $this->uuid = $uuid;
+
+        $user = auth()->user();
+        $this->isCtvUser = $user?->hasAnyRole(['ctv', 'CTV']) ?? false;
+
         $saleId = $this->saleIdForCurrentUser(null);
 
         // Load countries
@@ -64,8 +69,8 @@ new class extends Component {
             'fullname' => '',
             'email' => '',
             'phone' => '',
-            'id_sale' => $saleId,
-            'id_ctv' => null,
+            'id_sale' => $this->isCtvUser ? $user->id_sale : $saleId,
+            'id_ctv' => $this->isCtvUser ? $user->id : null,
             'id_sender' => null,
             'country_id' => null,
             'state' => '',
@@ -73,7 +78,10 @@ new class extends Component {
             'postcode' => '',
         ];
 
-        if ($saleId) {
+        if ($this->isCtvUser && $user->id_sale) {
+            $this->loadCtvs($user->id_sale);
+            $this->loadSenders($user->id_sale, $user->id);
+        } elseif ($saleId) {
             $this->loadCtvs($saleId);
             $this->loadSenders($saleId);
         }
@@ -239,7 +247,15 @@ new class extends Component {
     {
         $user = auth()->user();
 
-        return $user?->hasAnyRole(['sale', 'SALE']) ? $user->id : $saleId;
+        if ($user?->hasAnyRole(['sale', 'SALE'])) {
+            return $user->id;
+        }
+
+        if ($user?->hasAnyRole(['ctv', 'CTV'])) {
+            return $user->id_sale;
+        }
+
+        return $saleId;
     }
 
     public function openStateModal()
@@ -334,7 +350,13 @@ new class extends Component {
     public function save()
     {
         $this->isSaving = true;
+        $user = auth()->user();
         $this->formData['id_sale'] = $this->saleIdForCurrentUser($this->formData['id_sale'] ?? null);
+
+        // CTV tự động gán chính họ làm CTV phụ trách
+        if ($user?->hasAnyRole(['ctv', 'CTV'])) {
+            $this->formData['id_ctv'] = $user->id;
+        }
 
         try {
             $this->validate($this->rules(), $this->messages());
@@ -425,9 +447,9 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
             </svg>
         </button>
         <div>
-            <p class="text-sm text-neutral-500 capitalize">Receiver / Người nhận</p>
+            <p class="text-sm text-neutral-500 capitalize">Khách hàng / Địa chỉ nhận</p>
             <h1 class="text-2xl font-bold text-neutral-900">
-                {{ $uuid ? 'Chỉnh sửa' : 'Thêm mới' }} Receiver
+                {{ $uuid ? 'Chỉnh sửa' : 'Thêm mới' }} địa chỉ nhận
             </h1>
         </div>
     </div>
@@ -441,7 +463,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                 </svg>
-                Thông tin Receiver
+                Thông tin địa chỉ nhận
             </h2>
         </div>
 
@@ -511,6 +533,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                @unless ($isCtvUser)
                 <flux:field>
                     <flux:label badge="Bắt buộc">Nhân viên SALE phụ trách</flux:label>
                     <x-select-search
@@ -537,6 +560,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     </div>
                     @error('formData.id_ctv')<flux:error>{{ $message }}</flux:error>@enderror
                 </flux:field>
+                @endunless
 
                 <flux:field>
                     <flux:label>Sender phụ trách (Tùy chọn)</flux:label>

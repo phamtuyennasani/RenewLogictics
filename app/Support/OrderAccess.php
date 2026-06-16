@@ -53,6 +53,12 @@ class OrderAccess
             return self::canView($user, $order);
         }
 
+        // CTV: chỉ sửa được khi đơn còn mới tạo và là đơn của chính họ.
+        if ($user->hasRole('ctv')) {
+            return self::canView($user, $order)
+                && $order->bill_status === OrderStatusEnum::MOI_TAO;
+        }
+
         return false;
     }
 

@@ -33,8 +33,9 @@ class ResolveServicePriceAction
             ->latest('updated_at')
             ->first();
 
+        // Chưa có bảng giá cho dịch vụ + quốc gia này → mặc định cước = 0.
         if (! $priceList) {
-            throw new RuntimeException('Chưa có bảng giá cho dịch vụ và quốc gia nhận đã chọn.');
+            return $this->zeroPriceResult($chargeableWeight);
         }
 
         $detail = $priceList->details()
@@ -42,8 +43,9 @@ class ResolveServicePriceAction
             ->where('weight_to', '>=', $chargeableWeight)
             ->first();
 
+        // Không có dòng giá phù hợp cân nặng → mặc định cước = 0.
         if (! $detail) {
-            throw new RuntimeException("Chưa có dòng giá phù hợp cho cân nặng {$chargeableWeight} kg.");
+            return $this->zeroPriceResult($chargeableWeight, $priceList);
         }
 
         return [
@@ -53,6 +55,18 @@ class ResolveServicePriceAction
             'sale_price' => $this->calculateAmount($detail, 'sale_price', $chargeableWeight),
             'cost_price' => $this->calculateAmount($detail, 'cost_price', $chargeableWeight),
             'base_price' => $this->calculateAmount($detail, 'base_price', $chargeableWeight),
+        ];
+    }
+
+    protected function zeroPriceResult(float $chargeableWeight, ?ServicePriceList $priceList = null): array
+    {
+        return [
+            'price_list' => $priceList,
+            'detail' => null,
+            'chargeable_weight' => $chargeableWeight,
+            'sale_price' => 0.0,
+            'cost_price' => 0.0,
+            'base_price' => 0.0,
         ];
     }
 

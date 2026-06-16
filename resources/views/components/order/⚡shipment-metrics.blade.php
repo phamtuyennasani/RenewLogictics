@@ -123,8 +123,16 @@ new class extends Component
 
     public function canEditPackages(): bool
     {
-        return OrderAccess::canEditOrder(auth()->user(), $this->order)
-            && $this->order->bill_status === OrderStatusEnum::DA_NHAN_HANG;
+        if (! OrderAccess::canEditOrder(auth()->user(), $this->order)) {
+            return false;
+        }
+
+        // CTV được sửa kiện hàng khi đơn còn mới tạo.
+        if (auth()->user()->hasRole('ctv')) {
+            return $this->order->bill_status === OrderStatusEnum::MOI_TAO;
+        }
+
+        return $this->order->bill_status === OrderStatusEnum::DA_NHAN_HANG;
     }
 
     public function savePackages(): void

@@ -221,7 +221,7 @@ class CongNoDataTableController extends Controller
             ->map(fn ($value) => (string) $value)
             ->implode(' - ');
 
-        return '<div class="max-w-[300px] truncate font-semibold text-neutral-900">'.e($companyName).'</div>'
+        return '<div class="max-w-[300px] truncate font-semibold text-neutral-900 whitespace-pre-line">'.e($companyName).'</div>'
             .'<div class="mt-0.5 max-w-[300px] truncate text-xs text-neutral-500">'.e($meta ?: '-').'</div>';
     }
 

@@ -124,9 +124,9 @@
 
                         @if($this->canFilterPickupOps())
                             <div class="pickup-filter-field">
-                                <label class="pickup-filter-label">OPS ph&#7909; tr&#225;ch</label>
-                                <select wire:model.live="filterOpsId" data-livewire-model="filterOpsId" data-placeholder="T&#7845;t c&#7843; OPS" class="tomselectEml pickup-filter-tomselect">
-                                    <option value="">T&#7845;t c&#7843; OPS</option>
+                                <label class="pickup-filter-label">OPS phụ trách</label>
+                                <select wire:model.live="filterOpsId" data-livewire-model="filterOpsId" data-placeholder="Tất cả OPS" class="tomselectEml pickup-filter-tomselect">
+                                    <option value="">Tất cả OPS</option>
                                     @foreach($this->pickupOpsUsers as $ops)
                                         <option value="{{ $ops->id }}">{{ $ops->fullname ?: $ops->username }}</option>
                                     @endforeach
@@ -136,9 +136,9 @@
 
                         @if($this->canFilterPickupShipper())
                             <div class="pickup-filter-field">
-                                <label class="pickup-filter-label">Shipper ph&#7909; tr&#225;ch</label>
-                                <select wire:model.live="filterShipperId" data-livewire-model="filterShipperId" data-placeholder="T&#7845;t c&#7843; shipper" class="tomselectEml pickup-filter-tomselect">
-                                    <option value="">T&#7845;t c&#7843; shipper</option>
+                                <label class="pickup-filter-label">Shipper phụ trách</label>
+                                <select wire:model.live="filterShipperId" data-livewire-model="filterShipperId" data-placeholder="Tất cả shipper" class="tomselectEml pickup-filter-tomselect">
+                                    <option value="">Tất cả shipper</option>
                                     @foreach($this->pickupShippers as $shipper)
                                         <option value="{{ $shipper->id }}">{{ $shipper->fullname ?: $shipper->username }}</option>
                                     @endforeach

@@ -11,6 +11,7 @@ new class extends Component {
     public ?string $uuid = null;
     public array $formData = [];
     public bool $isSaving = false;
+    public bool $isCtvUser = false;
 
     public array $provinces = [];
     public array $wards = [];
@@ -21,6 +22,10 @@ new class extends Component {
     {
         abort_unless(\Gate::allows('sender.index'), 403);
         $this->uuid = $uuid;
+
+        $user = auth()->user();
+        $this->isCtvUser = $user?->hasAnyRole(['ctv', 'CTV']) ?? false;
+
         $saleId = $this->saleIdForCurrentUser(null);
 
         // Load provinces
@@ -52,14 +57,16 @@ new class extends Component {
             'fullname' => '',
             'email' => '',
             'phone' => '',
-            'id_sale' => $saleId,
-            'id_ctv' => null,
+            'id_sale' => $this->isCtvUser ? $user->id_sale : $saleId,
+            'id_ctv' => $this->isCtvUser ? $user->id : null,
             'id_province' => null,
             'id_ward' => null,
             'address' => '',
         ];
 
-        if ($saleId) {
+        if ($this->isCtvUser && $user->id_sale) {
+            $this->loadCtvs($user->id_sale);
+        } elseif ($saleId) {
             $this->loadCtvs($saleId);
         }
 
@@ -140,7 +147,15 @@ new class extends Component {
     {
         $user = auth()->user();
 
-        return $user?->hasAnyRole(['sale', 'SALE']) ? $user->id : $saleId;
+        if ($user?->hasAnyRole(['sale', 'SALE'])) {
+            return $user->id;
+        }
+
+        if ($user?->hasAnyRole(['ctv', 'CTV'])) {
+            return $user->id_sale;
+        }
+
+        return $saleId;
     }
 
     protected function rules(): array
@@ -207,7 +222,13 @@ new class extends Component {
     public function save()
     {
         $this->isSaving = true;
+        $user = auth()->user();
         $this->formData['id_sale'] = $this->saleIdForCurrentUser($this->formData['id_sale'] ?? null);
+
+        // CTV tự động gán chính họ làm CTV phụ trách
+        if ($user?->hasAnyRole(['ctv', 'CTV'])) {
+            $this->formData['id_ctv'] = $user->id;
+        }
 
         try {
             $this->validate($this->rules(), $this->messages());
@@ -295,9 +316,9 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
             </svg>
         </button>
         <div>
-            <p class="text-sm text-neutral-500 capitalize">Sender / Người gửi</p>
+            <p class="text-sm text-neutral-500 capitalize">Khách hàng / Địa chỉ gửi</p>
             <h1 class="text-2xl font-bold text-neutral-900">
-                {{ $uuid ? 'Chỉnh sửa' : 'Thêm mới' }} Sender
+                {{ $uuid ? 'Chỉnh sửa' : 'Thêm mới' }} địa chỉ gửi
             </h1>
         </div>
     </div>
@@ -311,7 +332,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
                 </svg>
-                Thông tin Sender
+                Thông tin địa chỉ gửi
             </h2>
         </div>
 
@@ -371,6 +392,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                 </flux:field>
             </div>
 
+            @unless ($isCtvUser)
             <div class="pt-2 border-t border-neutral-100">
                 <h3 class="text-sm font-semibold text-neutral-700 uppercase tracking-wide flex items-center gap-2">
                     <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,6 +429,7 @@ $inputClass = 'w-full px-4 py-2.5 text-sm border transition-all placeholder:text
                     @error('formData.id_ctv')<flux:error>{{ $message }}</flux:error>@enderror
                 </flux:field>
             </div>
+            @endunless
 
             <div class="pt-2 border-t border-neutral-100">
                 <h3 class="text-sm font-semibold text-neutral-700 uppercase tracking-wide flex items-center gap-2">
