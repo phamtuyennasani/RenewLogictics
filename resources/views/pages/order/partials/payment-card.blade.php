@@ -10,9 +10,14 @@
             <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-800">{{ $title }}</h2>
             <p class="mt-1 text-sm text-neutral-500">{{ $subtitle }}</p>
         </div>
-        <div class="rounded-lg bg-primary-50 px-3 py-2 text-right">
-            <p class="text-xs text-primary-700">Tổng cước</p>
-            <p class="text-sm font-semibold text-primary-800">{{ $this->money(data_get($payment, "$group.total_tongcuoc")) }}</p>
+        <div class="flex items-center gap-3">
+            <div class="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 px-3 py-1.5 text-sm">
+                <span class="text-primary-700">Tổng cước :</span>
+                <span class="font-semibold text-primary-800">{{ $this->money(data_get($payment, "$group.total_tongcuoc")) }}</span>
+            </div>
+            @unless($readonly)
+                <flux:button type="button" size="sm" variant="filled" wire:click="recalc" wire:loading.attr="disabled" wire:target="recalc">Tính lại</flux:button>
+            @endunless
         </div>
     </div>
 

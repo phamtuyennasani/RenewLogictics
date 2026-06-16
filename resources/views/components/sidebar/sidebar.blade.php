@@ -121,9 +121,10 @@
     <div class="px-3 py-3 border-t border-neutral-100 bg-neutral-50">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-xs text-neutral-600 mb-0 font-bold">
-                    {{ config('system.name', 'Bee Express') }}
-                </p>
+                <div class="flex items-center gap-1.5">
+                    <img src="{{ asset('images/logo-brand.svg') }}" alt="A Website" class="shrink-0 rounded-md object-contain">
+                    
+                </div>
                 <span class="text-xs text-neutral-400">
                     Version {{ config('system.version', '1.0.0') }}
                 </span>

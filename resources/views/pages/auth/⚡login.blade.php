@@ -271,6 +271,10 @@ new #[Layout('layouts::guest')] class extends Component
         {{-- Footer --}}
         <div class="mt-auto pt-8 text-center text-sm text-gray-400">
             <p>© {{ date('Y') }} {{ config('system.name', 'LOGISTICS') }}. Hệ thống quản lý vận chuyển!</p>
+            <div class="flex justify-center items-center gap-1.5 mt-3">
+                Một sản phẩm của 
+                <img src="{{ asset('images/logo-brand.svg') }}" alt="A Website" class="h-4 shrink-0 rounded-md object-contain">
+            </div>
         </div>
     </div>
 

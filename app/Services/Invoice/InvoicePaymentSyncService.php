@@ -42,6 +42,13 @@ class InvoicePaymentSyncService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // Idempotency guard (bên trong lock): nếu hóa đơn đã ở trạng thái cuối
+            // (DA_THANH_TOAN hoặc HUY) thì bỏ qua. An toàn cho webhook lặp lại,
+            // double-click và hai đường confirm cùng đụng một hóa đơn (TOCTOU).
+            if ($locked->status?->isFinal()) {
+                return;
+            }
+
             // Store original status for audit log
             $fromStatus = $locked->status;
             $paidAt ??= now();

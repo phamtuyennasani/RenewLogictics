@@ -537,6 +537,16 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
         $this->payment['cuocgoc'] = $this->normalizePayment([], 'dongiagoc');
     }
 
+    /**
+     * Tính lại toàn bộ giá theo các ô đang nhập. Các ô đơn giá/phụ phí dùng
+     * wire:model.blur nên chỉ commit khi rời ô; nút "Tính lại" gọi method này để
+     * người dùng xem kết quả ngay mà không phải bấm Lưu.
+     */
+    public function recalc(): void
+    {
+        $this->recalculateAll();
+    }
+
     protected function recalculateAll(): void
     {
         $this->payment['cuocban'] = $this->recalculateGroup($this->payment['cuocban'] ?? [], 'dongiaban', ['phuphi', 'hh_khachhang']);

@@ -106,6 +106,14 @@ class OrderInvoiceService
 
         DB::transaction(function () use ($invoice, $user) {
             $locked = CongNoPayment::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+
+            // Idempotency guard (bên trong lock): hóa đơn đã ở trạng thái cuối
+            // (DA_THANH_TOAN hoặc HUY) thì bỏ qua, không ghi đè paid_at/actor/log.
+            // Vá cửa sổ TOCTOU khi 2 request xác nhận chạy đồng thời.
+            if ($locked->status?->isFinal()) {
+                return;
+            }
+
             $order = Order::query()->whereKey($locked->id_order)->lockForUpdate()->firstOrFail();
 
             $fromStatus = $locked->status;
