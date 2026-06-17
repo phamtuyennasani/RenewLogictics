@@ -12,17 +12,13 @@ class VSVX extends Model
     protected $table = 'vsvx';
 
     protected $fillable = [
-        'namevi',
-        'slugvi',
         'id_dichvu',
-        'price',
+        'name',
         'code',
-        'numb',
-        'status',
     ];
 
     protected $casts = [
-        'price' => 'decimal:0',
+        'id_dichvu' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

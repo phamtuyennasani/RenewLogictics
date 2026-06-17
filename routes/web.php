@@ -227,6 +227,34 @@ Route::middleware('auth')->group(function () {
 
     // --- Dữ liệu ---
     Route::prefix('dich-vu')->name('dichvu.')->group(function () {
+        Route::get('/vsvx/mau-excel', function () {
+            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            $sheet->setTitle('VSVX');
+            $sheet->setCellValue('A1', 'STT');
+            $sheet->setCellValue('B1', 'PostCode');
+
+            $samples = ['10000', '084000', '700000', '550000', '900100'];
+            foreach ($samples as $i => $code) {
+                $row = $i + 2;
+                $sheet->setCellValue('A'.$row, $i + 1);
+                $sheet->setCellValueExplicit('B'.$row, $code, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            }
+
+            $sheet->getStyle('B:B')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+            $sheet->getStyle('A1:B1')->getFont()->setBold(true);
+            $sheet->getColumnDimension('A')->setWidth(10);
+            $sheet->getColumnDimension('B')->setWidth(20);
+
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+            return response()->streamDownload(function () use ($writer) {
+                $writer->save('php://output');
+            }, 'vsvx_mau.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
+        })->name('vsvx.template');
+
         Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
         Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
         Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
@@ -252,6 +280,41 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('phu-phi')->name('phuphi.')->group(function () {
         Route::prefix('bang-gia-dich-vu')->name('service-prices.')->group(function () {
+            Route::get('/mau-excel', function () {
+                $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+                $sheet = $spreadsheet->getActiveSheet();
+                $sheet->setTitle('Bang gia');
+
+                $headers = ['Quy cách', 'Cân nặng từ', 'Cân nặng đến', 'Cước bán', 'Cước vốn', 'Cước gốc'];
+                foreach ($headers as $i => $label) {
+                    $sheet->setCellValue([$i + 1, 1], $label);
+                }
+
+                $samples = [
+                    ['CO_DINH', 0, 0.5, 250000, 180000, 150000],
+                    ['CO_DINH', 0.5, 1, 350000, 260000, 220000],
+                    ['DON_GIA', 0, 1, 450000, 330000, 280000],
+                ];
+                foreach ($samples as $r => $row) {
+                    foreach ($row as $c => $value) {
+                        $sheet->setCellValue([$c + 1, $r + 2], $value);
+                    }
+                }
+
+                $sheet->getStyle('A1:F1')->getFont()->setBold(true);
+                foreach (range('A', 'F') as $col) {
+                    $sheet->getColumnDimension($col)->setWidth(16);
+                }
+
+                $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+                return response()->streamDownload(function () use ($writer) {
+                    $writer->save('php://output');
+                }, 'bang_gia_dich_vu_mau.xlsx', [
+                    'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                ]);
+            })->name('template');
+
             Route::livewire('/', 'pages::service-prices.index')->name('index');
             Route::livewire('/add', 'pages::service-prices.form')->name('add');
             Route::livewire('/edit/{id}', 'pages::service-prices.form')->name('edit');

@@ -435,7 +435,15 @@ new #[Layout('layouts.app')] #[Title('Chi tiết bảng giá dịch vụ')] clas
             <div class="rounded-xl border border-neutral-200 bg-white shadow-xs">
                 <div class="border-b border-neutral-100 px-5 py-4">
                     <h2 class="font-semibold text-neutral-900">Upload chi tiết Excel</h2>
-                    <p class="mt-1 text-sm text-neutral-500">File cần có 6 cột: Quy cách, Cân nặng từ, Cân nặng đến, Cước bán, Cước vốn, Cước gốc.</p>
+                    <p class="mt-1 text-sm text-neutral-500">File cần có 6 cột: Quy cách, Cân nặng từ, Cân nặng đến, Cước bán, Cước vốn, Cước gốc.
+                        <a href="{{ route('phuphi.service-prices.template') }}"
+                           class="inline-flex items-center gap-1 font-medium text-primary-600 hover:text-primary-700 hover:underline">
+                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Tải file mẫu
+                        </a>
+                    </p>
                 </div>
                 <div class="space-y-4 p-5">
                     <input type="file" wire:model="uploadFile" accept=".xlsx,.xls,.csv" class="block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100">

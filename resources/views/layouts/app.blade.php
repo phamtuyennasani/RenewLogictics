@@ -53,7 +53,7 @@
                     </flux:modal.trigger>
                 </div>
                 <p class="text-sm text-neutral-500 mb-0 flex items-center gap-1">
-                    &copy; {{ date('Y') }} {{ config('system.name') }}. Developed by A Website
+                    &copy; {{ date('Y') }} {{ config('system.name') }}. Developed by {{config('license_guard.brand_name', '')}}.
                 </p>
             </footer>
             <flux:modal name="footer-dieu-khoan" class="max-w-[80rem] w-[80rem]" scroll="body">

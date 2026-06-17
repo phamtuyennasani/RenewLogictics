@@ -109,6 +109,34 @@ class ShipperScanResultCard extends StatelessWidget {
           if (pickup.packageCount != null)
             _InfoRow(label: 'Số kiện', value: '${pickup.packageCount}'),
           const SizedBox(height: 14),
+          if (canReceive && (pickup.packageCount ?? 1) > 1) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.amber.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded,
+                      size: 18, color: Colors.amber.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Đơn hàng có ${pickup.packageCount} kiện, xác nhận nhận hàng?',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           if (canReceive)
             SizedBox(
               width: double.infinity,

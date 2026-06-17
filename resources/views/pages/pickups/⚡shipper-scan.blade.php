@@ -482,6 +482,12 @@ new #[Layout('layouts.mobile')] #[Title('Quét mã nhận Pickup')] class extend
                         </div>
                     </div>
 
+                    @if($scanResult['can_receive'] && ($scanResult['package_count'] ?? 1) > 1)
+                        <p class="mt-3 rounded-lg bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800">
+                            Đơn hàng có {{ $scanResult['package_count'] }} kiện, xác nhận nhận hàng?
+                        </p>
+                    @endif
+
                     <button type="button"
                             wire:click="receiveScannedPickup"
                             wire:loading.attr="disabled"

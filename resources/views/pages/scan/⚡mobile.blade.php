@@ -28,6 +28,9 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
     public int $successCount = 0;
     public int $errorCount = 0;
 
+    // Mã đang chờ xác nhận đổi trạng thái (null = không có gì chờ).
+    public ?array $pendingScan = null;
+
     public function mount(): void
     {
         abort_unless(\Gate::allows('scan'), 403);
@@ -47,6 +50,11 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
 
     public function processScan(string $code): void
     {
+        // Đang chờ xác nhận một mã khác thì bỏ qua (khóa quét).
+        if ($this->pendingScan !== null) {
+            return;
+        }
+
         $package = OrderPackage::query()
             ->with(['order.customerAccount:id,fullname,username,code', 'order.sale:id,fullname,username,code'])
             ->where('code', $code)
@@ -58,19 +66,51 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
             return;
         }
 
-        $result = DB::transaction(function () use ($package) {
+        $order = $package->order;
+        $fromStatus = $order->bill_status;
+        $toStatus = $this->nextStatusFor($fromStatus);
+
+        // Mã chỉ để xem (không có bước đổi trạng thái) — giữ hành vi cũ.
+        if (! $toStatus) {
+            $this->setScanResultFromOrder($package->code, $order, false, 'Đơn hàng đã được xử lý.', $fromStatus, null);
+            return;
+        }
+
+        // Cần đổi trạng thái — chờ người dùng xác nhận, chưa cập nhật.
+        $this->pendingScan = [
+            'package_code' => $package->code,
+            'order_id' => $order->id,
+            'order_code' => $order->id_bill ?? $order->tracking_code ?? '-',
+            'package_count' => $order->packages()->count(),
+            'from_status' => $fromStatus->label(),
+            'to_status' => $toStatus->label(),
+            'customer' => $order->customerAccount?->fullname ?: $order->customerAccount?->username ?: '-',
+            'receiver' => collect([
+                data_get($order->receiver, 'name'),
+                data_get($order->receiver, 'phone'),
+            ])->filter()->join(' / ') ?: '-',
+        ];
+    }
+
+    public function confirmPending(): void
+    {
+        if ($this->pendingScan === null) {
+            return;
+        }
+
+        $pending = $this->pendingScan;
+        $this->pendingScan = null;
+
+        $result = DB::transaction(function () use ($pending) {
             $order = Order::query()
-                ->whereKey($package->order->id)
+                ->whereKey($pending['order_id'])
                 ->lockForUpdate()
                 ->firstOrFail();
 
             $fromStatus = $order->bill_status;
-            $toStatus = match ($fromStatus) {
-                OrderStatusEnum::DA_XAC_NHAN => OrderStatusEnum::DA_NHAN_HANG,
-                OrderStatusEnum::DUYET_XUAT_HANG => OrderStatusEnum::DANG_PHAT_HANG,
-                default => null,
-            };
+            $toStatus = $this->nextStatusFor($fromStatus);
 
+            // Trạng thái có thể đã đổi giữa lúc chờ xác nhận.
             if (! $toStatus) {
                 return [
                     'updated' => false,
@@ -105,7 +145,47 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
             $this->successCount++;
         }
 
-        $this->setScanResultFromPayload($package->code, $result);
+        $this->setScanResultFromPayload($pending['package_code'], $result);
+    }
+
+    public function cancelPending(): void
+    {
+        if ($this->pendingScan === null) {
+            return;
+        }
+
+        $code = $this->pendingScan['package_code'];
+        $this->pendingScan = null;
+
+        $this->setScanResult($code, false, 'Đã hủy, không cập nhật trạng thái.');
+    }
+
+    protected function nextStatusFor(?OrderStatusEnum $fromStatus): ?OrderStatusEnum
+    {
+        return match ($fromStatus) {
+            OrderStatusEnum::DA_XAC_NHAN => OrderStatusEnum::DA_NHAN_HANG,
+            OrderStatusEnum::DUYET_XUAT_HANG => OrderStatusEnum::DANG_PHAT_HANG,
+            default => null,
+        };
+    }
+
+    protected function setScanResultFromOrder(string $packageCode, Order $order, bool $updated, string $message, ?OrderStatusEnum $fromStatus, ?OrderStatusEnum $toStatus): void
+    {
+        $this->scanResult = [
+            'message' => $message,
+            'updated' => $updated,
+            'package_code' => $packageCode,
+            'order_code' => $order->id_bill ?? $order->tracking_code ?? '-',
+            'from_status' => $fromStatus?->label() ?? '-',
+            'current_status' => $updated ? ($toStatus?->label() ?? '-') : ($order->bill_status?->label() ?? '-'),
+            'customer' => $order->customerAccount?->fullname ?: $order->customerAccount?->username ?: '-',
+            'receiver' => collect([
+                data_get($order->receiver, 'name'),
+                data_get($order->receiver, 'phone'),
+            ])->filter()->join(' / ') ?: '-',
+        ];
+
+        $this->pushLog($packageCode, $message, 'warning');
     }
 
     protected function setScanResult(string $code, bool $updated, string $message): void
@@ -218,6 +298,12 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
     handleDecodedText(decodedText) {
         const text = decodedText?.trim().toUpperCase();
         if (!text) return;
+        // Đang chờ xác nhận một mã — khóa quét, không nhận mã mới.
+        if ($wire.pendingScan) {
+            this.statusMsg = 'Đang chờ xác nhận. Bấm Xác nhận hoặc Hủy để quét tiếp.';
+            this.statusType = 'neutral';
+            return;
+        }
         if (!/^[A-Z0-9-]+-\d{2,}$/.test(text)) {
             this.statusMsg = 'Mã không hợp lệ: ' + text;
             this.statusType = 'neutral';
@@ -359,6 +445,45 @@ new #[Layout('layouts.mobile')] #[Title('Quét kiện hàng')] class extends Com
             <svg x-show="cameraActive" x-cloak class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
         </button>
     </div>
+
+    {{-- Pending confirmation --}}
+    @if($pendingScan)
+    <div class="border-b-2 border-amber-300 bg-amber-50 px-4 py-4">
+        <div class="flex items-center gap-2">
+            <svg class="h-5 w-5 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <p class="text-xs font-bold uppercase text-amber-700">Xác nhận cập nhật trạng thái</p>
+        </div>
+        <p class="mt-2 text-base font-black text-neutral-950">
+            {{ $pendingScan['from_status'] }}
+            <span class="mx-1 text-amber-600">→</span>
+            {{ $pendingScan['to_status'] }}
+        </p>
+        @if(($pendingScan['package_count'] ?? 1) > 1)
+        <p class="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-sm font-bold text-amber-800">
+            Đơn hàng có {{ $pendingScan['package_count'] }} kiện, xác nhận cập nhật?
+        </p>
+        @endif
+        <div class="mt-1.5 space-y-0.5 text-sm text-neutral-700">
+            <div><span class="font-bold">Mã kiện:</span> <span class="font-mono">{{ $pendingScan['package_code'] }}</span></div>
+            <div><span class="font-bold">Mã đơn:</span> <span class="font-mono">{{ $pendingScan['order_code'] }}</span></div>
+            <div><span class="font-bold">Khách:</span> {{ $pendingScan['customer'] }}</div>
+            <div><span class="font-bold">Người nhận:</span> {{ $pendingScan['receiver'] }}</div>
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-3">
+            <button type="button" wire:click="cancelPending" wire:loading.attr="disabled"
+                class="inline-flex h-12 items-center justify-center rounded-lg border border-neutral-300 bg-white text-sm font-bold text-neutral-700 active:bg-neutral-50">
+                Hủy
+            </button>
+            <button type="button" wire:click="confirmPending" wire:loading.attr="disabled" wire:target="confirmPending"
+                class="inline-flex h-12 items-center justify-center rounded-lg bg-emerald-600 text-sm font-bold text-white active:bg-emerald-700 disabled:opacity-60">
+                <span wire:loading.remove wire:target="confirmPending">Xác nhận</span>
+                <span wire:loading wire:target="confirmPending">Đang lưu...</span>
+            </button>
+        </div>
+    </div>
+    @endif
 
     {{-- Stats bar --}}
     <div class="flex items-center justify-between px-4 py-2 bg-white border-b border-neutral-200">

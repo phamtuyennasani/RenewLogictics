@@ -23,6 +23,7 @@ return [
             'code' => ['label' => 'Mã dịch vụ', 'type' => 'text','name' => 'options2.code'],
             'ngaygiao'   => ['label' => 'Số ngày giao dự kiến', 'type' => 'number','name' => 'options2.ngaygiao','class' => 'text-center'],
         ],
+        'hasVsvx'   => true,
         'canCreate' => true,
         'canEdit'   => true,
         'canDelete' => true,

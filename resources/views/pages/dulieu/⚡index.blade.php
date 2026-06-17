@@ -78,6 +78,19 @@ new class extends Component {
             abort_unless(auth()->user()->hasRole('admin'), 403);
         }
 
+        if ($this->pendingAction === 'deleteSelected') {
+            // Mass delete bỏ qua model event của News, nên xóa VSVX của các
+            // dịch vụ chính được chọn ở đây trước khi xóa News.
+            $serviceIds = News::query()
+                ->whereIn('id', $this->xCheck)
+                ->where('type', News::TYPE_MAIN_SERVICE)
+                ->pluck('id');
+
+            if ($serviceIds->isNotEmpty()) {
+                \App\Models\VSVX::query()->whereIn('id_dichvu', $serviceIds)->delete();
+            }
+        }
+
         match ($this->pendingAction) {
             'deleteItem' => News::findOrFail($this->pendingId)->delete(),
             'deleteSelected' => News::whereIn('id', $this->xCheck)->delete(),

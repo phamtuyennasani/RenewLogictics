@@ -13,6 +13,17 @@ class News extends Model
 
     protected $table = 'news';
 
+    protected static function booted(): void
+    {
+        // Khi xóa 1 dịch vụ chính (instance delete) thì xóa luôn danh sách VSVX của nó.
+        // Mass delete (whereIn()->delete()) KHÔNG kích hoạt hook này — xem deleteSelected.
+        static::deleting(function (News $news) {
+            if ($news->type === self::TYPE_MAIN_SERVICE) {
+                VSVX::query()->where('id_dichvu', $news->id)->delete();
+            }
+        });
+    }
+
     protected $fillable = [
         'namevi',
         'slug',
@@ -53,6 +64,7 @@ class News extends Model
     const TYPE_DISTRICT = 'district';
     const TYPE_PLACE = 'place';
     const TYPE_VSVX = 'vsvx';
+    const TYPE_MAIN_SERVICE = 'dichvuchinh';
 
     // Relationships
     public function user()

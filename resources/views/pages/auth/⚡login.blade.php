@@ -273,7 +273,7 @@ new #[Layout('layouts::guest')] class extends Component
             <p>© {{ date('Y') }} {{ config('system.name', 'LOGISTICS') }}. Hệ thống quản lý vận chuyển!</p>
             <div class="flex justify-center items-center gap-1.5 mt-3">
                 Một sản phẩm của 
-                <img src="{{ asset('images/logo-brand.svg') }}" alt="A Website" class="h-4 shrink-0 rounded-md object-contain">
+                <img src="{{ config('license_guard.brand_logo') }}" alt="{{ config('license_guard.brand_name') }}" class="h-4 shrink-0 rounded-md object-contain">
             </div>
         </div>
     </div>

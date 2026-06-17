@@ -236,6 +236,16 @@
                                 col('actions'),
                             ];
                         }
+                        if (role === 'ctv') {
+                            return [
+                                ...head,
+                                col('package_info'),
+                                col('sale_total'),
+                                col('sale_commission'),
+                                col('payment_client'),
+                                col('actions'),
+                            ];
+                        }
 
                         if (role === 'ops') {
                             return [
