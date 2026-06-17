@@ -45,7 +45,7 @@
                     @endif
                     @if ($role === 'sale')
                         <th class="px-3 py-3">Hoa hồng sale</th>
-                    @elseif ($role !== 'ops')
+                    @elseif ($role !== 'ops' && $role !== 'ctv')
                         <th class="px-3 py-3">Cước vốn</th>
                         <th class="px-3 py-3">Lợi nhuận</th>
                     @endif

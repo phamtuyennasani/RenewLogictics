@@ -240,8 +240,6 @@
                             return [
                                 ...head,
                                 col('package_info'),
-                                col('sale_total'),
-                                col('sale_commission'),
                                 col('payment_client'),
                                 col('actions'),
                             ];
