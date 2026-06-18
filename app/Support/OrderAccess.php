@@ -95,14 +95,19 @@ class OrderAccess
         return $user->hasRole('admin');
     }
 
+    /**
+     * Auto-claim CS phụ trách KHI đơn thực sự được lưu thay đổi bởi 1 CS chưa
+     * có người phụ trách.
+     *
+     * Trước đây hàm này claim ngay khi user vào save handler — kể cả khi không
+     * có dirty field. Giờ chuyển logic claim sang Eloquent `updated` event
+     * (xem App\Models\Order::booted) để chỉ chạy khi save thực sự ghi DB.
+     * Giữ chữ ký công khai để không phải sửa các call site đang dùng.
+     */
     public static function assignCsOnEdit(User $user, Order $order): void
     {
-        if (! $user->hasRole('cs') || filled($order->id_cs)) {
-            return;
-        }
-
-        $order->forceFill(['id_cs' => $user->id])->save();
-        $order->refresh();
+        // No-op: việc claim được Order::updated observer xử lý sau khi save
+        // hoàn tất với thay đổi thật. Xem app/Models/Order.php.
     }
 
     /**

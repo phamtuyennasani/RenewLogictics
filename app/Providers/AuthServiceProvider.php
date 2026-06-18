@@ -36,9 +36,16 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'cs', 'sale', 'ctv']);
         });
 
-        // Gate for pickups — creator: admin, manager, ops; sale/ctv: pickup của order mình; cs: xem tất cả; shipper: read-only
+        // Gate for pickups — creator: admin, manager, ops, cs
+        // CS: tạo pickup, chọn OPS, sửa ở trạng thái "Mới tạo", KHÔNG chọn shipper
         Gate::define('pickups.index', function ($user) {
             return $user->hasAnyRole(['admin', 'manager', 'ops', 'shipper', 'sale', 'cs', 'ctv']);
+        });
+        Gate::define('pickups.create', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'ops', 'cs']);
+        });
+        Gate::define('pickups.update', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'ops', 'cs']);
         });
 
         // Gate for scan
@@ -46,18 +53,22 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'ops']);
         });
 
-        // Gate for packages
+        // Gate for packages — CS thao tác đầy đủ như admin/manager nhưng KHÔNG
+        // được xóa tải; OPS không tham gia quản lý tải hàng nữa.
         Gate::define('packages.view', function ($user) {
-            return $user->hasAnyRole(['admin', 'manager', 'ops', 'cs']);
+            return $user->hasAnyRole(['admin', 'manager', 'cs']);
         });
         Gate::define('packages.create', function ($user) {
-            return $user->hasAnyRole(['admin', 'manager', 'ops']);
+            return $user->hasAnyRole(['admin', 'manager', 'cs']);
         });
         Gate::define('packages.update', function ($user) {
-            return $user->hasAnyRole(['admin', 'manager', 'ops']);
+            return $user->hasAnyRole(['admin', 'manager', 'cs']);
+        });
+        Gate::define('packages.delete', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager']);
         });
         Gate::define('packages.scan', function ($user) {
-            return $user->hasAnyRole(['admin', 'ops']);
+            return $user->hasRole('admin');
         });
 
         // Gate for congno
@@ -83,18 +94,45 @@ class AuthServiceProvider extends ServiceProvider
             return $user->hasAnyRole(['admin', 'manager', 'ketoan', 'sale', 'ctv', 'cs', 'ops']);
         });
 
-        // Gate for customers
+        // Gate for customers — CS chỉ xem/tạo/sửa, KHÔNG xóa (chỉ admin)
         Gate::define('customers.index', function ($user) {
             return $user->hasAnyRole(['admin', 'cs', 'sale']);
         });
+        Gate::define('customers.create', function ($user) {
+            return $user->hasAnyRole(['admin', 'cs', 'sale']);
+        });
+        Gate::define('customers.update', function ($user) {
+            return $user->hasAnyRole(['admin', 'cs', 'sale']);
+        });
+        Gate::define('customers.delete', function ($user) {
+            return $user->hasRole('admin');
+        });
 
-        // Gate for sender/receiver — khớp với sidebar roles
+        // Gate for sender/receiver — CS chỉ xem/tạo/sửa, KHÔNG xóa (chỉ admin)
         Gate::define('sender.index', function ($user) {
             return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale', 'ctv']);
+        });
+        Gate::define('sender.create', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale', 'ctv']);
+        });
+        Gate::define('sender.update', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale', 'ctv']);
+        });
+        Gate::define('sender.delete', function ($user) {
+            return $user->hasRole('admin');
         });
 
         Gate::define('receiver.index', function ($user) {
             return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale', 'ctv']);
+        });
+        Gate::define('receiver.create', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale', 'ctv']);
+        });
+        Gate::define('receiver.update', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager', 'cs', 'sale', 'ctv']);
+        });
+        Gate::define('receiver.delete', function ($user) {
+            return $user->hasRole('admin');
         });
 
         // CTV — admin/manager/cs thấy tất cả; sale chỉ thấy CTV thuộc mình (lọc trong query)

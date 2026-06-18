@@ -71,6 +71,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
 
     public function addSelectedOrders(): void
     {
+        abort_unless($this->canManage(), 403);
         abort_unless($this->load->canEditOrders(), 403);
 
         try {
@@ -89,6 +90,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
 
     public function removeOrder(int $orderId): void
     {
+        abort_unless($this->canManage(), 403);
         abort_unless($this->load->canEditOrders(), 403);
 
         DB::transaction(function () use ($orderId) {
@@ -112,6 +114,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
 
     public function addHistory(): void
     {
+        abort_unless($this->canManage(), 403);
+
         $this->validate([
             'historyForm.thoigian' => ['required', 'date_format:Y-m-d H:i'],
             'historyForm.diadiem' => ['required', 'string', 'max:255'],
@@ -140,6 +144,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
 
     public function approveLoad(): void
     {
+        abort_unless($this->canManage(), 403);
+
         try {
             ApproveShipmentLoadAction::execute($this->load, auth()->id());
         } catch (\RuntimeException $exception) {
@@ -150,6 +156,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
         $this->reloadLoad();
         $this->resetPage('ordersPage');
         Flux::toast(heading: 'Đã duyệt xuất', text: 'Toàn bộ đơn trong tải đã chuyển sang Duyệt xuất hàng.', variant: 'success');
+    }
+
+    public function canManage(): bool
+    {
+        // CS, admin, manager được thao tác trên tải. Xóa tải tách riêng (packages.delete).
+        return auth()->user()?->can('packages.update') ?? false;
     }
 
     protected function resetHistoryForm(): void
@@ -214,7 +226,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('packages.index') }}" wire:navigate class="rounded-lg border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">Danh sách tải</a>
-            @if($load->canEditOrders())
+            @if($this->canManage() && $load->canEditOrders())
                 <button type="button" wire:click="approveLoad" wire:confirm="Duyệt xuất tải này và chuyển toàn bộ đơn sang Duyệt xuất hàng?" wire:loading.attr="disabled" class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60">Duyệt xuất</button>
             @endif
         </div>
@@ -284,10 +296,12 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
                                     </td>
                                     <td class="px-4 py-3 text-right text-neutral-700">{{ number_format((float) $order->chargeable_weight, 2, ',', '.') }} kg</td>
                                     <td class="px-4 py-3 text-right">
-                                        @if($load->canEditOrders())
+                                        @if($this->canManage() && $load->canEditOrders())
                                             <button type="button" wire:click="removeOrder({{ $order->id }})" wire:confirm="Gỡ đơn này khỏi tải?" class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">Gỡ</button>
-                                        @else
+                                        @elseif(! $load->canEditOrders())
                                             <span class="text-xs text-neutral-400">Đã khóa</span>
+                                        @else
+                                            <span class="text-xs text-neutral-400">Chỉ xem</span>
                                         @endif
                                     </td>
                                 </tr>
@@ -304,7 +318,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
                 </div>
             </div>
 
-            @if($load->canEditOrders())
+            @if($this->canManage() && $load->canEditOrders())
                 <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
                     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <h2 class="text-sm font-semibold text-neutral-900">Thêm đơn vào tải</h2>
@@ -356,6 +370,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
         </div>
 
         <div class="space-y-5">
+            @if($this->canManage())
             <form wire:submit="addHistory" class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
                 <h2 class="text-sm font-semibold text-neutral-900">Thêm hành trình</h2>
                 <div class="mt-4 space-y-3">
@@ -397,6 +412,7 @@ new #[Layout('layouts.app')] #[Title('Chi tiết tải hàng')] class extends Co
                     <button type="submit" wire:loading.attr="disabled" class="w-full rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60">Thêm hành trình</button>
                 </div>
             </form>
+            @endif
 
             <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
                 <h2 class="text-sm font-semibold text-neutral-900">Lịch sử tải</h2>

@@ -26,7 +26,8 @@ class MobileOpsScanController extends Controller
     use ApiResponse;
 
     /**
-     * Các role được phép thao tác OPS.
+     * Các role được phép thao tác OPS scan/receive.
+     * CS không thuộc danh sách này (xem RoleEnum comment).
      *
      * @var list<string>
      */
@@ -34,7 +35,6 @@ class MobileOpsScanController extends Controller
         RoleEnum::OPS->value,
         RoleEnum::ADMIN->value,
         RoleEnum::MANAGER->value,
-        RoleEnum::CS->value,
     ];
 
     /**

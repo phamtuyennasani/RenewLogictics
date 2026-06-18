@@ -1241,7 +1241,7 @@ textarea.debt-create-control {
 }
 
 #order-index-page #orders-table {
-    min-width: 3238px;
+    /* min-width: 3238px; */
 }
 
 #order-index-page #orders-table th,

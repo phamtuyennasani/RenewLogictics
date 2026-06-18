@@ -66,9 +66,11 @@ new #[Layout('layouts.app')] #[Title('Quản lý tải hàng')] class extends Co
             <h1 class="text-xl font-semibold text-neutral-900">Quản lý tải hàng</h1>
             <p class="mt-1 text-sm text-neutral-500">Gom nhiều đơn vào một tải để cập nhật lịch sử và duyệt xuất đồng loạt.</p>
         </div>
+        @can('packages.create')
         <a href="{{ route('packages.create') }}" wire:navigate class="inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-700">
             Tạo tải hàng
         </a>
+        @endcan
     </div>
 
     <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">

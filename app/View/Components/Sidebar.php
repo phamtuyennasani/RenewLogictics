@@ -91,7 +91,7 @@ class Sidebar extends Component
                     'route' => 'pickups.index',
                     'icon' => 'pickup',
                     'label' => 'Quản lý Pickup',
-                    'roles' => ['admin', 'manager', 'ops', 'shipper', 'sale', 'ctv'],
+                    'roles' => ['admin', 'manager', 'ops', 'shipper', 'sale', 'cs', 'ctv'],
                 ],
                 [
                     'route' => 'scan',
@@ -104,7 +104,7 @@ class Sidebar extends Component
                     'feature' => 'packages',
                     'icon' => 'package',
                     'label' => 'Quản lý tải hàng',
-                    'roles' => ['admin', 'manager', 'ops', 'cs'],
+                    'roles' => ['admin', 'manager', 'cs'],
                 ],
                 [
                     'route' => 'congno.index',

@@ -84,8 +84,8 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
                 ->middleware('throttle:mobile-receive')->name('pickups.receive-by-scan');
         });
 
-        // OPS scan/nhập kho — role ops|admin|manager|cs.
-        Route::middleware('role:ops|admin|manager|cs')->prefix('ops')->name('ops.')->group(function (): void {
+        // OPS scan/nhập kho — role ops|admin|manager. CS không được scan.
+        Route::middleware('role:ops|admin|manager')->prefix('ops')->name('ops.')->group(function (): void {
             Route::post('/scan', [MobileOpsScanController::class, 'scan'])
                 ->middleware('throttle:mobile-scan')
                 ->name('scan');
@@ -95,7 +95,10 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
             Route::post('/orders/bulk-receive', [MobileOpsScanController::class, 'bulkReceive'])
                 ->middleware('throttle:mobile-receive')
                 ->name('orders.bulk-receive');
+        });
 
+        // OPS module mobile (orders, pickups, danh mục) — role ops|admin|manager|cs.
+        Route::middleware('role:ops|admin|manager|cs')->prefix('ops')->name('ops.')->group(function (): void {
             // OPS orders — đơn được giao cho OPS này (id_ops = auth id).
             Route::get('/orders', [MobileOpsOrderController::class, 'index'])->name('orders.index');
             Route::get('/orders/{order}', [MobileOpsOrderController::class, 'show'])->name('orders.show');

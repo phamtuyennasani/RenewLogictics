@@ -35,7 +35,6 @@
             </div>
         </div>
     </flux:modal>
-
     <iframe id="order-print-frame" class="pointer-events-none fixed h-0 w-0 border-0 opacity-0" title="Order print renderer" aria-hidden="true"></iframe>
 </div>
 
@@ -94,7 +93,6 @@
                 if (!field('fromDate')?.value) setFilterDate('fromDate', defaultDates.fromDate);
                 if (!field('toDate')?.value) setFilterDate('toDate', defaultDates.toDate);
             }
-
             function setFilterDate(name, value) {
                 const input = field(name);
                 if (!input) return;
@@ -103,7 +101,6 @@
                     input._flatpickr.setDate(value, false);
                     return;
                 }
-
                 input.value = value;
             }
 
@@ -197,7 +194,6 @@
                     pageLength: Number(document.getElementById('orders-page-size')?.value || 25),
                     pagingType: 'simple_numbers',
                     scrollX: true,
-                    autoWidth: false,
                     ajax: {
                         url: routes.datatable,
                         data: (data) => Object.assign(data, filters(), {
@@ -213,22 +209,38 @@
                     },
                     columns: (() => {
                         const col = (data, name) => ({ data, ...(name ? { name } : {}), orderable: false, searchable: false });
-
-                        const head = [
-                            col('order_code', 'id_bill'),
-                            col('status_badge', 'bill_status'),
-                            col('dates', 'created_at'),
-                            col('assignee'),
-                            col('sender_info'),
-                            col('receiver_info'),
-                            col('receiver_address'),
-                            col('service_info'),
-                            col('receiver_country'),
+                        var columnDefs = [];
+                        var colArray = [
+                            col('check'), // 0
+                            col('order_code', 'id_bill'), //1
+                            col('status_badge', 'bill_status'), //2
+                            col('dates', 'created_at'), //3
+                            col('assignee'), //4
+                            col('sender_info'), //5
+                            col('receiver_info'), //6
+                            col('receiver_address'), //7
+                            col('service_info'), //8
+                            col('receiver_country'), //9
+                            col('agency_info'), //10
+                            col('package_info'), //11
+                            col('sale_total'), //12
+                            col('cost_total'), //13
+                            col('profit_total'), //14
+                            col('payment_client'), //15
+                            col('payment_partner'), //16
+                            col('actions'), //17
                         ];
-
                         if (role === 'sale') {
-                            return [
-                                ...head,
+                            colArray = [
+                                col('order_code', 'id_bill'),
+                                col('status_badge', 'bill_status'),
+                                col('dates', 'created_at'),
+                                col('assignee'),
+                                col('sender_info'),
+                                col('receiver_info'),
+                                col('receiver_address'),
+                                col('service_info'),
+                                col('receiver_country'),
                                 col('package_info'),
                                 col('sale_total'),
                                 col('sale_commission'),
@@ -237,38 +249,63 @@
                             ];
                         }
                         if (role === 'ctv') {
-                            return [
-                                ...head,
+                            colArray = [
+                                col('order_code', 'id_bill'),
+                                col('status_badge', 'bill_status'),
+                                col('dates', 'created_at'),
+                                col('sender_info'),
+                                col('receiver_info'),
+                                col('receiver_address'),
+                                col('service_info'),
+                                col('receiver_country'),
                                 col('package_info'),
                                 col('payment_client'),
                                 col('actions'),
                             ];
                         }
-
                         if (role === 'ops') {
-                            return [
-                                ...head,
+                            colArray = [
+                                col('order_code', 'id_bill'),
+                                col('status_badge', 'bill_status'),
+                                col('dates', 'created_at'),
+                                col('assignee'),
+                                col('sender_info'),
+                                col('receiver_info'),
+                                col('receiver_address'),
+                                col('service_info'),
+                                col('receiver_country'),
                                 col('package_info'),
                                 col('actions'),
                             ];
                         }
-
-                        return [
-                            col('check'),
-                            ...head,
-                            col('agency_info'),
-                            col('package_info'),
-                            col('sale_total'),
-                            col('cost_total'),
-                            col('profit_total'),
-                            col('payment_client'),
-                            col('payment_partner'),
-                            col('actions'),
-                        ];
+                        return colArray;
                     })(),
-                    columnDefs: (() => {})(),
+                    columnDefs: (() => {
+                        var defs = ['50px','100px','150px','180px','300px','300px','180px','300px','70px','150px','80px','100px','100px','70px','200px','200px','150px'].map((width, index) => ({
+                                targets: index,
+                                width: width,
+                            }));
+                        if (role === 'sale') {
+                            defs = ['80px','100px','200px','300px','300px','300px','120px','150px','70px','150px','200px','100px'].map((width, index) => ({
+                                targets: index,
+                                width: width,
+                            }));
+                        }
+                        if (role === 'ops') {
+                            defs = ['80px', '100px', '200px', '300px','300px','300px','300px','120px','150px','70px','70px'].map((width, index) => ({
+                                targets: index,
+                                width: width,
+                            }));
+                        }
+                        if (role === 'ctv') {
+                            defs = ['80px', '100px', '200px', '300px', '300px', '300px', '120px','120px', '70px', '200px', '70px'].map((width, index) => ({
+                                targets: index,
+                                width: width,
+                            }));
+                        }
+                        return defs;
+                    })(),
                 });
-
                 const updateBulkState = () => {
                     document.querySelectorAll('[data-selected-count]').forEach((el) => el.textContent = selected.size);
                     document.querySelectorAll('[data-delete-cancelled]').forEach((el) => el.disabled = selected.size === 0 || !capabilities.canDeleteCancelled);
@@ -291,19 +328,15 @@
                         }
                     });
                 };
-
                 const setSpecialStatusPanel = (open) => {
                     const panel = document.querySelector('[data-special-status-panel]');
                     const toggle = document.querySelector('[data-special-status-toggle]');
-
                     if (!panel || !toggle) {
                         return;
                     }
-
                     panel.hidden = !open;
                     toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
                 };
-
                 const reload = () => {
                     appliedStatus = field('status')?.value || '';
                     selected.clear();
@@ -312,50 +345,40 @@
                     updateBulkState();
                     table.ajax.reload();
                 };
-
                 const toggleEmptyTableChrome = () => {
                     const wrapper = tableEl.closest('.dt-container');
                     if (!wrapper) return;
-
                     const hasRows = table.page.info().recordsDisplay > 0;
                     wrapper.querySelectorAll('.dt-info, .dt-paging').forEach((el) => {
                         el.hidden = !hasRows;
                     });
                 };
-
                 jQuery(tableEl).on('xhr.dt', (_event, _settings, json) => {
                     const counts = json?.statusCounts || {};
                     document.querySelectorAll('[data-status-count]').forEach((el) => {
                         const key = el.dataset.statusCount || '';
                         el.textContent = key === 'all' ? (counts.all ?? 0) : (counts[key] ?? 0);
                     });
-
                     const specialTotal = [...document.querySelectorAll('[data-special-status-tab] [data-status-count]')]
                         .reduce((total, el) => total + Number(counts[el.dataset.statusCount || ''] ?? 0), 0);
                     document.querySelectorAll('[data-special-status-count]').forEach((el) => el.textContent = specialTotal);
                 });
-
                 const syncActiveStatus = () => {
                     const currentStatus = field('status')?.value || '';
                     const specialToggle = document.querySelector('[data-special-status-toggle]');
                     const specialActive = !!document.querySelector(`[data-special-status-tab][data-status-tab="${currentStatus}"]`);
-
                     document.querySelectorAll('[data-status-tab]').forEach((button) => {
                         button.dataset.active = button.dataset.statusTab === currentStatus ? 'true' : 'false';
                     });
-
                     if (specialToggle) {
                         specialToggle.dataset.active = specialActive ? 'true' : 'false';
                     }
-
                     if (specialActive) {
                         setSpecialStatusPanel(true);
                     }
                 };
-
                 jQuery(tableEl).on('draw.dt', () => {
                     toggleEmptyTableChrome();
-
                     document.querySelectorAll('.order-check').forEach((checkbox) => {
                         checkbox.checked = selected.has(String(checkbox.value));
                         checkbox.addEventListener('change', () => {
@@ -388,7 +411,6 @@
                         reload();
                     });
                 });
-
                 document.getElementById('orders-apply-filter')?.addEventListener('click', () => {
                     syncActiveStatus();
                     reload();

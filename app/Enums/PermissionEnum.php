@@ -33,6 +33,7 @@ enum PermissionEnum: string
     case PACKAGES_VIEW   = 'packages.view';
     case PACKAGES_CREATE = 'packages.create';
     case PACKAGES_UPDATE = 'packages.update';
+    case PACKAGES_DELETE = 'packages.delete';
     case PACKAGES_SCAN   = 'packages.scan';
 
     // ======================================================
@@ -164,6 +165,7 @@ enum PermissionEnum: string
             self::PACKAGES_VIEW   => 'Xem tải hàng',
             self::PACKAGES_CREATE => 'Tạo lô hàng',
             self::PACKAGES_UPDATE => 'Cập nhật lô hàng',
+            self::PACKAGES_DELETE => 'Xóa lô hàng',
             self::PACKAGES_SCAN   => 'Quét barcode',
 
             // CongNo

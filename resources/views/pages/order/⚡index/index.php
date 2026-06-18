@@ -151,7 +151,7 @@ new class extends Component
             'role' => collect(['admin', 'manager', 'ketoan', 'ops', 'cs', 'sale', 'ctv', 'shipper'])->first(fn ($role) => $user->hasRole($role)),
             'roles' => $user->roles->pluck('name')->values()->all(),
             'canCreate' => $user->can('orders.create'),
-            'canDeleteCancelled' => $user->hasRole('admin'),
+            'canDeleteCancelled' => $user->hasAnyRole(\App\Enums\RoleEnum::canDeleteOrder()),
             'canCancel' => $user->hasAnyRole(['admin', 'manager']),
             'canReceive' => $user->hasAnyRole(['admin', 'ops', 'manager', 'cs']),
             'canApproveExport' => $user->hasAnyRole(['admin', 'manager', 'cs']),

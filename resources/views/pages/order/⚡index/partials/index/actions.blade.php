@@ -7,6 +7,12 @@
         \App\Enums\OrderStatusEnum::DA_NHAN_HANG,
         \App\Enums\OrderStatusEnum::DUYET_XUAT_HANG,
     ], true);
+
+    // Admin xóa được nhiều trạng thái; CS chỉ xóa được "Mới tạo".
+    $canDeleteThisOrder = $user?->hasRole('admin')
+        ? $canCancelOrDelete
+        : ($user?->hasRole('cs') && $order->bill_status === \App\Enums\OrderStatusEnum::MOI_TAO);
+    $canCancelThisOrder = $user?->hasRole('admin') && $canCancelOrDelete;
 @endphp
 <div class="flex items-center justify-end">
     <div class="inline-flex items-center justify-end gap-0.5 rounded-lg border border-neutral-200 bg-white p-0.5 shadow-xs">
@@ -29,8 +35,11 @@
             </flux:tooltip>
         @endif
 
-        @if ($user?->hasRole('admin') && $canCancelOrDelete)
+        @if ($canCancelThisOrder || $canDeleteThisOrder)
             <span class="mx-0.5 h-4 w-px bg-neutral-200"></span>
+        @endif
+
+        @if ($canCancelThisOrder)
             <flux:tooltip position="top" content="Hủy đơn">
                 <button
                     type="button"
@@ -41,6 +50,9 @@
                     <i class="pi pi-times-circle text-xs"></i>
                 </button>
             </flux:tooltip>
+        @endif
+
+        @if ($canDeleteThisOrder)
             <flux:tooltip position="top" content="Xóa đơn">
                 <button
                     type="button"

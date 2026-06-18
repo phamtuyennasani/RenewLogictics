@@ -144,21 +144,27 @@ class OrderDataTableController extends Controller
 
     public function deleteCancelled(Request $request): JsonResponse
     {
-        abort_unless($request->user()->hasRole('admin'), 403);
+        $user = $request->user();
+        abort_unless($user->hasAnyRole(\App\Enums\RoleEnum::canDeleteOrder()), 403);
 
         $data = $request->validate([
             'ids' => ['required', 'array'],
             'ids.*' => ['integer'],
         ]);
 
-        $orders = $this->query($request)
-            ->whereIn('orders.id', $data['ids'])
-            ->whereIn('bill_status', [
+        // Admin/Manager xóa được đơn ở nhiều trạng thái; CS chỉ xóa được đơn "Mới tạo".
+        $allowedStatuses = $user->hasAnyRole(['admin', 'manager'])
+            ? [
                 OrderStatusEnum::MOI_TAO->value,
                 OrderStatusEnum::DA_XAC_NHAN->value,
                 OrderStatusEnum::DA_NHAN_HANG->value,
                 OrderStatusEnum::DUYET_XUAT_HANG->value,
-            ])
+            ]
+            : [OrderStatusEnum::MOI_TAO->value];
+
+        $orders = $this->query($request)
+            ->whereIn('orders.id', $data['ids'])
+            ->whereIn('bill_status', $allowedStatuses)
             ->get();
 
         $count = $orders->count();

@@ -16,7 +16,7 @@
             
             <thead class="bg-neutral-50 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 <tr data-dt-order="disable">
-                    @if (! in_array($role, ['sale', 'ops'], true))
+                    @if (! in_array($role, ['sale', 'ops','ctv'], true))
                     <th class="w-12 px-4 py-3 text-center">
                         <label class="order-checkbox relative mx-auto flex w-fit cursor-pointer select-none items-center justify-center">
                             <input id="orders-check-all" type="checkbox" class="peer sr-only">
@@ -30,29 +30,32 @@
                     <th class="px-3 py-3">Mã AWB / REF</th>
                     <th class="px-3 py-3 min-w-[180px]">Trạng thái/PickUp</th>
                     <th class="px-3 py-3">Ngày tạo / xuất / giao</th>
+                    @if (! in_array($role, ['ctv'], true))
                     <th class="px-3 py-3">Khách hàng</th>
+                    @endif
                     <th class="px-3 py-3">Người gửi</th>
                     <th class="px-3 py-3">Người nhận</th>
                     <th class="px-3 py-3">Địa chỉ người nhận</th>
                     <th class="px-3 py-3">Dịch vụ</th>
                     <th class="px-3 py-3">Quốc gia</th>
-                    @if (! in_array($role, ['sale', 'ops'], true))
+                    @if (! in_array($role, ['sale', 'ops','ctv'], true))
                         <th class="px-3 py-3">Đại lý</th>
                     @endif
                     <th class="px-3 py-3 text-right">Kiện hàng</th>
-                    @if ($role !== 'ops')
+                    @if (! in_array($role, ['ops','ctv'], true))
                     <th class="px-3 py-3">Cước bán</th>
                     @endif
-                    @if ($role === 'sale')
-                        <th class="px-3 py-3">Hoa hồng sale</th>
-                    @elseif ($role !== 'ops' && $role !== 'ctv')
+                    @if (in_array($role, ['sale'], true))
+                    <th class="px-3 py-3">Hoa hồng sale</th>
+                    @endif
+                    @if (! in_array($role, ['ops','ctv'], true))
                         <th class="px-3 py-3">Cước vốn</th>
                         <th class="px-3 py-3">Lợi nhuận</th>
                     @endif
-                    @if ($role !== 'ops')
+                    @if (!in_array($role, ['ops'], true))
                     <th class="px-3 py-3">Khách hàng thanh toán</th>
                     @endif
-                    @if (! in_array($role, ['sale', 'ops'], true))
+                    @if (! in_array($role, ['sale', 'ops','ctv'], true))
                         <th class="px-3 py-3">Thanh toán đại lý</th>
                     @endif
                     <th class="px-3 py-3 text-right">Thao tác</th>

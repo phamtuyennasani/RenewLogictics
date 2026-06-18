@@ -85,6 +85,25 @@ class Order extends Model
         static::deleting(function (Order $order): void {
             $order->photos()->get()->each->delete();
         });
+
+        // Auto-claim CS phụ trách: chỉ chạy SAU khi đơn được lưu THAY ĐỔI bởi
+        // một CS, và đơn chưa có CS phụ trách. Tránh claim khi user mở modal
+        // rồi save không đổi gì.
+        static::updated(function (Order $order): void {
+            $user = auth()->user();
+            if (! $user || ! $user->hasRole('cs')) {
+                return;
+            }
+            if (filled($order->id_cs)) {
+                return;
+            }
+            // Tránh đệ quy khi update id_cs sẽ trigger updated tiếp.
+            if ($order->wasChanged('id_cs')) {
+                return;
+            }
+
+            $order->forceFill(['id_cs' => $user->id])->saveQuietly();
+        });
     }
 
     // ============================================

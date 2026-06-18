@@ -22,8 +22,8 @@ namespace App\Enums;
 // Sale được phép tạo đơn, tạo công nợ, xem công nợ. Chỉ được xóa đơn khi chưa xác nhận (đơn mới tạo), xóa công nợ ở trạng thái "Mới tạo"
 // Kế toán được phép quản lý công nợ, tạo công nợ, xóa công nợ (chỉ khi ở trạng thái "Mới tạo"), được phép cập nhật trạng thái công nợ (chuyển từ "Mới tạo" sang "Đang xử lý", hoặc từ "Đang xử lý" sang "Đã thanh toán")
 // CTV được phép tạo đơn, xem công nợ của chính mình.
-// CS được phép tạo đơn, Xóa đơn hàng mới tạo.
-// Ops chỉnh được xem đơn và cập nhật trạng thái từ Đã xác nhận sang đã nhận hàng.
+// CS được phép tạo đơn, xóa đơn ở trạng thái "Mới tạo". Không có quyền scan kiện hàng. Quản lý tải hàng: thao tác đầy đủ như admin/manager nhưng KHÔNG được xóa tải. Khách hàng và địa chỉ: xem/tạo/sửa, KHÔNG xóa (chỉ admin). Pickup: tạo, chọn OPS, sửa ở trạng thái "Mới tạo", KHÔNG chọn shipper.
+// Ops chỉnh được xem đơn và cập nhật trạng thái từ Đã xác nhận sang đã nhận hàng. OPS không tham gia quản lý tải hàng.
 enum RoleEnum: string
 {
     case ADMIN   = 'admin';
@@ -110,13 +110,17 @@ enum RoleEnum: string
         ];
     }
     /**
-     * Role nào được phép xóa đơn
+     * Role nào được phép xóa đơn.
+     *
+     * Lưu ý: Admin/Manager xóa được đơn ở các trạng thái chưa giao;
+     * CS chỉ xóa được đơn ở trạng thái "Mới tạo" (kiểm tra ở controller).
      */
     public static function canDeleteOrder(): array
     {
         return [
             self::ADMIN->value,
             self::MANAGER->value,
+            self::CS->value,
         ];
     }
 

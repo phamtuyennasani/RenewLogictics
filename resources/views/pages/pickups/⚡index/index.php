@@ -607,7 +607,8 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
      * Quyền chọn shipper cho phiếu.
      * - Admin/Manager: mọi trạng thái.
      * - OPS sở hữu phiếu: chỉ Mới tạo / Đã xác nhận.
-     * - CS/Sale/CTV: không bao giờ.
+     * - CS: KHÔNG được chọn shipper.
+     * - Sale/CTV: KHÔNG được chọn shipper.
      */
     public function canEditShipperForPickup(?Pickup $pickup = null): bool
     {

@@ -206,7 +206,6 @@
                             @endunless
                         </div>
                     </div>
-
                     <aside class="border-t border-neutral-100 bg-neutral-50 px-6 py-7 lg:border-l lg:border-t-0 lg:px-8">
                         <h2 class="text-xl font-extrabold text-neutral-950">Tiến trình xử lý</h2>
                         <div class="mt-5 space-y-4">
@@ -235,7 +234,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="mt-6 rounded-2xl border border-blue-100 bg-white p-4 text-sm leading-6 text-neutral-600">
                             Quý khách vui lòng lưu lại mã giao dịch. Nếu cần hỗ trợ, gửi mã này cho bộ phận chăm sóc khách hàng để được kiểm tra nhanh hơn.
                         </div>
