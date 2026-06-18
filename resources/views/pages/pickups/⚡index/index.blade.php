@@ -358,24 +358,50 @@
                     </div>
                 </div>
 
-                <div class="flex flex-wrap justify-end gap-2 border-t border-neutral-100 pt-4">
-                    @if($this->canEditPickup($selectedPickup))
-                        <flux:button type="button" wire:click="openEdit({{ $selectedPickup->id }})" wire:loading.attr="disabled" variant="outline">Sửa</flux:button>
-                    @endif
+                @if($selectedPickup->images->isNotEmpty())
+                    <div class="overflow-hidden rounded-lg border border-neutral-200">
+                        <div class="border-b border-neutral-100 px-4 py-3">
+                            <h3 class="text-sm font-semibold text-neutral-900">Ảnh bằng chứng lấy hàng</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3 md:grid-cols-4">
+                            @foreach($selectedPickup->images as $image)
+                                <a href="{{ $image->url }}" target="_blank" rel="noopener"
+                                   class="group relative block aspect-square overflow-hidden rounded-lg border border-neutral-200 bg-neutral-50">
+                                    <img src="{{ $image->url }}" alt="Ảnh lấy hàng"
+                                         loading="lazy"
+                                         class="h-full w-full object-cover transition group-hover:scale-105" />
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
-                    @if($this->canManagePickupStatus($selectedPickup))
-                        @if($selectedPickup->status === \App\Enums\PickupStatusEnum::MOI_TAO_PICKUP)
-                            <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::DA_XAC_NHAN->value }}')" wire:loading.attr="disabled" variant="primary">Đã xác nhận</flux:button>
-                        @elseif($selectedPickup->status === \App\Enums\PickupStatusEnum::DA_XAC_NHAN)
-                            <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY->value }}')" wire:loading.attr="disabled" variant="primary">Đang lấy hàng</flux:button>
-                        @elseif($selectedPickup->status === \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY)
-                            <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::PICKUP_DA_LAY->value }}')" wire:loading.attr="disabled" variant="primary">Đã lấy hàng</flux:button>
+                <div class="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-4">
+                    <div>
+                        @if($this->canDeletePickup($selectedPickup))
+                            <flux:button type="button" wire:click="deletePickup" wire:confirm="Xóa hẳn phiếu Pickup này? Hành động không thể hoàn tác." wire:loading.attr="disabled" variant="danger" icon="trash">Xóa phiếu</flux:button>
+                        @endif
+                    </div>
+
+                    <div class="flex flex-wrap justify-end gap-2">
+                        @if($this->canEditPickup($selectedPickup))
+                            <flux:button type="button" wire:click="openEdit({{ $selectedPickup->id }})" wire:loading.attr="disabled" variant="outline">Sửa</flux:button>
                         @endif
 
-                        <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::DA_HUY->value }}')" wire:confirm="Hủy phiếu Pickup này?" wire:loading.attr="disabled" variant="danger">Hủy</flux:button>
-                    @elseif($selectedPickup->status->isFinal())
-                        <p class="self-center text-sm font-medium text-neutral-500">Phiếu đã khóa thao tác.</p>
-                    @endif
+                        @if($this->canManagePickupStatus($selectedPickup))
+                            @if($selectedPickup->status === \App\Enums\PickupStatusEnum::MOI_TAO_PICKUP)
+                                <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::DA_XAC_NHAN->value }}')" wire:loading.attr="disabled" variant="primary">Đã xác nhận</flux:button>
+                            @elseif($selectedPickup->status === \App\Enums\PickupStatusEnum::DA_XAC_NHAN)
+                                <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY->value }}')" wire:loading.attr="disabled" variant="primary">Đang lấy hàng</flux:button>
+                            @elseif($selectedPickup->status === \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY)
+                                <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::PICKUP_DA_LAY->value }}')" wire:loading.attr="disabled" variant="primary">Đã lấy hàng</flux:button>
+                            @endif
+
+                            <flux:button type="button" wire:click="updateStatus('{{ \App\Enums\PickupStatusEnum::DA_HUY->value }}')" wire:confirm="Hủy phiếu Pickup này?" wire:loading.attr="disabled" variant="danger">Hủy</flux:button>
+                        @elseif($selectedPickup->status->isFinal())
+                            <p class="self-center text-sm font-medium text-neutral-500">Phiếu đã khóa thao tác.</p>
+                        @endif
+                    </div>
                 </div>
             </div>
         @endif

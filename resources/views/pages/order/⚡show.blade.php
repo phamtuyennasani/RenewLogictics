@@ -305,7 +305,8 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
 
     public function canSelectShipperForPickup(): bool
     {
-        return auth()->user()->hasAnyRole(['admin', 'ops', 'cs', 'manager']);
+        // CS KHÔNG được chọn shipper (chỉ admin/manager/ops).
+        return auth()->user()->hasAnyRole(['admin', 'ops', 'manager']);
     }
 
     public function openPickupModal(): void

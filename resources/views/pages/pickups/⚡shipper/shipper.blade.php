@@ -371,7 +371,7 @@
                         <span class="text-sm">Bắt đầu lấy hàng</span>
                     </button>
                 @elseif($pickup->status === \App\Enums\PickupStatusEnum::PICKUP_DANG_LAY)
-                    <button wire:click="updateStatus({{ $pickup->id }}, '{{ \App\Enums\PickupStatusEnum::PICKUP_DA_LAY->value }}')"
+                    <button wire:click="openProofModal({{ $pickup->id }}, 'card')"
                             wire:loading.attr="disabled"
                             class="flex-1 py-2 bg-emerald-600 text-white text-sm font-bold uppercase tracking-wide active:bg-emerald-700">
                         <span class="text-sm">Đã nhận hàng</span>
@@ -484,4 +484,66 @@
             </div>
         </div>
     </div>
+
+    {{-- Modal up ảnh bằng chứng khi xác nhận đã lấy hàng --}}
+    @if($showProofModal)
+        <div class="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 sm:items-center" wire:key="proof-modal">
+            <div class="w-full max-w-md rounded-t-2xl bg-white p-4 shadow-xl sm:rounded-2xl">
+                <div class="flex items-start justify-between gap-3 border-b border-neutral-100 pb-3">
+                    <div>
+                        <h2 class="text-base font-bold text-neutral-950">Ảnh chứng minh đã lấy hàng</h2>
+                        <p class="mt-0.5 text-xs text-neutral-500">Chụp hoặc chọn ít nhất 1 ảnh trước khi xác nhận.</p>
+                    </div>
+                    <button type="button" wire:click="closeProofModal"
+                            class="rounded-lg p-1.5 text-neutral-400 active:bg-neutral-100">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+
+                <div class="py-4">
+                    {{-- Nút chụp/chọn ảnh --}}
+                    <label class="flex w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary-300 bg-primary-50 py-6 text-primary-700 active:bg-primary-100">
+                        <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span class="text-sm font-bold">Chụp ảnh / Chọn ảnh</span>
+                        <input type="file" wire:model="proofImages" accept="image/*" capture="environment" multiple class="hidden">
+                    </label>
+
+                    <div wire:loading wire:target="proofImages" class="mt-2 text-center text-xs text-neutral-500">Đang tải ảnh...</div>
+
+                    @error('proofImages.*') <p class="mt-2 text-xs font-semibold text-red-600">{{ $message }}</p> @enderror
+                    @error('proofPhotos') <p class="mt-2 text-xs font-semibold text-red-600">{{ $message }}</p> @enderror
+
+                    {{-- Preview ảnh đã tích lũy (gom nhiều lần chụp/chọn) --}}
+                    @if(count($proofPhotos) > 0)
+                        <div class="mt-3 grid grid-cols-3 gap-2">
+                            @foreach($proofPhotos as $idx => $img)
+                                @if(is_object($img) && method_exists($img, 'temporaryUrl'))
+                                    <div class="relative aspect-square overflow-hidden rounded-lg border border-neutral-200" wire:key="proof-prev-{{ $idx }}">
+                                        <img src="{{ $img->temporaryUrl() }}" class="h-full w-full object-cover" alt="Ảnh {{ $idx + 1 }}">
+                                        <button type="button" wire:click="removeProofPhoto({{ $idx }})"
+                                                class="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white active:bg-black/80">
+                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                        <p class="mt-2 text-xs text-neutral-500">Đã có {{ count($proofPhotos) }}/8 ảnh. Bấm "Chụp ảnh / Chọn ảnh" để thêm.</p>
+                    @endif
+                </div>
+
+                <div class="flex gap-2 border-t border-neutral-100 pt-3">
+                    <button type="button" wire:click="closeProofModal"
+                            class="flex-1 rounded-xl border border-neutral-200 bg-white py-2.5 text-sm font-bold text-neutral-700 active:bg-neutral-50">
+                        Hủy
+                    </button>
+                    <button type="button" wire:click="confirmReceivedWithProof"
+                            wire:loading.attr="disabled" wire:target="confirmReceivedWithProof,proofImages"
+                            class="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-bold text-white active:bg-emerald-700 disabled:bg-emerald-300">
+                        Xác nhận đã nhận
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

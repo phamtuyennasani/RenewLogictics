@@ -5,17 +5,23 @@ use App\Actions\Pickup\TransitionPickupStatusAction;
 use App\Enums\PickupStatusEnum;
 use App\Models\OrderPackage;
 use App\Models\Pickup;
+use App\Models\PickupImage;
 use Flux\Flux;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithoutUrlPagination;
 use Livewire\WithPagination;
 
 new #[Layout('layouts.mobile')] #[Title('Danh sách Pickup')] class extends Component
 {
-    use WithPagination, WithoutUrlPagination;
+    use WithPagination, WithoutUrlPagination, WithFileUploads;
+
+    /** Số ảnh bằng chứng tối đa cho mỗi pickup. */
+    public const MAX_IMAGES = 8;
 
     public string $keyword = '';
     public string $tab = 'new'; // new | accepted | picking | done
@@ -23,6 +29,14 @@ new #[Layout('layouts.mobile')] #[Title('Danh sách Pickup')] class extends Comp
     public string $scanBarcodeInput = '';
     public ?int $scannedPickupId = null;
     public ?int $scannedOrderId = null;
+
+    // Modal up ảnh bằng chứng khi xác nhận đã lấy hàng.
+    public bool $showProofModal = false;
+    public ?int $proofPickupId = null;
+    public string $proofSource = 'card'; // card | scan
+    public array $proofImages = []; // input tạm mỗi lần chọn (bị reset sau khi gom)
+    public array $proofPhotos = []; // ảnh đã tích lũy qua nhiều lần chụp/chọn
+
     public array $scanResult = [
         'message' => '',
         'type' => 'neutral',
@@ -141,6 +155,201 @@ new #[Layout('layouts.mobile')] #[Title('Danh sách Pickup')] class extends Comp
         Flux::toast(heading: 'Thành công', text: 'Đã cập nhật trạng thái.', variant: 'success');
     }
 
+    /**
+     * Mở modal up ảnh bằng chứng trước khi xác nhận đã lấy hàng.
+     * $source: 'card' (nút trong card) hoặc 'scan' (luồng quét mã).
+     */
+    public function openProofModal(int $pickupId, string $source = 'card'): void
+    {
+        // Xác thực pickup thuộc shipper hiện tại.
+        $exists = Pickup::query()
+            ->where('id_shipper', auth()->id())
+            ->whereKey($pickupId)
+            ->exists();
+
+        if (! $exists) {
+            Flux::toast(heading: 'Lỗi', text: 'Không tìm thấy phiếu pickup.', variant: 'warning');
+            return;
+        }
+
+        $this->proofPickupId = $pickupId;
+        $this->proofSource = $source === 'scan' ? 'scan' : 'card';
+        $this->proofImages = [];
+        $this->proofPhotos = [];
+        $this->resetValidation();
+        $this->showProofModal = true;
+    }
+
+    /**
+     * Mỗi lần shipper chọn/chụp ảnh, gom vào mảng tích lũy rồi reset input tạm
+     * để có thể chụp tiếp (Livewire multiple thay thế mảng — nên phải gom tay).
+     */
+    public function updatedProofImages(): void
+    {
+        // Validate nhanh từng ảnh mới trước khi gom.
+        $this->validate([
+            'proofImages.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ], [
+            'proofImages.*.image' => 'File không phải ảnh hợp lệ.',
+            'proofImages.*.mimes' => 'Chỉ chấp nhận ảnh JPG, PNG, WEBP.',
+            'proofImages.*.max' => 'Mỗi ảnh tối đa 4MB.',
+        ]);
+
+        foreach ($this->proofImages as $img) {
+            if (count($this->proofPhotos) >= self::MAX_IMAGES) {
+                break;
+            }
+            $this->proofPhotos[] = $img;
+        }
+
+        $this->proofImages = [];
+    }
+
+    public function removeProofPhoto(int $index): void
+    {
+        unset($this->proofPhotos[$index]);
+        $this->proofPhotos = array_values($this->proofPhotos);
+    }
+
+    public function closeProofModal(): void
+    {
+        $this->showProofModal = false;
+        $this->proofPickupId = null;
+        $this->proofImages = [];
+        $this->proofPhotos = [];
+        $this->resetValidation();
+    }
+
+    /**
+     * Xác nhận đã lấy hàng KÈM ảnh bằng chứng (bắt buộc ≥ 1 ảnh).
+     * Lưu ảnh vào pickup_images rồi chuyển trạng thái sang PICKUP_DA_LAY.
+     */
+    public function confirmReceivedWithProof(): void
+    {
+        $this->validate([
+            'proofPhotos' => ['required', 'array', 'min:1', 'max:'.self::MAX_IMAGES],
+            'proofPhotos.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ], [
+            'proofPhotos.required' => 'Vui lòng chụp hoặc chọn ít nhất 1 ảnh chứng minh.',
+            'proofPhotos.min' => 'Vui lòng cung cấp ít nhất 1 ảnh chứng minh.',
+            'proofPhotos.max' => 'Tối đa '.self::MAX_IMAGES.' ảnh.',
+            'proofPhotos.*.image' => 'File không phải ảnh hợp lệ.',
+            'proofPhotos.*.mimes' => 'Chỉ chấp nhận ảnh JPG, PNG, WEBP.',
+            'proofPhotos.*.max' => 'Mỗi ảnh tối đa 4MB.',
+        ]);
+
+        $pickup = Pickup::query()
+            ->where('id_shipper', auth()->id())
+            ->withCount('images')
+            ->find($this->proofPickupId);
+
+        if (! $pickup) {
+            Flux::toast(heading: 'Lỗi', text: 'Không tìm thấy phiếu pickup.', variant: 'warning');
+            $this->closeProofModal();
+            return;
+        }
+
+        if ($pickup->images_count + count($this->proofPhotos) > self::MAX_IMAGES) {
+            Flux::toast(heading: 'Lỗi', text: 'Mỗi phiếu chỉ lưu tối đa '.self::MAX_IMAGES.' ảnh.', variant: 'warning');
+            return;
+        }
+
+        // Move file ra đĩa TRƯỚC (ngoài DB transaction). Giữ danh sách đường dẫn
+        // tuyệt đối để dọn rác nếu phần DB phía sau thất bại.
+        try {
+            $stored = $this->moveProofImages($pickup);
+        } catch (\Throwable $e) {
+            Flux::toast(heading: 'Lỗi', text: 'Không lưu được ảnh. Vui lòng thử lại.', variant: 'warning');
+            return;
+        }
+
+        // DB: tạo bản ghi ảnh + chuyển trạng thái trong 1 transaction.
+        try {
+            DB::transaction(function () use ($pickup, $stored) {
+                foreach ($stored as $item) {
+                    PickupImage::create([
+                        'pickup_id' => $pickup->id,
+                        'path' => $item['path'],
+                        'uploaded_by' => auth()->id(),
+                    ]);
+                }
+                $this->markPickupAsReceived($pickup);
+            });
+        } catch (\RuntimeException $e) {
+            $this->deleteStoredFiles($stored);
+            Flux::toast(heading: 'Lỗi', text: $e->getMessage(), variant: 'warning');
+            return;
+        } catch (\Throwable $e) {
+            $this->deleteStoredFiles($stored);
+            Flux::toast(heading: 'Lỗi', text: 'Không lưu được ảnh. Vui lòng thử lại.', variant: 'warning');
+            return;
+        }
+
+        $fromScan = $this->proofSource === 'scan';
+        $this->closeProofModal();
+
+        if ($fromScan) {
+            $packageCount = max(1, (int) ($this->scanResult['package_count'] ?? 1));
+            $this->scanResult['pickup_status'] = PickupStatusEnum::PICKUP_DA_LAY->label();
+            $this->scanResult['message'] = $packageCount > 1
+                ? "Shiper đã nhận đủ {$packageCount} kiện hàng"
+                : 'Shiper đã nhận hàng thành công';
+            $this->scanResult['type'] = 'success';
+            $this->clearScannedPickup();
+        }
+
+        $this->tab = 'done';
+        $this->resetPage();
+
+        Flux::toast(heading: 'Thành công', text: 'Đã nhận hàng và lưu ảnh chứng minh.', variant: 'success');
+    }
+
+    /**
+     * Move các ảnh tạm vào public/uploads/pickup/{id}. CHỈ thao tác đĩa,
+     * KHÔNG ghi DB (để gọi trước transaction). Trả về [['path'=>.., 'absolute'=>..]].
+     */
+    protected function moveProofImages(Pickup $pickup): array
+    {
+        $relativeDir = 'uploads/pickup/'.$pickup->id;
+        $uploadDir = public_path($relativeDir);
+
+        if (! is_dir($uploadDir) && ! mkdir($uploadDir, 0755, true) && ! is_dir($uploadDir)) {
+            throw new \RuntimeException('Không tạo được thư mục lưu ảnh.');
+        }
+
+        $stored = [];
+        foreach ($this->proofPhotos as $i => $image) {
+            $filename = $pickup->id.'_'.time().'_'.$i.'_'.mt_rand(1000, 9999).'.'.$image->getClientOriginalExtension();
+            $absolute = $uploadDir.DIRECTORY_SEPARATOR.$filename;
+            // Dùng copy(getRealPath()) thay vì ->move(): ảnh tạm của Livewire là
+            // TemporaryUploadedFile (storage/app/private/livewire-tmp), không phải
+            // HTTP upload thật nên UploadedFile::move() ném lỗi. Đồng bộ pattern
+            // avatar shipper đã chạy ổn (taikhoan/shipper.blade.php).
+            if (! @copy($image->getRealPath(), $absolute)) {
+                throw new \RuntimeException('Không lưu được ảnh ra đĩa.');
+            }
+            $stored[] = [
+                'path' => '/'.$relativeDir.'/'.$filename,
+                'absolute' => $absolute,
+            ];
+        }
+
+        return $stored;
+    }
+
+    /**
+     * Dọn các file đã move khi phần DB thất bại (tránh file mồ côi).
+     */
+    protected function deleteStoredFiles(array $stored): void
+    {
+        foreach ($stored as $item) {
+            $absolute = $item['absolute'] ?? null;
+            if ($absolute && is_file($absolute)) {
+                @unlink($absolute);
+            }
+        }
+    }
+
     public function submitShipperScan(): void
     {
         $code = trim($this->scanBarcodeInput);
@@ -214,25 +423,15 @@ new #[Layout('layouts.mobile')] #[Title('Danh sách Pickup')] class extends Comp
         $pickup = Pickup::query()
             ->where('id_shipper', auth()->id())
             ->whereHas('orders', fn ($query) => $query->whereKey($this->scannedOrderId))
-            ->findOrFail($this->scannedPickupId);
+            ->find($this->scannedPickupId);
 
-        try {
-            $pickup = $this->markPickupAsReceived($pickup);
-        } catch (\RuntimeException $e) {
-            Flux::toast(heading: 'Lỗi', text: $e->getMessage(), variant: 'warning');
+        if (! $pickup) {
+            Flux::toast(heading: 'Lỗi', text: 'Không tìm thấy phiếu pickup.', variant: 'warning');
             return;
         }
 
-        $packageCount = max(1, (int) ($this->scanResult['package_count'] ?? 1));
-        $this->scanResult['pickup_status'] = $pickup->status?->label() ?? PickupStatusEnum::PICKUP_DA_LAY->label();
-        $this->scanResult['message'] = $packageCount > 1
-            ? "Shiper đã nhận đủ {$packageCount} kiện hàng"
-            : 'Shiper đã nhận hàng thành công';
-        $this->scanResult['type'] = 'success';
-        $this->tab = 'done';
-        $this->resetPage();
-
-        Flux::toast(heading: 'Thành công', text: $this->scanResult['message'], variant: 'success');
+        // Yêu cầu ảnh chứng minh trước khi nhận hàng → mở modal up ảnh.
+        $this->openProofModal($pickup->id, 'scan');
     }
 
     public function clearScannedPickup(): void

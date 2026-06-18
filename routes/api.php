@@ -77,6 +77,11 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
             Route::get('/pickups/{pickup}', [MobileShipperPickupController::class, 'show'])->name('pickups.show');
             Route::post('/pickups/{pickup}/status', [MobileShipperPickupController::class, 'updateStatus'])->name('pickups.status');
 
+            // Ảnh bằng chứng pickup (shipper chụp khi lấy hàng).
+            Route::get('/pickups/{pickup}/images', [MobileShipperPickupController::class, 'images'])->name('pickups.images.index');
+            Route::post('/pickups/{pickup}/images', [MobileShipperPickupController::class, 'storeImage'])->name('pickups.images.store');
+            Route::delete('/pickups/{pickup}/images/{image}', [MobileShipperPickupController::class, 'destroyImage'])->name('pickups.images.destroy');
+
             // Quét mã kiện → tìm pickup → nhận hàng.
             Route::post('/scan', [MobileShipperPickupController::class, 'scan'])
                 ->middleware('throttle:mobile-scan')->name('scan');

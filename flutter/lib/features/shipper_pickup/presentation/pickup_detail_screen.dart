@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../app/router.dart';
 import '../../../core/utils/contact_actions.dart';
 import '../../../core/utils/date_formatters.dart';
+import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../domain/pickup.dart';
+import '../domain/pickup_image.dart';
 import 'pickup_detail_controller.dart';
+import 'pickup_images_controller.dart';
 import 'pickup_list_controller.dart';
+import 'pickup_providers.dart';
 import 'widgets/status_action_sheet.dart';
 
 /// Màn chi tiết một pickup (contract §3.2) + đổi trạng thái (§3.3).
@@ -41,11 +46,19 @@ class PickupDetailScreen extends ConsumerWidget {
       } else if (next.errorMessage != null &&
           next.errorMessage != prev?.errorMessage &&
           next.detail != null) {
-        // Lỗi khi đã có dữ liệu (vd đổi trạng thái thất bại) → SnackBar.
+        // Lỗi khi đã có dữ liệu (vd đổi trạng thái / GPS thất bại) → SnackBar.
+        // Lỗi vị trí cần cấp quyền → kèm action mở Cài đặt.
         messenger.showSnackBar(
           SnackBar(
             content: Text(next.errorMessage!),
             backgroundColor: Theme.of(context).colorScheme.error,
+            action: next.errorOpenSettings
+                ? SnackBarAction(
+                    label: 'Mở Cài đặt',
+                    textColor: Colors.white,
+                    onPressed: ref.read(locationServiceProvider).openAppSettings,
+                  )
+                : null,
           ),
         );
         notifier.clearMessages();
@@ -96,6 +109,10 @@ class PickupDetailScreen extends ConsumerWidget {
         ),
         children: [
           _StatusHeader(pickup: detail.pickup),
+          if (state.isPendingSync) ...[
+            const SizedBox(height: 12),
+            const _PendingSyncBanner(),
+          ],
           const SizedBox(height: 12),
           _CustomerCard(
             customer: detail.pickup.customer,
@@ -118,6 +135,8 @@ class PickupDetailScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             _OrdersCard(orders: detail.orders),
           ],
+          const SizedBox(height: 12),
+          _ImagesCard(pickupId: detail.pickup.id),
         ],
       ),
     );
@@ -135,6 +154,10 @@ class PickupDetailScreen extends ConsumerWidget {
     if (transitions.isEmpty) return null;
 
     final theme = Theme.of(context);
+    final busy = state.isSubmitting || state.isLocating;
+    final label = state.isLocating
+        ? 'Đang lấy vị trí...'
+        : (state.isSubmitting ? 'Đang cập nhật...' : 'Cập nhật trạng thái');
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -154,19 +177,17 @@ class PickupDetailScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           child: FilledButton.icon(
-            onPressed: state.isSubmitting
+            onPressed: busy
                 ? null
                 : () => _openStatusSheet(context, ref, transitions, notifier),
-            icon: state.isSubmitting
+            icon: busy
                 ? const SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.sync_alt),
-            label: Text(
-              state.isSubmitting ? 'Đang cập nhật...' : 'Cập nhật trạng thái',
-            ),
+            label: Text(label),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(50),
             ),
@@ -263,6 +284,42 @@ class _StatusHeader extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Banner báo có thao tác đổi trạng thái đang chờ đồng bộ (offline).
+class _PendingSyncBanner extends StatelessWidget {
+  const _PendingSyncBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: theme.colorScheme.tertiary.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.cloud_sync_outlined,
+            size: 20,
+            color: theme.colorScheme.tertiary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Thao tác đang chờ đồng bộ. Sẽ tự gửi khi có mạng trở lại.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -480,6 +537,14 @@ class _InfoCard extends StatelessWidget {
                 label: 'Người tạo',
                 value: p.createdBy!,
               ),
+            if (detail.checkin != null)
+              _InfoRow(
+                icon: Icons.my_location_outlined,
+                label: 'Check-in GPS',
+                value: detail.checkin!.at != null
+                    ? DateFormatters.dateTime(detail.checkin!.at)
+                    : 'Đã ghi nhận vị trí',
+              ),
           ],
         ),
       ),
@@ -660,6 +725,280 @@ class _OrderRow extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Card ảnh bằng chứng pickup: lưới thumbnail + thêm/xóa ảnh.
+class _ImagesCard extends ConsumerStatefulWidget {
+  const _ImagesCard({required this.pickupId});
+
+  final int pickupId;
+
+  @override
+  ConsumerState<_ImagesCard> createState() => _ImagesCardState();
+}
+
+class _ImagesCardState extends ConsumerState<_ImagesCard> {
+  final _picker = ImagePicker();
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final file = await _picker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 80,
+      );
+      if (file == null || !mounted) return;
+      final ok = await ref
+          .read(pickupImagesControllerProvider(widget.pickupId).notifier)
+          .upload(file.path);
+      if (!mounted) return;
+      if (ok) {
+        AppToast.success(context, 'Đã tải ảnh lên.');
+      } else {
+        final msg = ref
+            .read(pickupImagesControllerProvider(widget.pickupId))
+            .errorMessage;
+        AppToast.error(context, msg ?? 'Không tải được ảnh.');
+      }
+    } catch (_) {
+      if (mounted) {
+        AppToast.error(context, 'Không mở được ảnh. Vui lòng thử lại.');
+      }
+    }
+  }
+
+  void _openPickerSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Chụp ảnh mới'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Chọn từ thư viện'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(PickupImage image) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa ảnh?'),
+        content: const Text('Ảnh bằng chứng này sẽ bị xóa vĩnh viễn.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final done = await ref
+        .read(pickupImagesControllerProvider(widget.pickupId).notifier)
+        .delete(image.id);
+    if (mounted && done) AppToast.success(context, 'Đã xóa ảnh.');
+  }
+
+  void _openViewer(PickupImage image) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(dialogContext),
+          child: InteractiveViewer(
+            child: Image.network(
+              image.url,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => const Padding(
+                padding: EdgeInsets.all(32),
+                child: Icon(Icons.broken_image_outlined, size: 48),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(pickupImagesControllerProvider(widget.pickupId));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _CardTitle(
+                    icon: Icons.photo_camera_back_outlined,
+                    title: 'Ảnh bằng chứng (${state.images.length})',
+                  ),
+                ),
+                if (state.isUploading)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  TextButton.icon(
+                    onPressed: _openPickerSheet,
+                    icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                    label: const Text('Thêm'),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            if (state.isLoading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (state.images.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Chưa có ảnh. Chụp ảnh kiện hàng để làm bằng chứng.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final image in state.images)
+                    _ImageThumb(
+                      image: image,
+                      isDeleting: state.deletingId == image.id,
+                      onTap: () => _openViewer(image),
+                      onDelete: () => _confirmDelete(image),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Thumbnail ảnh bằng chứng với nút xóa ở góc.
+class _ImageThumb extends StatelessWidget {
+  const _ImageThumb({
+    required this.image,
+    required this.isDeleting,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  final PickupImage image;
+  final bool isDeleting;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    const size = 92.0;
+
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: GestureDetector(
+              onTap: onTap,
+              child: Image.network(
+                image.url,
+                fit: BoxFit.cover,
+                loadingBuilder: (_, child, progress) => progress == null
+                    ? child
+                    : Container(
+                        color: theme.colorScheme.surfaceContainerLow,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      ),
+                errorBuilder: (_, _, _) => Container(
+                  color: theme.colorScheme.surfaceContainerLow,
+                  child: Icon(
+                    Icons.broken_image_outlined,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 2,
+            right: 2,
+            child: Material(
+              color: Colors.black.withValues(alpha: 0.55),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: isDeleting ? null : onDelete,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: isDeleting
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.close,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                ),
+              ),
             ),
           ),
         ],

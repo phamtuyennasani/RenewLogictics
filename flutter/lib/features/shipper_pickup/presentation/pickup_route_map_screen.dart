@@ -4,6 +4,7 @@ import 'package:vietmap_flutter_gl/vietmap_flutter_gl.dart';
 
 import '../../../core/config/mobile_config_provider.dart';
 import '../../../core/location/location_service.dart';
+import '../../../core/utils/contact_actions.dart';
 import '../domain/pickup.dart';
 import '../domain/route_path.dart';
 import 'pickup_providers.dart';
@@ -103,7 +104,14 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
                 left: 16,
                 right: 16,
                 bottom: 24,
-                child: _ActionButton(state: state, onFindRoute: _onFindRoute),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ActionButton(state: state, onFindRoute: _onFindRoute),
+                    const SizedBox(height: 10),
+                    _NavigateButton(onNavigate: _openExternalNavigation),
+                  ],
+                ),
               ),
             ],
           );
@@ -119,6 +127,20 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
 
   void _onFindRoute() {
     ref.read(pickupRouteControllerProvider(_destination).notifier).findRoute();
+  }
+
+  /// Mở app bản đồ ngoài (Google Maps) dẫn đường turn-by-turn tới điểm pickup.
+  Future<void> _openExternalNavigation() async {
+    final ok = await ContactActions.openDirections(
+      lat: _destination.lat,
+      lng: _destination.lng,
+    );
+    if (!ok && mounted) {
+      _showError(
+        'Không mở được ứng dụng bản đồ trên thiết bị.',
+        canOpenSettings: false,
+      );
+    }
   }
 
   Future<void> _drawPickupMarker() async {
@@ -262,6 +284,26 @@ class _ActionButton extends StatelessWidget {
       label: Text(label),
       style: FilledButton.styleFrom(
         minimumSize: const Size.fromHeight(52),
+      ),
+    );
+  }
+}
+
+/// Nút mở app bản đồ ngoài để dẫn đường turn-by-turn.
+class _NavigateButton extends StatelessWidget {
+  const _NavigateButton({required this.onNavigate});
+
+  final VoidCallback onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onNavigate,
+      icon: const Icon(Icons.navigation_outlined),
+      label: const Text('Dẫn đường (mở Google Maps)'),
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        backgroundColor: Theme.of(context).colorScheme.surface,
       ),
     );
   }

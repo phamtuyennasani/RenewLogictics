@@ -206,6 +206,22 @@ class DioClient {
     );
   }
 
+  Future<ApiEnvelope> delete(
+    String path, {
+    Object? body,
+    Map<String, dynamic>? query,
+    bool skipAuth = false,
+  }) {
+    return _send(
+      () => _dio.delete(
+        path,
+        data: body,
+        queryParameters: query,
+        options: Options(extra: {'skipAuth': skipAuth}),
+      ),
+    );
+  }
+
   /// Gửi multipart (upload file). Ghi đè contentType để Dio tự set
   /// `multipart/form-data; boundary=...` thay vì JSON mặc định.
   Future<ApiEnvelope> postMultipart(

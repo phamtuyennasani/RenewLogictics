@@ -168,7 +168,24 @@ class OrderDataTableController extends Controller
             ->get();
 
         $count = $orders->count();
-        $orders->each->delete();
+
+        foreach ($orders as $order) {
+            \App\Models\ActivityLog::record(
+                action: 'order.delete',
+                title: "Xóa đơn hàng {$order->id_bill}",
+                subject: $order,
+                snapshot: [
+                    'id' => $order->id,
+                    'id_bill' => $order->id_bill,
+                    'bill_status' => $order->bill_status?->value,
+                    'id_sale' => $order->id_sale,
+                    'id_customer' => $order->id_customer,
+                    'tracking_code' => $order->tracking_code,
+                    'created_at' => $order->created_at?->toIso8601String(),
+                ],
+            );
+            $order->delete();
+        }
 
         return response()->json(['message' => "Đã xóa {$count} đơn hàng."]);
     }

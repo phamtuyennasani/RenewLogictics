@@ -422,8 +422,8 @@
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div class="min-w-0">
                                 <p class="text-xs font-bold uppercase text-amber-700">Bằng chứng thanh toán tiền mặt</p>
-                                <h3 class="mt-1 text-lg font-black text-neutral-950">Ảnh khách hàng đã gửi</h3>
-                                <p class="mt-1 text-sm font-medium text-amber-800">Kiểm tra ảnh chứng từ trước khi xác nhận thanh toán.</p>
+                                <h3 class="mt-1 text-lg font-black text-neutral-950" data-detail-cash-proof-title>Ảnh khách hàng đã gửi</h3>
+                                <p class="mt-1 text-sm font-medium text-amber-800" data-detail-cash-proof-note>Kiểm tra ảnh chứng từ trước khi xác nhận thanh toán.</p>
                             </div>
                             <a data-detail-cash-proof-link href="#" target="_blank" rel="noopener" class="inline-flex h-9 items-center justify-center rounded-lg border border-amber-300 bg-white px-3 text-xs font-bold text-amber-800 transition hover:bg-amber-100">
                                 Mở ảnh gốc
@@ -433,6 +433,34 @@
                             <img data-detail-cash-proof-img src="" alt="Bằng chứng thanh toán tiền mặt" class="max-h-[28rem] w-full object-contain">
                         </div>
                     </section>
+
+                    {{-- Thông tin đối chiếu giao dịch (thanh toán online đã thành công) --}}
+                    <section class="mt-4 hidden rounded-lg border border-emerald-200 bg-emerald-50 p-5" data-detail-txn>
+                        <div class="mb-3">
+                            <p class="text-xs font-bold uppercase text-emerald-700">Đối chiếu cổng thanh toán</p>
+                            <h3 class="mt-1 text-lg font-black text-neutral-950">Thông tin giao dịch online</h3>
+                            <p class="mt-1 text-sm font-medium text-emerald-800">Dùng để đối chiếu với cổng thanh toán.</p>
+                        </div>
+                        <dl class="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                            <div class="flex justify-between gap-3 sm:flex-col sm:gap-0">
+                                <dt class="font-medium text-neutral-500">Cổng thanh toán</dt>
+                                <dd class="font-semibold text-neutral-900" data-detail-txn-provider>-</dd>
+                            </div>
+                            <div class="flex justify-between gap-3 sm:flex-col sm:gap-0">
+                                <dt class="font-medium text-neutral-500">Thời điểm thanh toán</dt>
+                                <dd class="font-semibold text-neutral-900" data-detail-txn-paid-at>-</dd>
+                            </div>
+                            <div class="flex justify-between gap-3 sm:flex-col sm:gap-0" data-detail-txn-id-row>
+                                <dt class="font-medium text-neutral-500">Mã giao dịch cổng</dt>
+                                <dd class="break-all font-mono font-semibold text-neutral-900" data-detail-txn-id>-</dd>
+                            </div>
+                            <div class="flex justify-between gap-3 sm:flex-col sm:gap-0" data-detail-txn-ref-row>
+                                <dt class="font-medium text-neutral-500">Mã tham chiếu</dt>
+                                <dd class="break-all font-mono font-semibold text-neutral-900" data-detail-txn-ref>-</dd>
+                            </div>
+                        </dl>
+                    </section>
+
                     <p class="mt-4 hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700" data-detail-error></p>
 
                     <section data-detail-section="approved" class="mt-4 hidden rounded-lg border border-neutral-200 bg-white p-5">
@@ -499,6 +527,7 @@
                     <button type="button" hidden data-detail-action="mark-paid" class="inline-flex h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60">Xác nhận đã thanh toán</button>
                     <button type="button" hidden data-detail-action="reject" class="inline-flex h-10 items-center justify-center rounded-lg border border-orange-200 bg-white px-4 text-sm font-bold text-orange-700 transition hover:bg-orange-50">Không chấp nhận</button>
                     <button type="button" hidden data-detail-action="cancel" class="inline-flex h-10 items-center justify-center rounded-lg border border-red-200 bg-white px-4 text-sm font-bold text-red-700 transition hover:bg-red-50">Hủy hóa đơn</button>
+                    <button type="button" hidden data-detail-action="delete" class="inline-flex h-10 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">Xóa hóa đơn</button>
                     <button type="button" data-detail-action="close" class="inline-flex h-10 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-bold text-neutral-700 transition hover:bg-neutral-50">Đóng</button>
                 </div>
             </div>
@@ -575,6 +604,48 @@
                     </button>
                     <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">
                         Xác nhận hủy
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {{-- Modal xóa hóa đơn (admin) — yêu cầu nhập mật khẩu để xác nhận --}}
+        <div id="invoice-delete-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+            <form id="invoice-delete-form" class="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+                <div class="flex items-start justify-between gap-4 border-b border-neutral-100 pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-neutral-950">Xóa hóa đơn</h2>
+                        <p class="mt-1 text-sm text-neutral-500">
+                            <span data-delete-modal-code>-</span>
+                            <span class="mx-1">/</span>
+                            <span data-delete-modal-amount>-</span>
+                        </p>
+                    </div>
+                    <button type="button" id="invoice-delete-close" class="rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800">
+                        <span class="sr-only">Đóng</span>
+                        <svg class="size-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="py-4">
+                    <p class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+                        Hành động này xóa vĩnh viễn hóa đơn cùng toàn bộ file đính kèm và lịch sử. Không thể khôi phục.
+                    </p>
+                    <label class="mt-4 block">
+                        <span class="text-sm font-semibold text-neutral-700">Nhập mật khẩu của bạn để xác nhận <span class="text-red-500">*</span></span>
+                        <input type="password" name="password" autocomplete="current-password" class="mt-2 block w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm" placeholder="Mật khẩu tài khoản admin" required>
+                    </label>
+                    <p class="mt-2 hidden text-sm text-red-600" data-delete-modal-error></p>
+                </div>
+
+                <div class="flex justify-end gap-2 border-t border-neutral-100 pt-4">
+                    <button type="button" id="invoice-delete-dismiss" class="inline-flex h-9 items-center justify-center rounded-lg border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-700 transition hover:bg-neutral-50">
+                        Đóng
+                    </button>
+                    <button type="submit" class="inline-flex h-9 items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">
+                        Xác nhận xóa
                     </button>
                 </div>
             </form>

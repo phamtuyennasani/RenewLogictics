@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../../core/api/api_envelope.dart';
 import '../../../core/api/dio_client.dart';
 
@@ -49,5 +51,28 @@ class PickupApi {
         'lng': ?lng,
       },
     );
+  }
+
+  /// `GET /shipper/pickups/{id}/images`
+  Future<ApiEnvelope> listImages(int pickupId) {
+    return _client.get('/shipper/pickups/$pickupId/images');
+  }
+
+  /// `POST /shipper/pickups/{id}/images` — upload ảnh bằng chứng (multipart).
+  Future<ApiEnvelope> uploadImage(int pickupId, String filePath) async {
+    // Tách tên file an toàn trên cả `/` (mobile) lẫn `\` (phòng desktop).
+    final fileName = filePath.split(RegExp(r'[/\\]')).last;
+    final formData = FormData.fromMap({
+      'image': await MultipartFile.fromFile(filePath, filename: fileName),
+    });
+    return _client.postMultipart(
+      '/shipper/pickups/$pickupId/images',
+      formData: formData,
+    );
+  }
+
+  /// `DELETE /shipper/pickups/{id}/images/{imageId}`
+  Future<ApiEnvelope> deleteImage(int pickupId, int imageId) {
+    return _client.delete('/shipper/pickups/$pickupId/images/$imageId');
   }
 }

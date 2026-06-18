@@ -28,6 +28,23 @@ class ContactActions {
     return _launch(uri);
   }
 
+  /// Mở app bản đồ ngoài ở chế độ DẪN ĐƯỜNG (turn-by-turn) tới toạ độ đích.
+  ///
+  /// Khác [openMap] (chỉ đánh dấu điểm): hàm này yêu cầu app bản đồ điều hướng
+  /// từ vị trí hiện tại của thiết bị tới đích. Dùng deep link Google Maps
+  /// `dir_action=navigate` — mở thẳng Google Maps (Android/iOS nếu có cài),
+  /// fallback sang web khi chưa cài app.
+  static Future<bool> openDirections({
+    required double lat,
+    required double lng,
+  }) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&destination=$lat,$lng&travelmode=driving&dir_action=navigate',
+    );
+    return _launch(uri);
+  }
+
   static Future<bool> _launch(Uri uri) async {
     if (await canLaunchUrl(uri)) {
       return launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -54,7 +54,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Text('Renew Logistics', style: theme.textTheme.titleLarge),
+              Text('Bee Express', style: theme.textTheme.titleLarge),
               const SizedBox(height: 4),
               Text(
                 'Đang khôi phục phiên làm việc',

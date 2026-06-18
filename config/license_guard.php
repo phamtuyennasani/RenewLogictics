@@ -5,6 +5,9 @@ return [
     'license_key' => env('LICENSE_KEY', ''),
     'no_check' => env('LICENSE_KEY_NOCHECK', ''),
     'brand_name' => 'Beehive Technology',
-    'brand_logo' => asset('images/logo.svg'),
+    // Đường dẫn tương đối — KHÔNG gọi asset() ở đây vì config được nạp ở
+    // giai đoạn bootstrap sớm, trước khi 'url'/'request' sẵn sàng (gây lỗi
+    // UrlGenerator khi config không được cache). Gọi asset() lúc render view.
+    'brand_logo' => 'images/logo.svg',
 ];
 

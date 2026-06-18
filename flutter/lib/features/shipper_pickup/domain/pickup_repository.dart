@@ -1,5 +1,6 @@
 import '../../../core/models/paginated.dart';
 import 'pickup.dart';
+import 'pickup_image.dart';
 
 /// Tab danh sách pickup (contract §6.1) → map sang status filter.
 enum PickupTab {
@@ -75,4 +76,13 @@ abstract class PickupRepository {
     double? lat,
     double? lng,
   });
+
+  /// Danh sách ảnh bằng chứng của một pickup.
+  Future<List<PickupImage>> listImages(int pickupId);
+
+  /// Upload một ảnh bằng chứng (đường dẫn file local) → trả ảnh vừa lưu.
+  Future<PickupImage> uploadImage(int pickupId, String filePath);
+
+  /// Xóa một ảnh bằng chứng do shipper upload.
+  Future<void> deleteImage(int pickupId, int imageId);
 }

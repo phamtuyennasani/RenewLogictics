@@ -330,6 +330,12 @@ class Sidebar extends Component
                         ['route' => 'profile',             'label' => 'Thông tin cá nhân',     'roles' => ['admin', 'manager', 'ketoan', 'cs', 'sale', 'ops', 'ctv', 'shipper']],
                     ],
                 ],
+                [
+                    'route' => 'activity-log.index',
+                    'icon' => 'policy',
+                    'label' => 'Nhật ký hệ thống',
+                    'roles' => ['admin'],
+                ],
             ],
         ], $role);
 

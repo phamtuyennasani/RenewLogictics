@@ -98,6 +98,21 @@ class CongNoDaiLyDataTableController extends Controller
                         'total_amount' => (float) $debt->total_cuocvon,
                     ], fn ($v) => $v !== null),
                 );
+                \App\Models\ActivityLog::record(
+                    action: 'congno_daily.delete',
+                    title: "Hủy công nợ đại lý {$debt->sohoadon}",
+                    subject: $debt,
+                    snapshot: [
+                        'id' => $debt->id,
+                        'sohoadon' => $debt->sohoadon,
+                        'status' => $debt->status?->value,
+                        'id_daily' => $debt->id_daily,
+                        'id_ketoan' => $debt->id_ketoan,
+                        'total_cuocvon' => $debt->total_cuocvon,
+                        'paid_amount' => $debt->paid_amount,
+                        'created_at' => $debt->created_at?->toIso8601String(),
+                    ],
+                );
                 $debt->forceFill([
                     'status' => DebtStatusEnum::DA_HUY,
                 ])->save();

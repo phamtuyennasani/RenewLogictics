@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/notifications/push_notification_service.dart';
 import '../core/notifications/push_providers.dart';
+import '../features/auth/presentation/auth_controller.dart';
+import '../features/shipper_pickup/presentation/pickup_providers.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
 
@@ -63,6 +65,19 @@ class _ShipperOpsAppState extends ConsumerState<ShipperOpsApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+
+    // Khởi động/ngừng bộ đồng bộ hàng đợi offline theo trạng thái đăng nhập:
+    // đăng nhập xong → lắng nghe mạng + đẩy ngay action còn tồn; logout → ngừng.
+    ref.listen<AuthState>(authControllerProvider, (prev, next) {
+      if (prev?.status == next.status) return;
+      final sync = ref.read(pendingStatusSyncProvider);
+      if (next.status == AuthStatus.authenticated) {
+        sync.start();
+        sync.drain();
+      } else if (next.status == AuthStatus.unauthenticated) {
+        sync.stop();
+      }
+    });
 
     return MaterialApp.router(
       title: 'Shipper & OPS',

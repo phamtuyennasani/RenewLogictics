@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../domain/ops_order.dart';
-import '../domain/ops_order_repository.dart';
 import 'ops_order_list_controller.dart';
 import 'ops_order_providers.dart';
 
@@ -33,7 +32,7 @@ class _CreatePickupScreenState extends ConsumerState<CreatePickupScreen> {
   late TextEditingController _addressCtrl;
   late TextEditingController _noteCtrl;
 
-  String _country = 'VIETNAM';
+  final String _country = 'VIETNAM';
   int? _selectedProvinceId;
   int? _selectedWardId;
   int? _selectedShipperId;
@@ -263,10 +262,20 @@ class _CreatePickupScreenState extends ConsumerState<CreatePickupScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: _selectedProvinceId,
-              decoration: const InputDecoration(
+              initialValue: _selectedProvinceId,
+              decoration: InputDecoration(
                 labelText: 'Tỉnh/Thành *',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: _isLoadingProvinces
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
               ),
               items: _provinces.map((p) {
                 return DropdownMenuItem(
@@ -274,17 +283,29 @@ class _CreatePickupScreenState extends ConsumerState<CreatePickupScreen> {
                   child: Text(p['name'] as String),
                 );
               }).toList(),
-              onChanged: (value) {
-                setState(() => _selectedProvinceId = value);
-                if (value != null) _loadWards(value);
-              },
+              onChanged: _isLoadingProvinces
+                  ? null
+                  : (value) {
+                      setState(() => _selectedProvinceId = value);
+                      if (value != null) _loadWards(value);
+                    },
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: _selectedWardId,
-              decoration: const InputDecoration(
+              initialValue: _selectedWardId,
+              decoration: InputDecoration(
                 labelText: 'Phường/Xã *',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: _isLoadingWards
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
               ),
               items: _wards.map((w) {
                 return DropdownMenuItem(
@@ -292,7 +313,9 @@ class _CreatePickupScreenState extends ConsumerState<CreatePickupScreen> {
                   child: Text(w['name'] as String),
                 );
               }).toList(),
-              onChanged: (value) => setState(() => _selectedWardId = value),
+              onChanged: _isLoadingWards
+                  ? null
+                  : (value) => setState(() => _selectedWardId = value),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -301,10 +324,20 @@ class _CreatePickupScreenState extends ConsumerState<CreatePickupScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: _selectedShipperId,
-              decoration: const InputDecoration(
+              initialValue: _selectedShipperId,
+              decoration: InputDecoration(
                 labelText: 'Shipper (tùy chọn)',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                suffixIcon: _isLoadingShippers
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
               ),
               items: _shippers.map((s) {
                 return DropdownMenuItem(
@@ -312,7 +345,9 @@ class _CreatePickupScreenState extends ConsumerState<CreatePickupScreen> {
                   child: Text(s['name'] as String),
                 );
               }).toList(),
-              onChanged: (value) => setState(() => _selectedShipperId = value),
+              onChanged: _isLoadingShippers
+                  ? null
+                  : (value) => setState(() => _selectedShipperId = value),
             ),
             const SizedBox(height: 12),
             ListTile(

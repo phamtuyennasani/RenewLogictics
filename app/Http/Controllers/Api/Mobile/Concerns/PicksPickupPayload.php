@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Mobile\Concerns;
 
 use App\Enums\PickupStatusEnum;
 use App\Models\Pickup;
+use App\Models\PickupImage;
 use Carbon\Carbon;
 
 /**
@@ -87,11 +88,48 @@ trait PicksPickupPayload
                 'tracking_code' => $order->tracking_code,
                 'uuid' => $order->uuid,
             ])->all();
+            $payload['images'] = $pickup->relationLoaded('images')
+                ? $pickup->images->map(fn (PickupImage $img) => $this->imagePayload($img))->all()
+                : [];
+            $payload['checkin'] = $this->checkinPayload($pickup);
         } else {
             $payload['orders_count'] = (int) ($pickup->orders_count ?? 0);
         }
 
         return $payload;
+    }
+
+    /**
+     * Toạ độ GPS check-in của shipper lúc xác nhận đã lấy hàng (null nếu chưa có).
+     */
+    protected function checkinPayload(Pickup $pickup): ?array
+    {
+        if ($pickup->pickup_lat === null || $pickup->pickup_lng === null) {
+            return null;
+        }
+
+        return [
+            'lat' => (float) $pickup->pickup_lat,
+            'lng' => (float) $pickup->pickup_lng,
+            'checkin_at' => $pickup->pickup_checkin_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Đóng gói một ảnh bằng chứng pickup cho app.
+     *
+     * Trả `path` tương đối (vd `/uploads/pickup/...`) để app tự ghép host đang
+     * gọi API (qua Env.apiBaseUrl). Tránh hardcode host theo APP_URL backend —
+     * trên emulator/thiết bị thật host khác với APP_URL nên full URL sẽ hỏng.
+     */
+    protected function imagePayload(PickupImage $image): array
+    {
+        return [
+            'id' => $image->id,
+            'path' => $image->path,
+            'url' => $image->url,
+            'uploaded_at' => $image->created_at?->toIso8601String(),
+        ];
     }
 
     /**

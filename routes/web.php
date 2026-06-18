@@ -187,6 +187,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/reset-payment-channel', [InvoiceDataTableController::class, 'resetPaymentChannel'])->name('reset-payment-channel')->middleware('can:invoice.index');
         Route::post('/{id}/mark-paid', [InvoiceDataTableController::class, 'markPaidByAdmin'])->name('mark-paid')->middleware('can:invoice.index');
         Route::post('/{id}/cancel', [InvoiceDataTableController::class, 'cancel'])->name('cancel')->middleware('can:invoice.index');
+        Route::delete('/{id}', [InvoiceDataTableController::class, 'destroy'])->name('destroy')->middleware('can:settings.admin');
         Route::get('/sales', [InvoiceDataTableController::class, 'sales'])->name('sales');
         Route::get('/customers', [InvoiceDataTableController::class, 'customers'])->name('customers');
     });
@@ -358,6 +359,11 @@ Route::middleware('auth')->group(function () {
 
     // --- Profile ---
     Route::livewire('/ho-so', 'pages::taikhoan.index')->name('profile');
+
+    // --- Nhật ký hệ thống (audit log) — chỉ admin ---
+    Route::livewire('/nhat-ky-he-thong', 'pages::activity-log.index')->name('activity-log.index')
+        ->middleware('can:activity-log.view');
+
     // --- Logout ---
     Route::get('/logout', function () {
         \Auth::logout();

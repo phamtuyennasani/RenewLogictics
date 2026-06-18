@@ -208,6 +208,40 @@ class CongNoPayment extends Model
         return $this->isCreator($user) || $this->hasStaffPower($user);
     }
 
+    /**
+     * Quyền XÓA CỨNG hóa đơn (chỉ admin).
+     *
+     * Điều kiện:
+     * 1. Hóa đơn CHƯA thanh toán → xóa được tự do.
+     * 2. Hóa đơn ĐÃ thanh toán:
+     *    2.1. Tạo từ công nợ → chỉ xóa khi công nợ phụ thuộc đã bị xóa (soft delete).
+     *    2.2. Tạo từ đơn khách lẻ → chỉ xóa khi order đó đã bị xóa.
+     */
+    public function canDelete(?User $user): bool
+    {
+        if (! $user instanceof User || ! $user->hasRole('admin')) {
+            return false;
+        }
+
+        // 1. Chưa thanh toán → xóa được.
+        if ($this->status !== InvoicePaymentStatusEnum::DA_THANH_TOAN) {
+            return true;
+        }
+
+        // 2.1. Đã thanh toán + tạo từ công nợ → công nợ phải đã bị xóa mềm.
+        if ($this->id_congno) {
+            return $this->congNo !== null && $this->congNo->trashed();
+        }
+
+        // 2.2. Đã thanh toán + tạo từ đơn khách lẻ → order phải đã bị xóa.
+        if ($this->id_order) {
+            return $this->order === null;
+        }
+
+        // Không gắn công nợ lẫn đơn → không cho xóa hóa đơn đã thanh toán.
+        return false;
+    }
+
     public function canPay(?User $user): bool
     {
         if (! $user) {

@@ -16,7 +16,7 @@ Cập nhật: 2026-06-18
 - **Quét kiện hàng (Scan)**: Có quyền scan
 - **Công nợ khách hàng**: Xem, tạo, xóa (tất cả trạng thái)
 - **Công nợ đại lý**: Xem, tạo, xóa (tất cả trạng thái)
-- **Hóa đơn thu**: Xem, tạo, quản lý
+- **Hóa đơn thu**: Xem, tạo, quản lý, **XÓA** (có điều kiện)
 - **Khách hàng**: Xem, tạo, sửa, **XÓA**
 - **Địa chỉ gửi/nhận**: Xem, tạo, sửa, **XÓA**
 - **CTV**: Xem, tạo, sửa, xóa tất cả CTV
@@ -40,6 +40,7 @@ Cập nhật: 2026-06-18
 ### ✅ Làm được:
 - **Dashboard**: Xem tất cả thống kê
 - **Đơn hàng**: Xem tất cả đơn
+- **Đơn hàng**: Xóa đơn ở các trạng thái Mới tạo, Đã xác nhận, Đã nhận hàng, Duyệt xuất hàng
 - **Tải hàng (Packages)**: Tạo, xem, sửa, **XÓA TẢI**
 - **Pickup**: Tạo, xem, sửa, xóa tất cả pickup
 - **Công nợ khách hàng**: Xem, tạo, xóa
@@ -54,10 +55,9 @@ Cập nhật: 2026-06-18
 - **Bảng giá dịch vụ**: Xem, tạo, sửa
 
 ### ❌ Không làm được:
-- **Đơn hàng**: KHÔNG tạo đơn, KHÔNG xóa đơn
+- **Đơn hàng**: KHÔNG tạo đơn
 - **Quét kiện hàng (Scan)**: KHÔNG có quyền
 - **Quét barcode tải**: KHÔNG có quyền (packages.scan)
-- **Khách hàng**: KHÔNG thấy menu
 - **Địa chỉ gửi/nhận**: KHÔNG xóa được (chỉ admin)
 - **Chính sách**: KHÔNG thấy menu (chỉ admin)
 - **Settings Admin**: KHÔNG sửa được (logo, favicon, banner, company...)
@@ -73,9 +73,9 @@ Cập nhật: 2026-06-18
 ### ✅ Làm được:
 - **Dashboard**: Xem thống kê
 - **Đơn hàng**: Xem tất cả đơn
-- **Công nợ khách hàng**: Xem, tạo, xóa (chỉ khi ở trạng thái "Mới tạo")
+- **Công nợ khách hàng**: Xem, tạo, xóa (mọi trạng thái TRỪ "Đã thanh toán")
 - **Công nợ khách hàng**: Cập nhật trạng thái (Mới tạo → Đang xử lý → Đã thanh toán)
-- **Công nợ đại lý**: Xem, tạo, xóa (chỉ khi ở trạng thái "Mới tạo")
+- **Công nợ đại lý**: Xem, tạo, xóa (mọi trạng thái TRỪ "Đã thanh toán" và "Đã hủy")
 - **Hóa đơn thu**: Xem, tạo, quản lý
 - **Cấu hình**: Xem, sửa
 - **Phụ phí**: Xem, tạo, sửa
@@ -104,6 +104,7 @@ Cập nhật: 2026-06-18
 - **Dashboard**: Xem thống kê
 - **Đơn hàng**: Tạo, xem, sửa đơn
 - **Đơn hàng**: Xóa đơn **CHỈ Ở TRẠNG THÁI "MỚI TẠO"**
+- **Đơn hàng**: Cập nhật trạng thái sang "Đã nhận hàng", "Duyệt xuất hàng", "Đang phát hàng"
 - **Tải hàng (Packages)**: Tạo, xem, sửa
 - **Tải hàng**: Thêm đơn vào tải, xóa đơn khỏi tải, cập nhật lịch sử, duyệt tải
 - **Pickup**: Tạo pickup, xem tất cả pickup
@@ -142,10 +143,8 @@ Cập nhật: 2026-06-18
 ### ✅ Làm được:
 - **Dashboard**: Xem thống kê
 - **Đơn hàng**: Tạo, xem đơn
-- **Đơn hàng**: Xóa đơn **CHỈ KHI CHƯA XÁC NHẬN** (đơn mới tạo)
 - **Pickup**: Xem pickup của đơn mình, tạo pickup cho đơn mình
 - **Công nợ khách hàng**: Xem, tạo
-- **Công nợ khách hàng**: Xóa công nợ **CHỈ Ở TRẠNG THÁI "MỚI TẠO"**
 - **Hóa đơn thu**: Xem
 - **Khách hàng**: Xem, tạo, sửa
 - **Địa chỉ gửi/nhận**: Xem, tạo, sửa
@@ -153,7 +152,7 @@ Cập nhật: 2026-06-18
 
 ### ❌ Không làm được:
 - **Đơn hàng**: KHÔNG sửa đơn sau khi đã xác nhận
-- **Đơn hàng**: KHÔNG xóa đơn đã xác nhận
+- **Đơn hàng**: KHÔNG xóa đơn (mọi trạng thái)
 - **Tải hàng**: KHÔNG thấy menu
 - **Quét kiện**: KHÔNG có quyền
 - **Khách hàng**: KHÔNG xóa (chỉ admin)
@@ -258,8 +257,8 @@ Cập nhật: 2026-06-18
 | Chức năng | Admin | Manager | Ketoan | CS | Sale | OPS | CTV | Shipper |
 |-----------|-------|---------|--------|----|----|-----|-----|---------|
 | **Tạo đơn** | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ✅ | ❌ |
-| **Xóa đơn (mọi trạng thái)** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **Xóa đơn (mới tạo)** | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Xóa đơn (nhiều trạng thái)** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Xóa đơn (mới tạo)** | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Xem tải hàng** | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Tạo tải hàng** | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Sửa tải hàng** | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
@@ -284,9 +283,9 @@ Cập nhật: 2026-06-18
 
 ### Về Xóa đơn hàng:
 - **Admin**: Xóa được đơn ở tất cả trạng thái
+- **Manager**: Xóa được đơn ở trạng thái Mới tạo, Đã xác nhận, Đã nhận hàng, Duyệt xuất hàng
 - **CS**: Chỉ xóa được đơn ở trạng thái "Mới tạo"
-- **Sale**: Chỉ xóa được đơn chưa xác nhận (đơn mới tạo)
-- **Manager, Ketoan, OPS, CTV, Shipper**: KHÔNG xóa được đơn
+- **Sale, Ketoan, OPS, CTV, Shipper**: KHÔNG xóa được đơn
 
 ### Về Khách hàng và Địa chỉ:
 - **Admin**: Xóa được khách hàng, địa chỉ gửi, địa chỉ nhận
@@ -296,9 +295,20 @@ Cập nhật: 2026-06-18
 - **CTV**: Xem/tạo/sửa địa chỉ của mình, **KHÔNG xóa được**
 
 ### Về Công nợ:
-- **Kế toán**: Có quyền cập nhật trạng thái công nợ
-- **Sale**: Chỉ tạo và xem, xóa được công nợ "Mới tạo"
+- **Kế toán**: Có quyền cập nhật trạng thái công nợ; xóa được công nợ chưa có kế toán phụ trách hoặc do mình phụ trách (mọi trạng thái trừ "Đã thanh toán")
+- **Xóa công nợ**: Chỉ Admin, Manager, Kế toán (Sale KHÔNG xóa được)
+- **Sale**: Chỉ tạo và xem công nợ
 - **CTV**: Chỉ xem công nợ của chính mình
+
+### Về Xóa hóa đơn thu:
+- **Chỉ Admin** mới được xóa hóa đơn thu (xóa cứng, kèm file đính kèm và lịch sử trạng thái, không khôi phục được).
+- **Bắt buộc nhập lại mật khẩu admin** để xác nhận trước khi xóa.
+- **Chỉ xóa được từng hóa đơn một** (không hỗ trợ xóa hàng loạt).
+- **Hóa đơn CHƯA thanh toán**: xóa tự do.
+- **Hóa đơn ĐÃ thanh toán**:
+  - Nếu tạo từ **công nợ**: chỉ xóa được khi công nợ liên quan đã bị xóa.
+  - Nếu tạo từ **đơn khách lẻ**: chỉ xóa được khi đơn hàng liên quan đã bị xóa.
+- Các role khác: KHÔNG xóa được hóa đơn (chỉ có thể **hủy** hóa đơn theo quyền hiện có).
 
 ### Về Pickup:
 - **Admin/Manager**: Tạo, sửa mọi trạng thái, chọn OPS, chọn Shipper
@@ -313,4 +323,4 @@ Cập nhật: 2026-06-18
 ---
 
 **Tài liệu này được tạo tự động từ source code hệ thống**
-**Cập nhật lần cuối: 2026-06-18**
+**Cập nhật lần cuối: 2026-06-18 (làm rõ Manager quản lý CTV, CS cập nhật trạng thái Duyệt/Đang phát hàng; bổ sung quyền Admin xóa hóa đơn thu có điều kiện; đồng bộ quyền chọn shipper của CS và quyền xóa công nợ)**

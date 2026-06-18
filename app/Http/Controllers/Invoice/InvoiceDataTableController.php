@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -195,6 +196,10 @@ class InvoiceDataTableController extends Controller
                 'reference' => $invoice->payment_reference ?: $invoice->qr_payment_code,
                 'method' => $invoice->method,
                 'photo_url' => $invoice->photo ? Storage::disk('public')->url($invoice->photo) : null,
+                'provider_transaction_id' => $invoice->provider_transaction_id,
+                'sepay_transaction_id' => $invoice->sepay_transaction_id,
+                'provider_intent_id' => $invoice->provider_intent_id,
+                'paid_at' => $invoice->paid_at?->format('d/m/Y H:i:s'),
                 'can_regenerate' => $invoice->canRegenerateQr(),
                 'next_regenerate_at' => $nextQrAt?->format('H:i d/m/Y'),
                 'next_regenerate_at_iso' => $nextQrAt?->toIso8601String(),
@@ -208,6 +213,7 @@ class InvoiceDataTableController extends Controller
                 'manage_qr' => $invoice->canManageQr($user),
                 'reset_payment_channel' => $invoice->canResetPaymentChannel($user),
                 'admin_mark_paid' => $invoice->canAdminMarkPaid($user),
+                'delete' => $invoice->canDelete($user),
             ],
         ];
 
@@ -724,6 +730,87 @@ class InvoiceDataTableController extends Controller
         $invoice->writeStatusLog('cancelled', $fromStatus, InvoicePaymentStatusEnum::HUY, $user->id, $validated['cancel_reason']);
 
         return response()->json(['message' => "Đã hủy hóa đơn {$invoice->ma_hoa_don}."]);
+    }
+
+    /**
+     * Xóa cứng hóa đơn (chỉ admin) kèm file đính kèm + log trạng thái.
+     *
+     * Điều kiện xóa kiểm tra trong CongNoPayment::canDelete():
+     * - Chưa thanh toán: xóa tự do.
+     * - Đã thanh toán từ công nợ: chỉ khi công nợ đã bị xóa.
+     * - Đã thanh toán từ đơn khách lẻ: chỉ khi order đã bị xóa.
+     */
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $invoice = CongNoPayment::whereKey($id)->firstOrFail();
+
+        if (! $invoice->canDelete($user)) {
+            return response()->json([
+                'message' => 'Không đủ điều kiện xóa hóa đơn này. Hóa đơn đã thanh toán chỉ xóa được khi công nợ hoặc đơn hàng liên quan đã bị xóa.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'password' => ['required', 'string'],
+        ], [
+            'password.required' => 'Vui lòng nhập mật khẩu để xác nhận xóa.',
+        ]);
+
+        if (! Hash::check($validated['password'], $user->password)) {
+            return response()->json(['message' => 'Mật khẩu không đúng. Vui lòng thử lại.'], 422);
+        }
+
+        $code = $invoice->ma_hoa_don;
+
+        DB::transaction(function () use ($invoice, $code, $user) {
+            // Snapshot toàn bộ hóa đơn + log trạng thái TRƯỚC khi xóa cứng,
+            // để audit log vẫn truy vết được sau này.
+            $logsSnapshot = $invoice->logs()
+                ->get(['action', 'from_status', 'to_status', 'actor_id', 'note', 'created_at'])
+                ->map(fn ($log) => [
+                    'action' => $log->action,
+                    'from_status' => $log->from_status,
+                    'to_status' => $log->to_status,
+                    'actor_id' => $log->actor_id,
+                    'note' => $log->note,
+                    'created_at' => $log->created_at?->toIso8601String(),
+                ])->all();
+
+            \App\Models\ActivityLog::record(
+                action: 'invoice.delete',
+                title: "Xóa hóa đơn thu {$code}",
+                subject: $invoice,
+                snapshot: [
+                    'id' => $invoice->id,
+                    'ma_hoa_don' => $invoice->ma_hoa_don,
+                    'status' => $invoice->status?->value,
+                    'amount' => $invoice->amount,
+                    'method' => $invoice->method,
+                    'id_congno' => $invoice->id_congno,
+                    'id_order' => $invoice->id_order,
+                    'payment_provider' => $invoice->payment_provider,
+                    'provider_transaction_id' => $invoice->provider_transaction_id,
+                    'paid_at' => $invoice->paid_at?->toIso8601String(),
+                    'created_at' => $invoice->created_at?->toIso8601String(),
+                    'logs' => $logsSnapshot,
+                ],
+                metadata: ['logs_count' => count($logsSnapshot)],
+            );
+
+            // Xóa file ảnh đính kèm trong storage (nếu có).
+            if ($invoice->photo && Storage::disk('public')->exists($invoice->photo)) {
+                Storage::disk('public')->delete($invoice->photo);
+            }
+
+            // Xóa lịch sử log trạng thái.
+            $invoice->logs()->delete();
+
+            // Xóa cứng hóa đơn.
+            $invoice->delete();
+        });
+
+        return response()->json(['message' => "Đã xóa hóa đơn {$code} cùng toàn bộ dữ liệu kèm theo."]);
     }
 
     protected function fillQrPayment(CongNoPayment $invoice, bool $updateStatus, ?string $providerKey = null, array $metadata = []): void

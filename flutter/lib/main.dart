@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -7,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
+import 'app/env.dart';
 import 'core/notifications/push_providers.dart';
 import 'core/providers.dart';
 
@@ -25,6 +27,14 @@ Future<void> main() async {
 
   // Khởi tạo dữ liệu locale cho intl (định dạng ngày giờ tiếng Việt).
   await initializeDateFormatting('vi');
+
+  // DEV: cho phép tải tài nguyên HTTPS cert tự ký (vd Image.network ảnh bằng
+  // chứng từ backend local). Dio đã tự bỏ qua bad cert riêng, nhưng HttpClient
+  // mặc định của Flutter (Image.network...) thì không → cài override toàn cục.
+  // Gated bởi Env.allowBadCert: chỉ bật ở debug + backend local, production tự tắt.
+  if (Env.allowBadCert) {
+    HttpOverrides.global = _DevHttpOverrides();
+  }
 
   // SharedPreferences cho dữ liệu không nhạy cảm (lịch sử scan trong phiên).
   final prefs = await SharedPreferences.getInstance();
@@ -48,4 +58,14 @@ Future<void> main() async {
       child: const ShipperOpsApp(),
     ),
   );
+}
+
+/// DEV ONLY: bỏ qua xác thực cert tự ký cho mọi HttpClient mặc định của Flutter
+/// (Image.network, v.v.). Chỉ được cài khi [Env.allowBadCert] = true.
+class _DevHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback = (cert, host, port) => true;
+  }
 }

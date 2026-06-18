@@ -137,6 +137,9 @@
         const cancelModal = document.getElementById('invoice-cancel-modal');
         const cancelForm = document.getElementById('invoice-cancel-form');
         const cancelState = { invoiceId: null };
+        const deleteModal = document.getElementById('invoice-delete-modal');
+        const deleteForm = document.getElementById('invoice-delete-form');
+        const deleteState = { invoiceId: null };
         const rejectModal = document.getElementById('invoice-reject-modal');
         const rejectForm = document.getElementById('invoice-reject-form');
         const rejectState = { invoiceId: null };
@@ -377,6 +380,11 @@
         cancelModal?.addEventListener('click', (event) => {
             if (event.target === cancelModal) closeCancelModal();
         });
+        document.getElementById('invoice-delete-close')?.addEventListener('click', closeDeleteModal);
+        document.getElementById('invoice-delete-dismiss')?.addEventListener('click', closeDeleteModal);
+        deleteModal?.addEventListener('click', (event) => {
+            if (event.target === deleteModal) closeDeleteModal();
+        });
         document.getElementById('invoice-reject-close')?.addEventListener('click', closeRejectModal);
         document.getElementById('invoice-reject-dismiss')?.addEventListener('click', closeRejectModal);
         rejectModal?.addEventListener('click', (event) => {
@@ -434,6 +442,34 @@
                 })
                 .catch((err) => {
                     setCancelError(err?.message || 'Không thể hủy hóa đơn. Vui lòng thử lại.');
+                })
+                .finally(() => {
+                    submitButton.disabled = false;
+                });
+        });
+
+        deleteForm?.addEventListener('submit', (event) => {
+            event.preventDefault();
+            if (!deleteState.invoiceId) return;
+
+            const submitButton = deleteForm.querySelector('button[type="submit"]');
+            const password = deleteForm.querySelector('input[name="password"]')?.value || '';
+            if (!password) {
+                setDeleteError('Vui lòng nhập mật khẩu để xác nhận.');
+                return;
+            }
+            submitButton.disabled = true;
+            setDeleteError('');
+
+            deleteJson(`${routes.destroy}/${deleteState.invoiceId}`, { password })
+                .then((payload) => {
+                    notify(payload.message || 'Đã xóa hóa đơn.');
+                    closeDeleteModal();
+                    closeDetailModal();
+                    reload();
+                })
+                .catch((err) => {
+                    setDeleteError(err?.message || 'Không thể xóa hóa đơn. Vui lòng thử lại.');
                 })
                 .finally(() => {
                     submitButton.disabled = false;
@@ -686,6 +722,7 @@
             setDetailText('[data-detail-approved-at]', invoice.dates?.approved || '-');
             setDetailText('[data-detail-paid-at]', invoice.dates?.paid || '-');
             renderDetailCashProof(invoice);
+            renderDetailTransaction(invoice);
 
             const statusEl = detailModal.querySelector('[data-detail-status]');
             if (statusEl) {
@@ -705,6 +742,9 @@
             const status = invoice.status;
             setDetailText('[data-detail-next-step]', detailNextStep(status, invoice));
             toggleDetailAction('close', true);
+
+            // Nút xóa cứng (admin) — hiện ở mọi trạng thái khi đủ điều kiện xóa.
+            toggleDetailAction('delete', !!invoice.permissions?.delete);
 
             if (status === 'cho_duyet') {
                 toggleDetailAction('approve', true);
@@ -875,6 +915,11 @@
                 return;
             }
 
+            if (action === 'delete') {
+                openDeleteModal(detailDataset('invoiceDelete'));
+                return;
+            }
+
             if (action === 'reject') {
                 openRejectModal(detailDataset('invoiceRejectPayment'));
                 return;
@@ -928,12 +973,64 @@
             const box = detailModal.querySelector('[data-detail-cash-proof]');
             const image = detailModal.querySelector('[data-detail-cash-proof-img]');
             const link = detailModal.querySelector('[data-detail-cash-proof-link]');
+            const title = detailModal.querySelector('[data-detail-cash-proof-title]');
+            const note = detailModal.querySelector('[data-detail-cash-proof-note]');
             const photoUrl = invoice.payment?.photo_url || '';
-            const show = invoice.status === 'da_gui_hoa_don_tt' && !!photoUrl;
+            // Hiện ảnh đối chiếu khi:
+            // - Đang chờ duyệt thanh toán tiền mặt (da_gui_hoa_don_tt), hoặc
+            // - Đã thanh toán bằng tiền mặt (da_thanh_toan + method cash) → để xem lại sau này.
+            const isCash = invoice.payment?.method === 'cash';
+            const show = !!photoUrl && (
+                invoice.status === 'da_gui_hoa_don_tt'
+                || (invoice.status === 'da_thanh_toan' && isCash)
+            );
 
             box?.classList.toggle('hidden', !show);
             if (image) image.src = show ? photoUrl : '';
             if (link) link.href = show ? photoUrl : '#';
+
+            // Đổi tiêu đề/ghi chú theo ngữ cảnh: đang chờ duyệt vs đã lưu trữ.
+            if (show && invoice.status === 'da_thanh_toan') {
+                if (title) title.textContent = 'Ảnh chứng từ đã đối chiếu';
+                if (note) note.textContent = 'Ảnh khách hàng đã gửi, lưu lại để tra cứu sau này.';
+            } else if (show) {
+                if (title) title.textContent = 'Ảnh khách hàng đã gửi';
+                if (note) note.textContent = 'Kiểm tra ảnh chứng từ trước khi xác nhận thanh toán.';
+            }
+        }
+
+        function renderDetailTransaction(invoice) {
+            const box = detailModal.querySelector('[data-detail-txn]');
+            if (!box) return;
+
+            const payment = invoice.payment || {};
+            const txnId = payment.provider_transaction_id || payment.sepay_transaction_id || '';
+            const reference = payment.reference || payment.provider_intent_id || '';
+            // Chỉ hiện cho hóa đơn online ĐÃ thanh toán (không phải tiền mặt) và có mã giao dịch.
+            const isOnline = payment.method && payment.method !== 'cash';
+            const show = invoice.status === 'da_thanh_toan' && isOnline && (!!txnId || !!reference);
+
+            box.classList.toggle('hidden', !show);
+            if (!show) return;
+
+            setDetailText('[data-detail-txn-provider]', providerLabelOf(payment.provider));
+            setDetailText('[data-detail-txn-paid-at]', payment.paid_at || invoice.dates?.paid || '-');
+
+            const idRow = box.querySelector('[data-detail-txn-id-row]');
+            idRow?.classList.toggle('hidden', !txnId);
+            if (txnId) setDetailText('[data-detail-txn-id]', txnId);
+
+            const refRow = box.querySelector('[data-detail-txn-ref-row]');
+            refRow?.classList.toggle('hidden', !reference);
+            if (reference) setDetailText('[data-detail-txn-ref]', reference);
+        }
+
+        function providerLabelOf(provider) {
+            if (!provider) return '-';
+            const labels = root ? JSON.parse(root.dataset.providerLabels || '{}') : {};
+            const entry = labels[provider];
+            if (!entry) return provider;
+            return (typeof entry === 'object' ? entry.name : entry) || provider;
         }
 
         function runDetailJson(button, url, payload, fallbackMessage, keepOpen = false) {
@@ -1155,6 +1252,37 @@
             error.classList.toggle('hidden', !message);
         }
 
+        function openDeleteModal(button) {
+            if (!deleteModal || !deleteForm) return;
+
+            deleteState.invoiceId = button.dataset.invoiceDelete || null;
+            deleteForm.reset();
+            setDeleteError('');
+            deleteModal.querySelector('[data-delete-modal-code]')?.replaceChildren(document.createTextNode(button.dataset.invoiceCode || '-'));
+            deleteModal.querySelector('[data-delete-modal-amount]')?.replaceChildren(document.createTextNode(button.dataset.invoiceAmount || '-'));
+            deleteModal.classList.remove('hidden');
+            deleteModal.classList.add('flex');
+            deleteForm.querySelector('input[name="password"]')?.focus();
+        }
+
+        function closeDeleteModal() {
+            if (!deleteModal || !deleteForm) return;
+
+            deleteState.invoiceId = null;
+            deleteForm.reset();
+            setDeleteError('');
+            deleteModal.classList.add('hidden');
+            deleteModal.classList.remove('flex');
+        }
+
+        function setDeleteError(message) {
+            const error = deleteModal?.querySelector('[data-delete-modal-error]');
+            if (!error) return;
+
+            error.textContent = message || '';
+            error.classList.toggle('hidden', !message);
+        }
+
         function openRejectModal(button) {
             if (!rejectModal || !rejectForm) return;
 
@@ -1263,6 +1391,17 @@
                 body: formData,
             }).then((response) => response.json().catch(() => ({})).then((payload) => {
                 if (!response.ok) throw new Error(payload.message || firstValidationError(payload.errors) || 'Request failed');
+                return payload;
+            }));
+        }
+
+        function deleteJson(url, payload = {}) {
+            return fetch(url, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+                body: JSON.stringify(payload),
+            }).then((response) => response.json().catch(() => ({})).then((payload) => {
+                if (!response.ok) throw new Error(payload.message || 'Request failed');
                 return payload;
             }));
         }

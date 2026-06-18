@@ -1,4 +1,5 @@
 import '../../../core/models/status_badge.dart';
+import 'pickup_image.dart';
 
 /// Khách hàng/địa chỉ lấy hàng (từ JSON `info_khachhang`, contract §3.1).
 class PickupCustomer {
@@ -135,9 +136,52 @@ class Pickup {
     );
   }
 
+  Pickup copyWith({
+    StatusBadge? status,
+    List<StatusBadge>? allowedTransitions,
+  }) {
+    return Pickup(
+      id: id,
+      maPickup: maPickup,
+      status: status ?? this.status,
+      customer: customer,
+      location: location,
+      allowedTransitions: allowedTransitions ?? this.allowedTransitions,
+      scheduledAt: scheduledAt,
+      packageCount: packageCount,
+      weightKg: weightKg,
+      ordersCount: ordersCount,
+      note: note,
+      createdBy: createdBy,
+    );
+  }
+
   static DateTime? _parseDate(Object? raw) {
     if (raw == null) return null;
     return DateTime.tryParse(raw.toString());
+  }
+}
+
+/// Toạ độ GPS check-in của shipper lúc xác nhận đã lấy hàng (contract: `checkin`).
+class PickupCheckin {
+  const PickupCheckin({required this.lat, required this.lng, this.at});
+
+  final double lat;
+  final double lng;
+  final DateTime? at;
+
+  static PickupCheckin? fromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final lat = (raw['lat'] as num?)?.toDouble();
+    final lng = (raw['lng'] as num?)?.toDouble();
+    if (lat == null || lng == null) return null;
+    return PickupCheckin(
+      lat: lat,
+      lng: lng,
+      at: raw['checkin_at'] != null
+          ? DateTime.tryParse(raw['checkin_at'].toString())
+          : null,
+    );
   }
 }
 
@@ -146,12 +190,16 @@ class PickupDetail {
   const PickupDetail({
     required this.pickup,
     required this.orders,
+    this.images = const [],
+    this.checkin,
     this.weightGrossKg,
     this.createdAt,
   });
 
   final Pickup pickup;
   final List<PickupOrderRef> orders;
+  final List<PickupImage> images;
+  final PickupCheckin? checkin;
   final double? weightGrossKg;
   final DateTime? createdAt;
 
@@ -166,8 +214,21 @@ class PickupDetail {
     return PickupDetail(
       pickup: Pickup.fromJson(json),
       orders: orders,
+      images: PickupImage.listFrom(json['images']),
+      checkin: PickupCheckin.fromJson(json['checkin']),
       weightGrossKg: (json['weight_gross_kg'] as num?)?.toDouble(),
       createdAt: Pickup._parseDate(json['created_at']),
+    );
+  }
+
+  PickupDetail copyWith({Pickup? pickup}) {
+    return PickupDetail(
+      pickup: pickup ?? this.pickup,
+      orders: orders,
+      images: images,
+      checkin: checkin,
+      weightGrossKg: weightGrossKg,
+      createdAt: createdAt,
     );
   }
 }

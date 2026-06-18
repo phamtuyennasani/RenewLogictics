@@ -36,6 +36,9 @@ class Pickup extends Model
         'options',
         'info_pickup',
         'info_khachhang',
+        'pickup_lat',
+        'pickup_lng',
+        'pickup_checkin_at',
     ];
 
     protected $casts = [
@@ -53,6 +56,9 @@ class Pickup extends Model
         'ngay_tao' => 'datetime',
         'ngay_nhanhang' => 'datetime',
         'ngay_xuatkho' => 'datetime',
+        'pickup_lat' => 'decimal:7',
+        'pickup_lng' => 'decimal:7',
+        'pickup_checkin_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -125,6 +131,11 @@ class Pickup extends Model
         return $this->belongsToMany(Order::class, 'pickup_orders', 'pickup_id', 'id_order')
             ->withPivot(['added_by', 'created_at'])
             ->withTimestamps();
+    }
+
+    public function images()
+    {
+        return $this->hasMany(PickupImage::class, 'pickup_id')->latest();
     }
 
     // Static methods

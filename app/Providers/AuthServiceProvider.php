@@ -47,6 +47,10 @@ class AuthServiceProvider extends ServiceProvider
         Gate::define('pickups.update', function ($user) {
             return $user->hasAnyRole(['admin', 'manager', 'ops', 'cs']);
         });
+        // Xóa phiếu pickup — chỉ admin/manager (đồng bộ packages.delete).
+        Gate::define('pickups.delete', function ($user) {
+            return $user->hasAnyRole(['admin', 'manager']);
+        });
 
         // Gate for scan
         Gate::define('scan', function ($user) {
@@ -182,6 +186,11 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         Gate::define('service-prices.delete', function ($user) {
+            return $user->hasRole('admin');
+        });
+
+        // Gate for activity log (nhật ký hệ thống) — chỉ admin xem.
+        Gate::define('activity-log.view', function ($user) {
             return $user->hasRole('admin');
         });
     }

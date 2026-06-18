@@ -122,7 +122,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <div class="flex items-center gap-1.5">
-                    <img src="{{ config('license_guard.brand_logo') }}" alt="{{ config('license_guard.brand_name') }}" class="shrink-0 rounded-md object-contain">
+                    <img src="{{ asset(config('license_guard.brand_logo')) }}" alt="{{ config('license_guard.brand_name') }}" class="shrink-0 rounded-md object-contain">
                 </div>
                 <span class="text-xs text-neutral-400">
                     Version {{ config('system.version', '1.0.0') }}

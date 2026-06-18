@@ -104,6 +104,23 @@ class CongNoDataTableController extends Controller
 
         DB::transaction(function () use ($debts) {
             foreach ($debts as $debt) {
+                \App\Models\ActivityLog::record(
+                    action: 'congno.delete',
+                    title: "Xóa công nợ khách hàng {$debt->sohoadon}",
+                    subject: $debt,
+                    snapshot: [
+                        'id' => $debt->id,
+                        'sohoadon' => $debt->sohoadon,
+                        'status' => $debt->status?->value,
+                        'id_customer' => $debt->id_customer,
+                        'id_sale' => $debt->id_sale,
+                        'id_ketoan' => $debt->id_ketoan,
+                        'total_cuocban' => $debt->total_cuocban,
+                        'paid_amount' => $debt->paid_amount,
+                        'created_at' => $debt->created_at?->toIso8601String(),
+                    ],
+                );
+
                 $debt->orders()->update([
                     'customer_payment_status' => null,
                     'customer_paid_at' => null,

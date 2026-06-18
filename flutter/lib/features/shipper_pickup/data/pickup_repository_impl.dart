@@ -1,5 +1,6 @@
 import '../../../core/models/paginated.dart';
 import '../domain/pickup.dart';
+import '../domain/pickup_image.dart';
 import '../domain/pickup_repository.dart';
 import 'pickup_api.dart';
 
@@ -60,5 +61,22 @@ class PickupRepositoryImpl implements PickupRepository {
     // Response §3.3 trả id + status + allowed_transitions (subset của detail).
     // Parse linh hoạt: nếu có orders thì full detail, không thì dựng từ subset.
     return PickupDetail.fromJson(env.dataMap);
+  }
+
+  @override
+  Future<List<PickupImage>> listImages(int pickupId) async {
+    final env = await _api.listImages(pickupId);
+    return PickupImage.listFrom(env.dataMap['items']);
+  }
+
+  @override
+  Future<PickupImage> uploadImage(int pickupId, String filePath) async {
+    final env = await _api.uploadImage(pickupId, filePath);
+    return PickupImage.fromJson(env.dataMap);
+  }
+
+  @override
+  Future<void> deleteImage(int pickupId, int imageId) async {
+    await _api.deleteImage(pickupId, imageId);
   }
 }

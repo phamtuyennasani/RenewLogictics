@@ -494,6 +494,51 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         Flux::toast(heading: 'Đã gán lại shipper', text: 'Pickup đã chuyển về trạng thái Mới tạo.', variant: 'success');
     }
 
+    /**
+     * Quyền xóa phiếu Pickup — chỉ admin/manager (gate pickups.delete).
+     */
+    public function canDeletePickup(?Pickup $pickup = null): bool
+    {
+        $pickup ??= $this->selectedPickup;
+
+        if (! $pickup) {
+            return false;
+        }
+
+        return \Gate::allows('pickups.delete');
+    }
+
+    /**
+     * Xóa hẳn phiếu Pickup (kèm ảnh bằng chứng + liên kết đơn).
+     * Chỉ admin/manager. Đơn hàng KHÔNG bị xóa, chỉ gỡ khỏi phiếu.
+     */
+    public function deletePickup(): void
+    {
+        $pickup = $this->selectedPickup;
+        abort_unless($pickup, 404);
+        abort_unless($this->canDeletePickup($pickup), 403);
+
+        // Dọn file ảnh bằng chứng trên đĩa trước khi xóa bản ghi.
+        foreach ($pickup->images as $image) {
+            $path = (string) $image->path;
+            if (str_starts_with($path, '/uploads/pickup/')) {
+                $absolute = public_path(ltrim($path, '/'));
+                if (is_file($absolute)) {
+                    @unlink($absolute);
+                }
+            }
+        }
+
+        $maPickup = $pickup->ma_pickup;
+        $pickup->delete();
+
+        $this->selectedPickupId = null;
+        $this->selectedShipperId = null;
+        Flux::modal('pickup-details')->close();
+
+        Flux::toast(heading: 'Đã xóa Pickup', text: 'Phiếu '.$maPickup.' đã được xóa.', variant: 'success');
+    }
+
     public function getSelectedPickupProperty(): ?Pickup
     {
         if (! $this->selectedPickupId) {
@@ -501,7 +546,7 @@ new #[Layout('layouts.app')] #[Title('Quản lý Pickup')] class extends Compone
         }
 
         return $this->pickupAccessQuery()
-            ->with(['user:id,fullname,username', 'shipper:id,fullname,username', 'orders'])
+            ->with(['user:id,fullname,username', 'shipper:id,fullname,username', 'orders', 'images'])
             ->withCount('orders')
             ->findOrFail($this->selectedPickupId);
     }

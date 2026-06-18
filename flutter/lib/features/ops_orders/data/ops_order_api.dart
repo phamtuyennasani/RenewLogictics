@@ -20,7 +20,7 @@ class OpsOrderApi {
       query: {
         if (keyword != null && keyword.isNotEmpty) 'keyword': keyword,
         if (status != null && status.isNotEmpty) 'status': status,
-        if (hasPickup != null) 'has_pickup': hasPickup,
+        'has_pickup': ?hasPickup,
         'page': page,
         'per_page': perPage,
       },
