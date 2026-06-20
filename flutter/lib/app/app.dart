@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/notifications/push_notification_service.dart';
 import '../core/notifications/push_providers.dart';
+import '../core/session/session_reset.dart';
 import '../features/auth/presentation/auth_controller.dart';
+import '../features/notifications/presentation/notifications_controller.dart';
 import '../features/shipper_pickup/presentation/pickup_providers.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
@@ -23,6 +25,7 @@ class _ShipperOpsAppState extends ConsumerState<ShipperOpsApp> {
     // Gắn handler điều hướng khi user tap notification.
     final push = ref.read(pushNotificationServiceProvider);
     push.onRouteSelected = _handlePushRoute;
+    push.onMessageReceived = _handlePushReceived;
   }
 
   @override
@@ -32,7 +35,18 @@ class _ShipperOpsAppState extends ConsumerState<ShipperOpsApp> {
     if (push.onRouteSelected == _handlePushRoute) {
       push.onRouteSelected = null;
     }
+    if (push.onMessageReceived == _handlePushReceived) {
+      push.onMessageReceived = null;
+    }
     super.dispose();
+  }
+
+  /// Push tới lúc app foreground (chưa tap): làm mới state nền như badge
+  /// số thông báo chưa đọc.
+  void _handlePushReceived(PushRoute route) {
+    if (route.type == 'notification') {
+      ref.read(notificationsControllerProvider.notifier).load();
+    }
   }
 
   void _handlePushRoute(PushRoute route) {
@@ -57,6 +71,18 @@ class _ShipperOpsAppState extends ConsumerState<ShipperOpsApp> {
         }
         break;
 
+      case 'notification':
+        // Chọn nhánh theo khả năng của user: OPS-capable ưu tiên module OPS,
+        // còn lại (shipper) dùng nhánh shipper. Cả hai tái dùng cùng màn hình.
+        final ops = ref.read(authControllerProvider).session?.isOpsCapable ??
+            false;
+        router.go(
+          route.newsId != null
+              ? AppRoutes.notificationDetailLocation(route.newsId!, ops: ops)
+              : AppRoutes.notificationsLocation(ops: ops),
+        );
+        break;
+
       default:
         debugPrint('[Push] Unknown type: ${route.type}');
     }
@@ -70,6 +96,10 @@ class _ShipperOpsAppState extends ConsumerState<ShipperOpsApp> {
     // đăng nhập xong → lắng nghe mạng + đẩy ngay action còn tồn; logout → ngừng.
     ref.listen<AuthState>(authControllerProvider, (prev, next) {
       if (prev?.status == next.status) return;
+      // Đổi phiên (đăng nhập/đăng xuất/hết hạn) → xóa toàn bộ state gắn với
+      // tài khoản cũ để tài khoản mới không thấy dữ liệu cũ. Xem danh sách
+      // provider trong session_reset.dart.
+      resetSessionState(ref);
       final sync = ref.read(pendingStatusSyncProvider);
       if (next.status == AuthStatus.authenticated) {
         sync.start();

@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\News;
 use App\Models\Order;
 use App\Models\Pickup;
+use App\Observers\NewsObserver;
 use App\Observers\OrderObserver;
 use App\Observers\PickupObserver;
 use App\Services\TrackingMore\TrackingMore;
@@ -30,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Order::observe(OrderObserver::class);
         Pickup::observe(PickupObserver::class);
+        News::observe(NewsObserver::class);
 
         RateLimiter::for('third-party-tracking', function (Request $request) {
             return Limit::perMinute(ThirdPartyTrackingApi::rateLimitPerMinute())

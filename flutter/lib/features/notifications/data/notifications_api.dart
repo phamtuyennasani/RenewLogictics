@@ -13,7 +13,15 @@ class NotificationsApi {
     );
   }
 
+  Future<ApiEnvelope> show(int id) {
+    return _client.get('/notifications/$id');
+  }
+
   Future<ApiEnvelope> markRead(int id) {
     return _client.post('/notifications/$id/read');
+  }
+
+  Future<ApiEnvelope> markAllRead() {
+    return _client.post('/notifications/read-all');
   }
 }

@@ -8,6 +8,7 @@ class Paginated<T> {
     required this.total,
     required this.lastPage,
     required this.hasMore,
+    this.unreadCount,
   });
 
   final List<T> items;
@@ -16,6 +17,9 @@ class Paginated<T> {
   final int total;
   final int lastPage;
   final bool hasMore;
+
+  /// Số chưa đọc toàn bộ (chỉ có ở endpoint thông báo; null ở nơi khác).
+  final int? unreadCount;
 
   /// Parse từ `data` (object chứa `items` + `meta`).
   factory Paginated.fromData(
@@ -38,6 +42,9 @@ class Paginated<T> {
       total: _int(meta['total'], items.length),
       lastPage: _int(meta['last_page'], 1),
       hasMore: meta['has_more'] == true,
+      unreadCount: meta.containsKey('unread_count')
+          ? _int(meta['unread_count'], 0)
+          : null,
     );
   }
 

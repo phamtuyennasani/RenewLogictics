@@ -10,8 +10,8 @@ import '../../../shared/widgets/error_state.dart';
 import '../domain/app_notification.dart';
 import 'notifications_controller.dart';
 
-class OpsNotificationsScreen extends ConsumerWidget {
-  const OpsNotificationsScreen({super.key});
+class NotificationsScreen extends ConsumerWidget {
+  const NotificationsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -22,6 +22,22 @@ class OpsNotificationsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Thông báo'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.done_all),
+            tooltip: 'Đánh dấu tất cả đã đọc',
+            onPressed: state.unreadCount > 0
+                ? () async {
+                    await notifier.markAllRead();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Đã đánh dấu tất cả đã đọc.'),
+                        ),
+                      );
+                    }
+                  }
+                : null,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Tải lại',
@@ -88,8 +104,16 @@ class OpsNotificationsScreen extends ConsumerWidget {
             item: item,
             onTap: () {
               notifier.markRead(item);
+              // Tôn trọng nhánh hiện tại (shipper dùng /shipper/..., OPS dùng
+              // /ops/...) để không bị auth guard chặn khi điều hướng.
+              final onShipperBranch = GoRouterState.of(
+                context,
+              ).matchedLocation.startsWith(AppRoutes.shipper);
               context.push(
-                AppRoutes.opsNotificationDetailLocation(item.id),
+                AppRoutes.notificationDetailLocation(
+                  item.id,
+                  ops: !onShipperBranch,
+                ),
                 extra: item,
               );
             },

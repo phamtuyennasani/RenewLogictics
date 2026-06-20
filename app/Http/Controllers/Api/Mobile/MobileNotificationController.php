@@ -37,6 +37,10 @@ class MobileNotificationController extends Controller
 
         $paginator = $query->paginate($perPage);
 
+        $unreadCount = $this->visibleNotifications($request)
+            ->whereDoesntHave('reads', fn ($q) => $q->where('user_id', $user->id))
+            ->count();
+
         return $this->ok([
             'items' => collect($paginator->items())
                 ->map(fn (News $item) => $this->notificationPayload($item))
@@ -47,8 +51,27 @@ class MobileNotificationController extends Controller
                 'total' => $paginator->total(),
                 'last_page' => $paginator->lastPage(),
                 'has_more' => $paginator->hasMorePages(),
+                'unread_count' => $unreadCount,
             ],
         ], 'OK');
+    }
+
+    public function show(Request $request, int $notification): JsonResponse
+    {
+        $user = $request->user();
+
+        $item = $this->visibleNotifications($request)
+            ->with('user:id,fullname,username')
+            ->withExists([
+                'reads as is_read' => fn ($q) => $q->where('user_id', $user->id),
+            ])
+            ->find($notification);
+
+        if (! $item) {
+            return $this->fail('Không tìm thấy thông báo.', 404);
+        }
+
+        return $this->ok($this->notificationPayload($item), 'OK');
     }
 
     public function markRead(Request $request, int $notification): JsonResponse
@@ -65,6 +88,29 @@ class MobileNotificationController extends Controller
         );
 
         return $this->ok(null, 'Đã đánh dấu đã đọc.');
+    }
+
+    public function markAllRead(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Lấy id các thông báo đang hiển thị mà user CHƯA đọc.
+        $unreadIds = $this->visibleNotifications($request)
+            ->whereDoesntHave('reads', fn ($q) => $q->where('user_id', $user->id))
+            ->pluck('id');
+
+        if ($unreadIds->isNotEmpty()) {
+            $now = now();
+            $rows = $unreadIds->map(fn ($id) => [
+                'user_id' => $user->id,
+                'news_id' => $id,
+                'read_at' => $now,
+            ])->all();
+
+            NotificationRead::insert($rows);
+        }
+
+        return $this->ok(['marked' => $unreadIds->count()], 'Đã đánh dấu tất cả đã đọc.');
     }
 
     protected function visibleNotifications(Request $request)

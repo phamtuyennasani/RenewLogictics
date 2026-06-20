@@ -8,6 +8,8 @@ import '../../../app/router.dart';
 import '../../../core/utils/date_formatters.dart';
 import '../../../shared/widgets/app_surfaces.dart';
 import '../../../shared/widgets/error_state.dart';
+import '../../../shared/widgets/unread_badge.dart';
+import '../../notifications/presentation/notifications_controller.dart';
 import '../domain/pickup_repository.dart';
 import 'pickup_list_controller.dart';
 import 'widgets/pickup_card.dart';
@@ -73,6 +75,9 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(pickupListControllerProvider);
+    final unreadCount = ref.watch(
+      notificationsControllerProvider.select((s) => s.unreadCount),
+    );
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -84,6 +89,7 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
                 controller: _searchCtrl,
                 pendingCount: state.summary.pendingCount,
                 nearest: state.summary.nearestScheduleAt,
+                unreadCount: unreadCount,
                 onChanged: _onSearchChanged,
                 onClear: () {
                   _searchCtrl.clear();
@@ -92,6 +98,8 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
                 },
                 onProfile: () => context.push('/profile'),
                 onScan: () => context.push(AppRoutes.shipperScan),
+                onNotifications: () =>
+                    context.push(AppRoutes.shipperNotifications),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
@@ -303,6 +311,8 @@ class _ListHeader extends StatelessWidget {
     required this.onClear,
     required this.onProfile,
     required this.onScan,
+    required this.onNotifications,
+    this.unreadCount = 0,
     this.nearest,
   });
 
@@ -313,6 +323,8 @@ class _ListHeader extends StatelessWidget {
   final VoidCallback onClear;
   final VoidCallback onProfile;
   final VoidCallback onScan;
+  final VoidCallback onNotifications;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
@@ -332,6 +344,14 @@ class _ListHeader extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                       color: theme.colorScheme.onSurface,
                     ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Thông báo',
+                  onPressed: onNotifications,
+                  icon: UnreadBadge(
+                    count: unreadCount,
+                    child: const Icon(Icons.notifications_none_rounded),
                   ),
                 ),
                 IconButton(

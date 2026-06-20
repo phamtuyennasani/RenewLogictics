@@ -15,6 +15,7 @@ class PushRoute {
     this.pickupCode,
     this.orderId,
     this.orderCode,
+    this.newsId,
   });
 
   final String type;
@@ -22,6 +23,7 @@ class PushRoute {
   final String? pickupCode;
   final int? orderId;
   final String? orderCode;
+  final int? newsId;
 
   static PushRoute? fromData(Map<String, dynamic> data) {
     final type = (data['type'] ?? '').toString();
@@ -29,6 +31,7 @@ class PushRoute {
 
     final rawPickupId = data['pickup_id']?.toString();
     final rawOrderId = data['order_id']?.toString();
+    final rawNewsId = data['news_id']?.toString();
 
     return PushRoute(
       type: type,
@@ -36,6 +39,7 @@ class PushRoute {
       pickupCode: data['pickup_code']?.toString(),
       orderId: rawOrderId == null ? null : int.tryParse(rawOrderId),
       orderCode: data['id_bill']?.toString(),
+      newsId: rawNewsId == null ? null : int.tryParse(rawNewsId),
     );
   }
 }
@@ -69,6 +73,10 @@ class PushNotificationService {
 
   /// Callback do app gắn vào để điều hướng khi user tap notification.
   void Function(PushRoute route)? onRouteSelected;
+
+  /// Callback khi nhận message lúc app đang foreground (chưa tap). Dùng để
+  /// cập nhật state nền như badge số chưa đọc mà không điều hướng.
+  void Function(PushRoute route)? onMessageReceived;
 
   final _androidChannel = const AndroidNotificationChannel(
     'pickup_alerts',
@@ -181,6 +189,12 @@ class PushNotificationService {
   }
 
   void _onForegroundMessage(RemoteMessage message) {
+    // Báo cho app cập nhật state nền (badge...) dù user chưa tap.
+    final route = PushRoute.fromData(message.data);
+    if (route != null) {
+      onMessageReceived?.call(route);
+    }
+
     final notification = message.notification;
     if (notification == null) return;
 

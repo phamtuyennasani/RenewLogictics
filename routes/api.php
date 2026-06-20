@@ -65,6 +65,8 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
 
         // Thông báo nội bộ — trả tất cả thông báo active theo role, không chỉ unread.
         Route::get('/notifications', [MobileNotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/read-all', [MobileNotificationController::class, 'markAllRead'])->name('notifications.read-all');
+        Route::get('/notifications/{notification}', [MobileNotificationController::class, 'show'])->name('notifications.show');
         Route::post('/notifications/{notification}/read', [MobileNotificationController::class, 'markRead'])->name('notifications.read');
 
         // Proxy VietMap (search/place/reverse/route) — giấu geocode/route key ở

@@ -103,23 +103,18 @@
                 }
                 input.value = value;
             }
-
             function formatDate(date) {
                 const year = date.getFullYear();
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 const day = String(date.getDate()).padStart(2, '0');
-
                 return `${year}-${month}-${day}`;
             }
-
             const initOrderIndex = () => {
                 const root = document.getElementById('order-index-page');
                 const tableEl = document.getElementById('orders-table');
                 initOrderDatePickers();
                 bindSpecialStatusToggle();
-
                 if (!root || !tableEl || !window.jQuery || !jQuery.fn.DataTable || tableEl.dataset.ready === 'true') return;
-
                 tableEl.dataset.ready = 'true';
                 jQuery.extend(true, jQuery.fn.dataTable.ext.classes, {
                     table: 'dataTable w-full text-left text-sm align-middle',
@@ -133,7 +128,6 @@
                         notEnabled: 'pointer-events-none border-transparent bg-transparent text-neutral-300',
                     },
                 });
-
                 const routes = JSON.parse(root.dataset.routes || '{}');
                 const capabilities = JSON.parse(root.dataset.capabilities || '{}');
                 const role = capabilities.role || '';
@@ -142,35 +136,27 @@
                 let customerRequestId = 0;
                 let pendingPrintUrl = '';
                 let appliedStatus = field('status')?.value || '';
-
                 const printOrder = (url, target, withCvck = null) => {
                     const frame = document.getElementById('order-print-frame');
                     if (!frame || !url) return;
-
                     const printUrl = new URL(url, window.location.origin);
                     printUrl.searchParams.set('print', target);
-
                     if (withCvck === null) {
                         printUrl.searchParams.delete('cvck');
                     } else {
                         printUrl.searchParams.set('cvck', withCvck ? '1' : '0');
                     }
-
                     frame.src = printUrl.toString();
                 };
-
                 document.querySelectorAll('[data-order-print-bill-cvck]').forEach((button) => {
                     if (button.dataset.ready === 'true') return;
-
                     button.dataset.ready = 'true';
                     button.addEventListener('click', () => {
                         printOrder(pendingPrintUrl, 'bill', button.dataset.orderPrintBillCvck === '1');
                         pendingPrintUrl = '';
                     });
                 });
-
                 window.TomSelectHelper?.init(root);
-
                 const filters = () => ({
                     status: field('status')?.value || '',
                     pickupStatus: field('pickupStatus')?.value || '',
@@ -184,7 +170,6 @@
                     airlineId: field('airlineId')?.value || '',
                     transitPartnerId: field('transitPartnerId')?.value || '',
                 });
-
                 const table = jQuery(tableEl).DataTable({
                     processing: true,
                     serverSide: true,

@@ -21,6 +21,7 @@
         "maatwebsite/excel": "^3.1",
         "picqer/php-barcode-generator": "^3.2",
         "power-components/livewire-powergrid": "^6.10",
+        "predis/predis": "^3.5",
         "spatie/laravel-permission": "^7.3",
         "staudenmeir/eloquent-json-relations": "^1.1",
         "yajra/laravel-datatables-oracle": "^13.0"

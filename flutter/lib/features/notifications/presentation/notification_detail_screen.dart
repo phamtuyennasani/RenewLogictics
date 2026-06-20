@@ -1,27 +1,103 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/date_formatters.dart';
 import '../../../shared/widgets/app_surfaces.dart';
 import '../domain/app_notification.dart';
+import 'notifications_providers.dart';
 
-class OpsNotificationDetailScreen extends StatelessWidget {
-  const OpsNotificationDetailScreen({super.key, required this.notification});
+class NotificationDetailScreen extends ConsumerStatefulWidget {
+  const NotificationDetailScreen({
+    super.key,
+    this.notification,
+    this.notificationId,
+  });
 
+  /// Object có sẵn khi điều hướng từ danh sách (extra).
   final AppNotification? notification;
+
+  /// Id khi mở từ push notification (không có sẵn object) → tự fetch.
+  final int? notificationId;
+
+  @override
+  ConsumerState<NotificationDetailScreen> createState() =>
+      _NotificationDetailScreenState();
+}
+
+class _NotificationDetailScreenState
+    extends ConsumerState<NotificationDetailScreen> {
+  AppNotification? _item;
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _item = widget.notification;
+
+    // Mở từ push: chỉ có id → fetch chi tiết và đánh dấu đã đọc.
+    if (_item == null && widget.notificationId != null) {
+      _fetch();
+    }
+  }
+
+  Future<void> _fetch() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    final repo = ref.read(notificationsRepositoryProvider);
+    try {
+      final item = await repo.getById(widget.notificationId!);
+      if (!mounted) return;
+      setState(() {
+        _item = item;
+        _loading = false;
+      });
+      // Đánh dấu đã đọc (best-effort, không chặn UI).
+      if (!item.isRead) {
+        repo.markRead(item.id).ignore();
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Không tải được thông báo. Vui lòng thử lại.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final item = notification;
+    final item = _item;
+
     if (item == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Chi tiết thông báo')),
-        body: const AppPage(
+        body: AppPage(
           child: Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                'Không tìm thấy dữ liệu thông báo. Vui lòng tải lại.',
-              ),
+              padding: const EdgeInsets.all(24),
+              child: _loading
+                  ? const CircularProgressIndicator()
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _error ??
+                              'Không tìm thấy dữ liệu thông báo. Vui lòng tải lại.',
+                          textAlign: TextAlign.center,
+                        ),
+                        if (widget.notificationId != null) ...[
+                          const SizedBox(height: 16),
+                          FilledButton(
+                            onPressed: _fetch,
+                            child: const Text('Thử lại'),
+                          ),
+                        ],
+                      ],
+                    ),
             ),
           ),
         ),

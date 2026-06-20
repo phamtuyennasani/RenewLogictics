@@ -7,9 +7,9 @@ import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/module_chooser_screen.dart';
 import '../features/auth/presentation/splash_screen.dart';
-import '../features/ops_notifications/domain/app_notification.dart';
-import '../features/ops_notifications/presentation/ops_notification_detail_screen.dart';
-import '../features/ops_notifications/presentation/ops_notifications_screen.dart';
+import '../features/notifications/domain/app_notification.dart';
+import '../features/notifications/presentation/notification_detail_screen.dart';
+import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/ops_orders/presentation/create_pickup_screen.dart';
 import '../features/ops_orders/presentation/ops_order_detail_screen.dart';
 import '../features/ops_orders/presentation/ops_order_list_screen.dart';
@@ -33,6 +33,9 @@ abstract class AppRoutes {
   static const shipper = '/shipper';
   static const shipperScan = '/shipper/scan';
   static const shipperScanChild = 'scan';
+  static const shipperNotifications = '/shipper/notifications';
+  static const shipperNotificationsChild = 'notifications';
+  static const shipperNotificationDetail = '/shipper/notifications/:id';
   static const pickupDetail = '/shipper/pickups/:id';
   static const pickupDetailChild = 'pickups/:id';
   static const pickupRoute = '/shipper/pickups/:id/route';
@@ -60,6 +63,15 @@ abstract class AppRoutes {
   static String opsPickupDetailLocation(int id) => '/ops/pickups/$id';
   static String opsNotificationDetailLocation(int id) =>
       '/ops/notifications/$id';
+  static String shipperNotificationDetailLocation(int id) =>
+      '/shipper/notifications/$id';
+
+  /// Chọn nhánh thông báo theo phân quyền (OPS dùng /ops, còn lại /shipper).
+  /// Gom về một nơi để điều hướng thông báo nhất quán giữa push và tap.
+  static String notificationsLocation({required bool ops}) =>
+      ops ? opsNotifications : shipperNotifications;
+  static String notificationDetailLocation(int id, {required bool ops}) =>
+      ops ? opsNotificationDetailLocation(id) : shipperNotificationDetailLocation(id);
 }
 
 /// Router toàn app + auth guard.
@@ -134,6 +146,26 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.shipperScanChild,
             builder: (_, _) => const ShipperScannerScreen(),
+          ),
+          GoRoute(
+            path: AppRoutes.shipperNotificationsChild,
+            builder: (_, _) => const NotificationsScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                parentNavigatorKey: rootNavigatorKey,
+                builder: (_, state) {
+                  return NotificationDetailScreen(
+                    notification: state.extra is AppNotification
+                        ? state.extra as AppNotification
+                        : null,
+                    notificationId: int.tryParse(
+                      state.pathParameters['id'] ?? '',
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: AppRoutes.pickupDetailChild,
@@ -235,16 +267,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: AppRoutes.opsNotifications,
-                builder: (_, _) => const OpsNotificationsScreen(),
+                builder: (_, _) => const NotificationsScreen(),
                 routes: [
                   GoRoute(
                     path: ':id',
                     parentNavigatorKey: rootNavigatorKey,
                     builder: (_, state) {
-                      return OpsNotificationDetailScreen(
+                      return NotificationDetailScreen(
                         notification: state.extra is AppNotification
                             ? state.extra as AppNotification
                             : null,
+                        notificationId: int.tryParse(
+                          state.pathParameters['id'] ?? '',
+                        ),
                       );
                     },
                   ),

@@ -15,7 +15,16 @@ class NotificationsRepository {
     return Paginated.fromData(envelope.dataMap, AppNotification.fromJson);
   }
 
+  Future<AppNotification> getById(int id) async {
+    final envelope = await _api.show(id);
+    return AppNotification.fromJson(envelope.dataMap);
+  }
+
   Future<void> markRead(int id) async {
     await _api.markRead(id);
+  }
+
+  Future<void> markAllRead() async {
+    await _api.markAllRead();
   }
 }

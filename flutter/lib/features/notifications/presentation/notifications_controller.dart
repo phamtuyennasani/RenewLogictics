@@ -11,6 +11,7 @@ class NotificationsState {
     this.errorMessage,
     this.page = 1,
     this.hasMore = false,
+    this.unreadCount = 0,
   });
 
   final List<AppNotification> items;
@@ -19,6 +20,7 @@ class NotificationsState {
   final String? errorMessage;
   final int page;
   final bool hasMore;
+  final int unreadCount;
 
   NotificationsState copyWith({
     List<AppNotification>? items,
@@ -28,6 +30,7 @@ class NotificationsState {
     bool clearError = false,
     int? page,
     bool? hasMore,
+    int? unreadCount,
   }) {
     return NotificationsState(
       items: items ?? this.items,
@@ -36,6 +39,7 @@ class NotificationsState {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       page: page ?? this.page,
       hasMore: hasMore ?? this.hasMore,
+      unreadCount: unreadCount ?? this.unreadCount,
     );
   }
 }
@@ -58,6 +62,7 @@ class NotificationsController extends StateNotifier<NotificationsState> {
         isLoading: false,
         page: page.currentPage,
         hasMore: page.hasMore,
+        unreadCount: page.unreadCount ?? state.unreadCount,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: _messageOf(e));
@@ -89,10 +94,32 @@ class NotificationsController extends StateNotifier<NotificationsState> {
         for (final current in state.items)
           current.id == item.id ? current.copyWith(isRead: true) : current,
       ],
+      unreadCount: state.unreadCount > 0 ? state.unreadCount - 1 : 0,
     );
     try {
       await _ref.read(notificationsRepositoryProvider).markRead(item.id);
     } catch (_) {}
+  }
+
+  /// Đánh dấu tất cả thông báo đang hiển thị là đã đọc (optimistic).
+  Future<void> markAllRead() async {
+    if (state.unreadCount == 0 && state.items.every((i) => i.isRead)) {
+      return;
+    }
+    final previous = state;
+    state = state.copyWith(
+      items: [
+        for (final current in state.items)
+          current.isRead ? current : current.copyWith(isRead: true),
+      ],
+      unreadCount: 0,
+    );
+    try {
+      await _ref.read(notificationsRepositoryProvider).markAllRead();
+    } catch (_) {
+      // Thất bại → khôi phục trạng thái trước để badge phản ánh đúng.
+      state = previous;
+    }
   }
 
   String _messageOf(Object e) {

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../shared/widgets/unread_badge.dart';
+import '../../notifications/presentation/notifications_controller.dart';
 
 /// Shell điều hướng cho module OPS: bottom navigation với nút quét QR nổi giữa.
 ///
 /// Dùng [StatefulNavigationShell] của go_router (indexedStack) để mỗi tab giữ
 /// state riêng. 5 branch theo thứ tự:
 ///   0 Đơn hàng · 1 Pickup · 2 Quét QR (nút nổi giữa) · 3 Thông báo · 4 Tài khoản
-class OpsShellScreen extends StatelessWidget {
+class OpsShellScreen extends ConsumerWidget {
   const OpsShellScreen({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
@@ -20,7 +24,10 @@ class OpsShellScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(
+      notificationsControllerProvider.select((s) => s.unreadCount),
+    );
     return Scaffold(
       extendBody: true,
       body: navigationShell,
@@ -31,6 +38,7 @@ class OpsShellScreen extends StatelessWidget {
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _OpsBottomBar(
         currentIndex: navigationShell.currentIndex,
+        unreadCount: unreadCount,
         onTap: _goBranch,
       ),
     );
@@ -72,9 +80,14 @@ class _ScanFab extends StatelessWidget {
 
 /// Thanh điều hướng dưới có notch cho FAB ở giữa.
 class _OpsBottomBar extends StatelessWidget {
-  const _OpsBottomBar({required this.currentIndex, required this.onTap});
+  const _OpsBottomBar({
+    required this.currentIndex,
+    required this.unreadCount,
+    required this.onTap,
+  });
 
   final int currentIndex;
+  final int unreadCount;
   final ValueChanged<int> onTap;
 
   @override
@@ -129,6 +142,7 @@ class _OpsBottomBar extends StatelessWidget {
                 activeIcon: Icons.notifications,
                 label: 'Thông báo',
                 selected: currentIndex == 3,
+                badgeCount: unreadCount,
                 onTap: () => onTap(3),
               ),
             ),
@@ -155,6 +169,7 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
@@ -162,6 +177,7 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -179,17 +195,24 @@ class _NavItem extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 34,
-              height: 28,
-              decoration: BoxDecoration(
-                color: selected
-                    ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(999),
+            UnreadBadge(
+              count: badgeCount,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 34,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: selected
+                      ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Icon(
+                  selected ? activeIcon : icon,
+                  size: 21,
+                  color: color,
+                ),
               ),
-              child: Icon(selected ? activeIcon : icon, size: 21, color: color),
             ),
             const SizedBox(height: 3),
             Text(
