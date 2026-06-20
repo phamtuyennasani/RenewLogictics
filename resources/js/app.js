@@ -94,7 +94,7 @@ document.addEventListener('alpine:init', () => {
         updateOptions(newOptions) {
             if (!this.tomSelectInstance) return;
             const currentValue = this.tomSelectInstance.getValue();
-            this.tomSelectInstance.clear(true);      // clear selection, silent
+            this.tomSelectInstance.clear(true); 
             this.tomSelectInstance.clearOptions();    // xóa options cũ
             this.tomSelectInstance.addOptions(newOptions); // thêm options mới
             this.tomSelectInstance.refreshOptions(false);
