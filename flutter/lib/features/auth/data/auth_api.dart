@@ -21,7 +21,8 @@ class AuthApi {
       body: {
         'username': username,
         'password': password,
-        if (deviceName != null && deviceName.isNotEmpty) 'device_name': deviceName,
+        if (deviceName != null && deviceName.isNotEmpty)
+          'device_name': deviceName,
       },
     );
   }

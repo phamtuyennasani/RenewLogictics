@@ -16,5 +16,8 @@ abstract class OpsOrderRepository {
   Future<OpsOrderDetail> detail(int orderId);
 
   /// Tạo phiếu pickup từ order.
-  Future<Map<String, dynamic>> createPickup(int orderId, Map<String, dynamic> data);
+  Future<Map<String, dynamic>> createPickup(
+    int orderId,
+    Map<String, dynamic> data,
+  );
 }

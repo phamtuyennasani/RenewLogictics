@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/date_formatters.dart';
+import '../../../shared/widgets/app_surfaces.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../../shipper_pickup/presentation/widgets/pickup_card.dart';
@@ -49,7 +50,7 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pickup của tôi'),
+        title: const Text('Pickup Của Tôi'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(108),
           child: Column(
@@ -110,19 +111,27 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
           ),
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: notifier.refresh,
-        child: _buildBody(state, notifier),
+      body: AppPage(
+        child: RefreshIndicator(
+          onRefresh: notifier.refresh,
+          child: _buildBody(state, notifier),
+        ),
       ),
     );
   }
 
-  Widget _buildBody(OpsPickupListState state, OpsPickupListController notifier) {
+  Widget _buildBody(
+    OpsPickupListState state,
+    OpsPickupListController notifier,
+  ) {
     if (state.isLoading && state.items.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     if (state.errorMessage != null && state.items.isEmpty) {
-      return ErrorState(message: state.errorMessage!, onRetry: notifier.refresh);
+      return ErrorState(
+        message: state.errorMessage!,
+        onRetry: notifier.refresh,
+      );
     }
     if (state.items.isEmpty) {
       // Căn giữa theo viewport, vẫn pull-to-refresh được, chừa đáy cho
@@ -158,9 +167,8 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 24),
-      itemCount: state.items.length +
-          (showSummary ? 1 : 0) +
-          (state.hasMore ? 1 : 0),
+      itemCount:
+          state.items.length + (showSummary ? 1 : 0) + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         var i = index;
         if (showSummary) {
@@ -195,20 +203,15 @@ class _SummaryBanner extends StatelessWidget {
     final pending = summary.pendingCount;
     final nearest = summary.nearestScheduleAt;
 
-    return Container(
+    return AppSurface(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.2),
-        ),
-      ),
       child: Row(
         children: [
-          Icon(Icons.pending_actions_outlined,
-              color: theme.colorScheme.primary),
+          Icon(
+            Icons.pending_actions_outlined,
+            color: theme.colorScheme.primary,
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

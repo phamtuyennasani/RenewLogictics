@@ -52,8 +52,13 @@ class _ScanFab extends StatelessWidget {
       height: 64,
       child: FloatingActionButton(
         onPressed: onTap,
-        elevation: 4,
-        backgroundColor: theme.colorScheme.primary,
+        elevation: active ? 6 : 4,
+        backgroundColor: active
+            ? theme.colorScheme.primary
+            : Color.alphaBlend(
+                Colors.black.withValues(alpha: 0.06),
+                theme.colorScheme.primary,
+              ),
         shape: const CircleBorder(),
         child: Icon(
           Icons.qr_code_scanner,
@@ -76,54 +81,68 @@ class _OpsBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return BottomAppBar(
-      height: 64,
+      height: 70,
       padding: EdgeInsets.zero,
       color: theme.colorScheme.surface,
       surfaceTintColor: theme.colorScheme.surface,
-      elevation: 10,
+      elevation: 0,
       shape: const CircularNotchedRectangle(),
-      notchMargin: 8,
-      child: Row(
-        children: [
-          Expanded(
-            child: _NavItem(
-              icon: Icons.inventory_2_outlined,
-              activeIcon: Icons.inventory_2,
-              label: 'Đơn hàng',
-              selected: currentIndex == 0,
-              onTap: () => onTap(0),
-            ),
+      notchMargin: 9,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
-          Expanded(
-            child: _NavItem(
-              icon: Icons.local_shipping_outlined,
-              activeIcon: Icons.local_shipping,
-              label: 'Pickup',
-              selected: currentIndex == 1,
-              onTap: () => onTap(1),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, -8),
             ),
-          ),
-          // Khoảng trống cho FAB ở giữa.
-          const SizedBox(width: 64),
-          Expanded(
-            child: _NavItem(
-              icon: Icons.notifications_none_outlined,
-              activeIcon: Icons.notifications,
-              label: 'Thông báo',
-              selected: currentIndex == 3,
-              onTap: () => onTap(3),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _NavItem(
+                icon: Icons.inventory_2_outlined,
+                activeIcon: Icons.inventory_2,
+                label: 'Đơn hàng',
+                selected: currentIndex == 0,
+                onTap: () => onTap(0),
+              ),
             ),
-          ),
-          Expanded(
-            child: _NavItem(
-              icon: Icons.person_outline,
-              activeIcon: Icons.person,
-              label: 'Tài khoản',
-              selected: currentIndex == 4,
-              onTap: () => onTap(4),
+            Expanded(
+              child: _NavItem(
+                icon: Icons.local_shipping_outlined,
+                activeIcon: Icons.local_shipping,
+                label: 'Pickup',
+                selected: currentIndex == 1,
+                onTap: () => onTap(1),
+              ),
             ),
-          ),
-        ],
+            // Khoảng trống cho FAB ở giữa.
+            const SizedBox(width: 70),
+            Expanded(
+              child: _NavItem(
+                icon: Icons.notifications_none_outlined,
+                activeIcon: Icons.notifications,
+                label: 'Thông báo',
+                selected: currentIndex == 3,
+                onTap: () => onTap(3),
+              ),
+            ),
+            Expanded(
+              child: _NavItem(
+                icon: Icons.person_outline,
+                activeIcon: Icons.person,
+                label: 'Tài khoản',
+                selected: currentIndex == 4,
+                onTap: () => onTap(4),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -155,13 +174,24 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(selected ? activeIcon : icon, size: 22, color: color),
-            const SizedBox(height: 2),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 34,
+              height: 28,
+              decoration: BoxDecoration(
+                color: selected
+                    ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Icon(selected ? activeIcon : icon, size: 21, color: color),
+            ),
+            const SizedBox(height: 3),
             Text(
               label,
               maxLines: 1,

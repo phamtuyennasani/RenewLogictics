@@ -53,12 +53,13 @@ final locationServiceProvider = Provider<LocationService>((ref) {
 
 /// Controller màn hình bản đồ — theo điểm pickup ([LatLngPoint] đích).
 final pickupRouteControllerProvider = StateNotifierProvider.autoDispose
-    .family<PickupRouteController, PickupRouteState, LatLngPoint>(
-  (ref, destination) {
-    return PickupRouteController(
-      vietmapApi: ref.watch(vietmapApiProvider),
-      locationService: ref.watch(locationServiceProvider),
-      destination: destination,
-    );
-  },
-);
+    .family<PickupRouteController, PickupRouteState, LatLngPoint>((
+      ref,
+      destination,
+    ) {
+      return PickupRouteController(
+        vietmapApi: ref.watch(vietmapApiProvider),
+        locationService: ref.watch(locationServiceProvider),
+        destination: destination,
+      );
+    });

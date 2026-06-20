@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_surfaces.dart';
+
 /// Bộ widget dùng chung cho các màn chi tiết (OPS order/pickup, shipper...).
 ///
 /// Mục tiêu: đồng nhất giao diện card-based giữa các feature — header gradient,
@@ -26,23 +28,10 @@ class DetailHeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.primary,
-            Color.alphaBlend(
-              Colors.black.withValues(alpha: 0.12),
-              theme.colorScheme.primary,
-            ),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return AppHeroPanel(
+      trailingIcon: icon,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.zero,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -51,7 +40,7 @@ class DetailHeaderCard extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: Colors.white),
             ),
@@ -128,9 +117,10 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
+    return AppSurface(
+      padding: padding,
       child: Padding(
-        padding: padding,
+        padding: EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -188,7 +178,7 @@ class InfoTile extends StatelessWidget {
             height: 30,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
@@ -226,7 +216,7 @@ class InfoTile extends StatelessWidget {
     if (onTap == null) return content;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(12),
       child: content,
     );
   }
@@ -234,7 +224,12 @@ class InfoTile extends StatelessWidget {
 
 /// Pill nhỏ icon + nhãn (số kiện, cân nặng, hẹn lấy...).
 class MetaChip extends StatelessWidget {
-  const MetaChip({super.key, required this.icon, required this.label, this.color});
+  const MetaChip({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.color,
+  });
 
   final IconData icon;
   final String label;

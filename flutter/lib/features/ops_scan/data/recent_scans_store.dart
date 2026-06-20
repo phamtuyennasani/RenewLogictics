@@ -37,8 +37,7 @@ class RecentScansStore {
   Future<List<RecentScan>> add(RecentScan scan) async {
     final current = load();
     final next = <RecentScan>[scan, ...current];
-    final trimmed =
-        next.length > maxItems ? next.sublist(0, maxItems) : next;
+    final trimmed = next.length > maxItems ? next.sublist(0, maxItems) : next;
     await _persist(trimmed);
     return trimmed;
   }

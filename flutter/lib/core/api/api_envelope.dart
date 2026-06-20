@@ -40,8 +40,9 @@ class ApiEnvelope {
   }
 
   /// `data` ép về Map (object response). Trả map rỗng nếu không phải object.
-  Map<String, dynamic> get dataMap =>
-      data is Map<String, dynamic> ? data! as Map<String, dynamic> : <String, dynamic>{};
+  Map<String, dynamic> get dataMap => data is Map<String, dynamic>
+      ? data! as Map<String, dynamic>
+      : <String, dynamic>{};
 
   /// First error message của field bất kỳ (tiện hiển thị nhanh).
   String? get firstError {

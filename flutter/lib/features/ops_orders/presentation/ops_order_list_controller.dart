@@ -44,8 +44,12 @@ class OpsOrderListState {
   }) {
     return OpsOrderListState(
       keyword: keyword ?? this.keyword,
-      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
-      hasPickupFilter: clearHasPickupFilter ? null : (hasPickupFilter ?? this.hasPickupFilter),
+      statusFilter: clearStatusFilter
+          ? null
+          : (statusFilter ?? this.statusFilter),
+      hasPickupFilter: clearHasPickupFilter
+          ? null
+          : (hasPickupFilter ?? this.hasPickupFilter),
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
@@ -143,5 +147,5 @@ class OpsOrderListController extends Notifier<OpsOrderListState> {
 
 final opsOrderListControllerProvider =
     NotifierProvider<OpsOrderListController, OpsOrderListState>(
-  OpsOrderListController.new,
-);
+      OpsOrderListController.new,
+    );

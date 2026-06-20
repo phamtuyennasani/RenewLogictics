@@ -73,9 +73,14 @@ trait PicksPickupPayload
         ];
 
         if ($withShipper) {
+            $shipperName = $pickup->shipper?->fullname ?: $pickup->shipper?->username;
+            $payload['shipper_id'] = $pickup->id_shipper ? (int) $pickup->id_shipper : null;
+            $payload['shipper_name'] = $shipperName;
             $payload['shipper'] = $pickup->id_shipper ? [
                 'id' => (int) $pickup->id_shipper,
-                'name' => $pickup->shipper?->fullname ?: $pickup->shipper?->username,
+                'name' => $shipperName,
+                'fullname' => $pickup->shipper?->fullname,
+                'username' => $pickup->shipper?->username,
             ] : null;
         }
 

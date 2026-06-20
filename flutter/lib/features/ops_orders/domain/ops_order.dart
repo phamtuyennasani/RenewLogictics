@@ -156,9 +156,9 @@ class OpsOrderDetail {
   factory OpsOrderDetail.fromJson(Map<String, dynamic> json) {
     final packages = (json['packages'] is List)
         ? (json['packages'] as List)
-            .whereType<Map<String, dynamic>>()
-            .map(OrderPackage.fromJson)
-            .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(OrderPackage.fromJson)
+              .toList()
         : <OrderPackage>[];
 
     return OpsOrderDetail(

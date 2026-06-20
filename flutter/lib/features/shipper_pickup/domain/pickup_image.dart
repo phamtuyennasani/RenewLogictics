@@ -2,11 +2,7 @@ import '../../../app/env.dart';
 
 /// Ảnh bằng chứng pickup (contract: `data.images[]` / payload upload).
 class PickupImage {
-  const PickupImage({
-    required this.id,
-    required this.url,
-    this.uploadedAt,
-  });
+  const PickupImage({required this.id, required this.url, this.uploadedAt});
 
   final int id;
   final String url;

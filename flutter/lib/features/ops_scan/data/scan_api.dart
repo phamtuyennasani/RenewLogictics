@@ -16,9 +16,7 @@ class ScanApi {
   Future<ApiEnvelope> receive({required int orderId, String? code}) {
     return _client.post(
       '/ops/orders/$orderId/receive',
-      body: {
-        if (code != null && code.isNotEmpty) 'code': code,
-      },
+      body: {if (code != null && code.isNotEmpty) 'code': code},
     );
   }
 

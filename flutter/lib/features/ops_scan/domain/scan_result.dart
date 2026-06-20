@@ -121,8 +121,7 @@ class ScanOrder {
   }
 
   /// Mã hiển thị chính của đơn (ưu tiên id_bill).
-  String get primaryCode =>
-      idBill ?? trackingCode ?? mathamchieu ?? '#$id';
+  String get primaryCode => idBill ?? trackingCode ?? mathamchieu ?? '#$id';
 }
 
 /// Kết quả tra cứu scan (contract §4.1).
@@ -175,10 +174,7 @@ class ReceiveResult {
   final DateTime? receivedAt;
   final String? message;
 
-  factory ReceiveResult.fromJson(
-    Map<String, dynamic> data, {
-    String? message,
-  }) {
+  factory ReceiveResult.fromJson(Map<String, dynamic> data, {String? message}) {
     final order = data['order'] is Map<String, dynamic>
         ? data['order'] as Map<String, dynamic>
         : const <String, dynamic>{};
@@ -222,19 +218,20 @@ class RecentScan {
   final String? note;
 
   Map<String, dynamic> toJson() => {
-        'code': code,
-        'scanned_at': scannedAt.toIso8601String(),
-        'received': received,
-        'order_id': orderId,
-        'id_bill': idBill,
-        'status_label': statusLabel,
-        'note': note,
-      };
+    'code': code,
+    'scanned_at': scannedAt.toIso8601String(),
+    'received': received,
+    'order_id': orderId,
+    'id_bill': idBill,
+    'status_label': statusLabel,
+    'note': note,
+  };
 
   factory RecentScan.fromJson(Map<String, dynamic> json) {
     return RecentScan(
       code: (json['code'] ?? '').toString(),
-      scannedAt: DateTime.tryParse(json['scanned_at']?.toString() ?? '') ??
+      scannedAt:
+          DateTime.tryParse(json['scanned_at']?.toString() ?? '') ??
           DateTime.now(),
       received: json['received'] == true,
       orderId: (json['order_id'] as num?)?.toInt(),

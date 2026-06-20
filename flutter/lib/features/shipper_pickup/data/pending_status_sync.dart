@@ -20,9 +20,9 @@ class PendingStatusSync {
     required PendingStatusStore store,
     required PickupRepository repository,
     required ConnectivityService connectivity,
-  })  : _store = store,
-        _repo = repository,
-        _connectivity = connectivity;
+  }) : _store = store,
+       _repo = repository,
+       _connectivity = connectivity;
 
   final PendingStatusStore _store;
   final PickupRepository _repo;
@@ -104,7 +104,9 @@ class PendingStatusSync {
     }
 
     if (kDebugMode && lastDroppedCount > 0) {
-      debugPrint('[PendingStatusSync] bỏ $lastDroppedCount action do conflict.');
+      debugPrint(
+        '[PendingStatusSync] bỏ $lastDroppedCount action do conflict.',
+      );
     }
   }
 

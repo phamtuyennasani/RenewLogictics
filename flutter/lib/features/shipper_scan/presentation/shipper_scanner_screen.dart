@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../shared/widgets/app_surfaces.dart';
 import '../../shipper_pickup/presentation/pickup_list_controller.dart';
 import 'shipper_scan_controller.dart';
 import 'widgets/shipper_scan_result_card.dart';
@@ -209,42 +210,45 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Xoá lịch sử',
-              onPressed: () =>
-                  ref.read(shipperScanControllerProvider.notifier).clearHistory(),
+              onPressed: () => ref
+                  .read(shipperScanControllerProvider.notifier)
+                  .clearHistory(),
             ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildScannerView(state, theme),
-          _buildManualInput(state, theme),
-          Expanded(
-            child: state.result != null
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: ShipperScanResultCard(
-                      result: state.result!,
-                      isReceiving: state.isReceiving,
-                      onReceive: _onReceive,
-                      onClear: () => ref
-                          .read(shipperScanControllerProvider.notifier)
-                          .clearResult(),
-                    ),
-                  )
-                : _buildHistory(state, theme),
-          ),
-        ],
+      body: AppPage(
+        child: Column(
+          children: [
+            _buildScannerView(state, theme),
+            _buildManualInput(state, theme),
+            Expanded(
+              child: state.result != null
+                  ? SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: ShipperScanResultCard(
+                        result: state.result!,
+                        isReceiving: state.isReceiving,
+                        onReceive: _onReceive,
+                        onClear: () => ref
+                            .read(shipperScanControllerProvider.notifier)
+                            .clearResult(),
+                      ),
+                    )
+                  : _buildHistory(state, theme),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildScannerView(ShipperScanState state, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: SizedBox(
-        height: 280,
+        height: 292,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(18),
           child: _cameraOn
               ? _buildCameraStack(state, theme)
               : _buildCameraOff(theme),
@@ -255,28 +259,29 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
 
   /// Khung hiển thị khi camera đang tắt: nút bật + gợi ý nhập tay.
   Widget _buildCameraOff(ThemeData theme) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return AppSurface(
+      padding: EdgeInsets.zero,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.photo_camera_outlined,
-                size: 40,
-                color: theme.colorScheme.onSurfaceVariant,
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(
+                  Icons.photo_camera_outlined,
+                  size: 34,
+                  color: theme.colorScheme.primary,
+                ),
               ),
               const SizedBox(height: 12),
-              Text(
-                'Camera đang tắt',
-                style: theme.textTheme.titleMedium,
-              ),
+              Text('Camera đang tắt', style: theme.textTheme.titleMedium),
               const SizedBox(height: 4),
               Text(
                 'Bật camera để quét, hoặc nhập mã thủ công bên dưới.',
@@ -329,7 +334,7 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
                 color: Colors.white.withValues(alpha: 0.95),
                 width: 2,
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(18),
             ),
           ),
         ),
@@ -392,35 +397,28 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
 
   Widget _buildManualInput(ShipperScanState state, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _manualCtrl,
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (_) => _submitManual(),
-                  decoration: const InputDecoration(
-                    hintText: 'Nhập mã kiện thủ công',
-                    prefixIcon: Icon(Icons.keyboard_outlined),
-                  ),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: AppSurface(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _manualCtrl,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _submitManual(),
+                decoration: const InputDecoration(
+                  hintText: 'Nhập mã kiện thủ công',
+                  prefixIcon: Icon(Icons.keyboard_outlined),
                 ),
               ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: state.isBusy ? null : _submitManual,
-                child: const Text('Quét'),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: state.isBusy ? null : _submitManual,
+              child: const Text('Quét'),
+            ),
+          ],
         ),
       ),
     );

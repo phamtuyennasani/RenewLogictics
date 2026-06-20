@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\Mobile\MobileAuthController;
 use App\Http\Controllers\Api\Mobile\MobileConfigController;
 use App\Http\Controllers\Api\Mobile\MobileDeviceTokenController;
 use App\Http\Controllers\Api\Mobile\MobileLocationController;
+use App\Http\Controllers\Api\Mobile\MobileNotificationController;
 use App\Http\Controllers\Api\Mobile\MobileOpsOrderController;
 use App\Http\Controllers\Api\Mobile\MobileOpsPickupController;
 use App\Http\Controllers\Api\Mobile\MobileOpsScanController;
@@ -61,6 +62,10 @@ Route::prefix('mobile')->name('api.mobile.')->group(function (): void {
 
         // Cấu hình public cho app (vd VietMap tile key để render bản đồ).
         Route::get('/config', [MobileConfigController::class, 'index'])->name('config');
+
+        // Thông báo nội bộ — trả tất cả thông báo active theo role, không chỉ unread.
+        Route::get('/notifications', [MobileNotificationController::class, 'index'])->name('notifications.index');
+        Route::post('/notifications/{notification}/read', [MobileNotificationController::class, 'markRead'])->name('notifications.read');
 
         // Proxy VietMap (search/place/reverse/route) — giấu geocode/route key ở
         // server. Tile/style tải thẳng từ VietMap bằng tile key, KHÔNG qua đây.

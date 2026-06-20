@@ -78,6 +78,46 @@ class PickupOrderRef {
   }
 }
 
+/// Người được gán xử lý pickup (shipper trong màn OPS).
+class PickupAssignee {
+  const PickupAssignee({required this.id, required this.name});
+
+  final int id;
+  final String name;
+
+  static PickupAssignee? fromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final id = (raw['id'] as num?)?.toInt();
+    if (id == null) return null;
+    final name =
+        (raw['name'] ?? raw['fullname'] ?? raw['username'])
+            ?.toString()
+            .trim() ??
+        '';
+    if (name.isEmpty) return PickupAssignee(id: id, name: 'Shipper #$id');
+    return PickupAssignee(id: id, name: name);
+  }
+
+  static PickupAssignee? fromPickupJson(Map<String, dynamic> json) {
+    final nested = fromJson(json['shipper']);
+    if (nested != null) return nested;
+
+    final id =
+        (json['shipper_id'] as num?)?.toInt() ??
+        (json['id_shipper'] as num?)?.toInt();
+    if (id == null) return null;
+
+    final name =
+        (json['shipper_name'] ??
+                json['shipper_fullname'] ??
+                json['shipper_username'])
+            ?.toString()
+            .trim() ??
+        '';
+    return PickupAssignee(id: id, name: name.isEmpty ? 'Shipper #$id' : name);
+  }
+}
+
 /// Pickup item ở danh sách (contract §3.1).
 class Pickup {
   const Pickup({
@@ -93,6 +133,7 @@ class Pickup {
     this.ordersCount,
     this.note,
     this.createdBy,
+    this.shipper,
   });
 
   final int id;
@@ -107,6 +148,7 @@ class Pickup {
   final int? ordersCount;
   final String? note;
   final String? createdBy;
+  final PickupAssignee? shipper;
 
   factory Pickup.fromJson(Map<String, dynamic> json) {
     return Pickup(
@@ -125,14 +167,14 @@ class Pickup {
       location: PickupLocation.fromJson(
         json['location'] as Map<String, dynamic>?,
       ),
-      allowedTransitions:
-          StatusBadge.listFrom(json['allowed_transitions']),
+      allowedTransitions: StatusBadge.listFrom(json['allowed_transitions']),
       scheduledAt: _parseDate(json['scheduled_at']),
       packageCount: (json['package_count'] as num?)?.toInt(),
       weightKg: (json['weight_kg'] as num?)?.toDouble(),
       ordersCount: (json['orders_count'] as num?)?.toInt(),
       note: json['note']?.toString(),
       createdBy: json['created_by']?.toString(),
+      shipper: PickupAssignee.fromPickupJson(json),
     );
   }
 
@@ -153,6 +195,7 @@ class Pickup {
       ordersCount: ordersCount,
       note: note,
       createdBy: createdBy,
+      shipper: shipper,
     );
   }
 
@@ -206,9 +249,9 @@ class PickupDetail {
   factory PickupDetail.fromJson(Map<String, dynamic> json) {
     final orders = (json['orders'] is List)
         ? (json['orders'] as List)
-            .whereType<Map<String, dynamic>>()
-            .map(PickupOrderRef.fromJson)
-            .toList()
+              .whereType<Map<String, dynamic>>()
+              .map(PickupOrderRef.fromJson)
+              .toList()
         : <PickupOrderRef>[];
 
     return PickupDetail(

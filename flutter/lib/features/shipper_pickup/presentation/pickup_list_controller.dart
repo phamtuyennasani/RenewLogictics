@@ -130,5 +130,5 @@ class PickupListController extends Notifier<PickupListState> {
 
 final pickupListControllerProvider =
     NotifierProvider<PickupListController, PickupListState>(
-  PickupListController.new,
-);
+      PickupListController.new,
+    );

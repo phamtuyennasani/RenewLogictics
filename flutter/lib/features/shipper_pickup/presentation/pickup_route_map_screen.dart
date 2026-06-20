@@ -5,6 +5,7 @@ import 'package:vietmap_flutter_gl/vietmap_flutter_gl.dart';
 import '../../../core/config/mobile_config_provider.dart';
 import '../../../core/location/location_service.dart';
 import '../../../core/utils/contact_actions.dart';
+import '../../../shared/widgets/app_surfaces.dart';
 import '../domain/pickup.dart';
 import '../domain/route_path.dart';
 import 'pickup_providers.dart';
@@ -56,8 +57,10 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
     final configAsync = ref.watch(mobileConfigProvider);
 
     // Khi có route mới hoặc vị trí shipper mới → vẽ lại lên map.
-    ref.listen<PickupRouteState>(pickupRouteControllerProvider(family),
-        (prev, next) {
+    ref.listen<PickupRouteState>(pickupRouteControllerProvider(family), (
+      prev,
+      next,
+    ) {
       if (next.phase == RoutePhase.drawn && next.route != null) {
         _drawRoute(next.shipper!, next.route!);
       }
@@ -68,14 +71,14 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Chỉ đường · ${widget.pickup.maPickup}'),
-      ),
+      appBar: AppBar(title: Text('Chỉ đường · ${widget.pickup.maPickup}')),
       body: configAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => _ConfigError(onRetry: () {
-          ref.invalidate(mobileConfigProvider);
-        }),
+        error: (_, _) => _ConfigError(
+          onRetry: () {
+            ref.invalidate(mobileConfigProvider);
+          },
+        ),
         data: (config) {
           if (!config.hasVietmapTileKey) {
             return const _ConfigError(
@@ -96,10 +99,7 @@ class _PickupRouteMapScreenState extends ConsumerState<PickupRouteMapScreen> {
                 onMapCreated: (controller) => _mapController = controller,
                 onStyleLoadedCallback: _onStyleLoaded,
               ),
-              _InfoPanel(
-                pickup: widget.pickup,
-                route: state.route,
-              ),
+              _InfoPanel(pickup: widget.pickup, route: state.route),
               Positioned(
                 left: 16,
                 right: 16,
@@ -282,9 +282,7 @@ class _ActionButton extends StatelessWidget {
             )
           : const Icon(Icons.directions),
       label: Text(label),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
-      ),
+      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
     );
   }
 }
@@ -334,28 +332,18 @@ class _InfoPanel extends StatelessWidget {
     return SafeArea(
       child: Align(
         alignment: Alignment.topCenter,
-        child: Container(
+        child: AppSurface(
           margin: const EdgeInsets.all(12),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface.withValues(alpha: 0.96),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1A0F172A),
-                blurRadius: 18,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 pickup.customer.displayName,
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700),
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               if (address != null && address.isNotEmpty) ...[
                 const SizedBox(height: 2),
@@ -401,8 +389,9 @@ class _Metric extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           value,
-          style:
-              theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );

@@ -24,10 +24,7 @@ class Paginated<T> {
   ) {
     final rawItems = data['items'];
     final items = rawItems is List
-        ? rawItems
-            .whereType<Map<String, dynamic>>()
-            .map(itemFromJson)
-            .toList()
+        ? rawItems.whereType<Map<String, dynamic>>().map(itemFromJson).toList()
         : <T>[];
 
     final meta = data['meta'] is Map<String, dynamic>

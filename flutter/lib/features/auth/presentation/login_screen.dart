@@ -153,27 +153,25 @@ class _LoginBackground extends StatelessWidget {
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE6F0FF), Color(0xFFF8FBFF), Color(0xFFDCE8FF)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFFEAF2FF), Color(0xFFF8FAFC), Color(0xFFF6F8FC)],
         ),
       ),
       child: Stack(
         children: [
           Positioned(
-            top: -110,
-            left: -90,
-            child: _BlurOrb(
-              size: 230,
-              color: const Color(0xFF2563EB).withValues(alpha: 0.13),
-            ),
-          ),
-          Positioned(
-            right: -120,
-            top: 160,
-            child: _BlurOrb(
-              size: 250,
-              color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+            left: 0,
+            right: 0,
+            top: 0,
+            child: Container(
+              height: 260,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(34),
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -190,26 +188,6 @@ class _LoginBackground extends StatelessWidget {
           ),
           Positioned.fill(child: child),
         ],
-      ),
-    );
-  }
-}
-
-class _BlurOrb extends StatelessWidget {
-  const _BlurOrb({required this.size, required this.color});
-
-  final double size;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        boxShadow: [BoxShadow(color: color, blurRadius: 70, spreadRadius: 18)],
       ),
     );
   }
@@ -358,9 +336,9 @@ class _LoginPanel extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.9)),
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.08),
@@ -458,7 +436,7 @@ class _LoginPanel extends StatelessWidget {
                     backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     elevation: 0,
                   ),
@@ -513,7 +491,7 @@ class _LoginPanel extends StatelessWidget {
                         ),
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                   ),
@@ -581,19 +559,19 @@ class _LoginField extends StatelessWidget {
         ),
         labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.4),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: theme.colorScheme.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: theme.colorScheme.error, width: 1.4),
         ),
       ),

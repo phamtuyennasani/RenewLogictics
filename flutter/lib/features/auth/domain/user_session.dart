@@ -86,7 +86,9 @@ class UserSession {
       ),
       roles: _stringList(data['roles']),
       permissions: _stringList(data['permissions']),
-      defaultModule: DefaultModule.fromString(data['default_module']?.toString()),
+      defaultModule: DefaultModule.fromString(
+        data['default_module']?.toString(),
+      ),
     );
   }
 

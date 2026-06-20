@@ -56,8 +56,9 @@ class PickupDetailState {
       isLocating: isLocating ?? this.isLocating,
       isPendingSync: isPendingSync ?? this.isPendingSync,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      errorOpenSettings:
-          clearError ? false : (errorOpenSettings ?? this.errorOpenSettings),
+      errorOpenSettings: clearError
+          ? false
+          : (errorOpenSettings ?? this.errorOpenSettings),
       actionMessage: clearAction ? null : (actionMessage ?? this.actionMessage),
     );
   }
@@ -66,8 +67,7 @@ class PickupDetailState {
 /// Controller chi tiết pickup: tải chi tiết + đổi trạng thái (FSM theo API).
 ///
 /// Dùng family theo pickupId để mỗi màn detail có state riêng.
-class PickupDetailController
-    extends FamilyNotifier<PickupDetailState, int> {
+class PickupDetailController extends FamilyNotifier<PickupDetailState, int> {
   PickupRepository get _repo => ref.read(pickupRepositoryProvider);
   LocationService get _location => ref.read(locationServiceProvider);
 
@@ -83,7 +83,9 @@ class PickupDetailController
 
     // Khi bộ đồng bộ offline xử lý xong action của pickup này → reload chi tiết
     // (status mới từ server) và tắt cờ chờ đồng bộ.
-    final syncSub = ref.read(pendingStatusSyncProvider).syncedStream.listen((id) {
+    final syncSub = ref.read(pendingStatusSyncProvider).syncedStream.listen((
+      id,
+    ) {
       if (id == _pickupId) {
         state = state.copyWith(isPendingSync: false);
         load();
@@ -114,16 +116,17 @@ class PickupDetailController
   /// thái khác cố lấy GPS "best effort", không chặn.
   ///
   /// Trả `true` nếu thành công để UI điều hướng/refresh list.
-  Future<bool> changeStatus({
-    required String status,
-    String? reason,
-  }) async {
+  Future<bool> changeStatus({required String status, String? reason}) async {
     final requiresGps = status == _requiresGps;
 
     // Bước 1: lấy GPS.
     double? lat;
     double? lng;
-    state = state.copyWith(isLocating: true, clearError: true, clearAction: true);
+    state = state.copyWith(
+      isLocating: true,
+      clearError: true,
+      clearAction: true,
+    );
     try {
       final pos = await _location.currentPosition();
       lat = pos.lat;
@@ -153,7 +156,9 @@ class PickupDetailController
     state = state.copyWith(isLocating: false);
     final online = await ref.read(connectivityServiceProvider).isOnline();
     if (!online) {
-      await ref.read(pendingStatusStoreProvider).upsert(
+      await ref
+          .read(pendingStatusStoreProvider)
+          .upsert(
             PendingStatusAction(
               pickupId: _pickupId,
               status: status,
@@ -237,7 +242,7 @@ class PickupDetailController
   }
 }
 
-final pickupDetailControllerProvider = NotifierProvider.family<
-    PickupDetailController, PickupDetailState, int>(
-  PickupDetailController.new,
-);
+final pickupDetailControllerProvider =
+    NotifierProvider.family<PickupDetailController, PickupDetailState, int>(
+      PickupDetailController.new,
+    );

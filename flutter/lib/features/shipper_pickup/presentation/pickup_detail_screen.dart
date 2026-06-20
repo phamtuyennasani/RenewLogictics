@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../app/router.dart';
 import '../../../core/utils/contact_actions.dart';
 import '../../../core/utils/date_formatters.dart';
+import '../../../shared/widgets/app_surfaces.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/status_chip.dart';
@@ -56,7 +57,9 @@ class PickupDetailScreen extends ConsumerWidget {
                 ? SnackBarAction(
                     label: 'Mở Cài đặt',
                     textColor: Colors.white,
-                    onPressed: ref.read(locationServiceProvider).openAppSettings,
+                    onPressed: ref
+                        .read(locationServiceProvider)
+                        .openAppSettings,
                   )
                 : null,
           ),
@@ -76,7 +79,7 @@ class PickupDetailScreen extends ConsumerWidget {
               ),
         title: Text(state.detail?.pickup.maPickup ?? 'Chi tiết pickup'),
       ),
-      body: _buildBody(context, ref, state, notifier),
+      body: AppPage(child: _buildBody(context, ref, state, notifier)),
       bottomNavigationBar: _buildActionBar(context, ref, state, notifier),
     );
   }
@@ -108,7 +111,7 @@ class PickupDetailScreen extends ConsumerWidget {
           24 + MediaQuery.of(context).padding.bottom,
         ),
         children: [
-          _StatusHeader(pickup: detail.pickup),
+          _StatusHeader(detail: detail),
           if (state.isPendingSync) ...[
             const SizedBox(height: 12),
             const _PendingSyncBanner(),
@@ -119,9 +122,9 @@ class PickupDetailScreen extends ConsumerWidget {
             location: detail.pickup.location,
             onOpenInAppMap: detail.pickup.location.hasLocation
                 ? () => context.push(
-                      AppRoutes.pickupRouteLocation(detail.pickup.id),
-                      extra: detail.pickup,
-                    )
+                    AppRoutes.pickupRouteLocation(detail.pickup.id),
+                    extra: detail.pickup,
+                  )
                 : null,
           ),
           const SizedBox(height: 12),
@@ -136,7 +139,10 @@ class PickupDetailScreen extends ConsumerWidget {
             _OrdersCard(orders: detail.orders),
           ],
           const SizedBox(height: 12),
-          _ImagesCard(pickupId: detail.pickup.id),
+          _ImagesCard(
+            pickupId: detail.pickup.id,
+            canManage: detail.pickup.status.value != 'pickup_da_lay',
+          ),
         ],
       ),
     );
@@ -218,20 +224,21 @@ class PickupDetailScreen extends ConsumerWidget {
 }
 
 class _StatusHeader extends StatelessWidget {
-  const _StatusHeader({required this.pickup});
+  const _StatusHeader({required this.detail});
 
-  final Pickup pickup;
+  final PickupDetail detail;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pickup = detail.pickup;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -240,7 +247,7 @@ class _StatusHeader extends StatelessWidget {
               height: 48,
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(
                 Icons.inventory_2_outlined,
@@ -279,6 +286,32 @@ class _StatusHeader extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _HeaderMetric(
+                        icon: Icons.inventory_2_outlined,
+                        label: '${pickup.packageCount ?? 0} kiện',
+                      ),
+                      if (pickup.ordersCount != null)
+                        _HeaderMetric(
+                          icon: Icons.receipt_long_outlined,
+                          label: '${pickup.ordersCount} đơn',
+                        ),
+                      if (pickup.weightKg != null)
+                        _HeaderMetric(
+                          icon: Icons.scale_outlined,
+                          label: DateFormatters.weight(pickup.weightKg),
+                        ),
+                      if (pickup.scheduledAt != null)
+                        _HeaderMetric(
+                          icon: Icons.schedule_outlined,
+                          label: DateFormatters.dateTime(pickup.scheduledAt),
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -290,6 +323,40 @@ class _StatusHeader extends StatelessWidget {
 }
 
 /// Banner báo có thao tác đổi trạng thái đang chờ đồng bộ (offline).
+class _HeaderMetric extends StatelessWidget {
+  const _HeaderMetric({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PendingSyncBanner extends StatelessWidget {
   const _PendingSyncBanner();
 
@@ -368,7 +435,8 @@ class _CustomerCard extends StatelessWidget {
     final phone = customer.phone?.trim() ?? '';
     final address = customer.address?.trim() ?? '';
 
-    return Card(
+    return AppSurface(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -485,9 +553,10 @@ class _InfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = detail.pickup;
-    return Card(
+    return AppSurface(
+      padding: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -567,40 +636,49 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
-              size: 16,
+              size: 15,
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 9),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(width: 8),
                 Text(
                   value,
-                  style: theme.textTheme.bodyLarge?.copyWith(
+                  textAlign: TextAlign.right,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w800,
+                    height: 1.1,
                   ),
                 ),
               ],
@@ -620,7 +698,8 @@ class _NoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
+    return AppSurface(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -651,7 +730,8 @@ class _OrdersCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return AppSurface(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
         child: Column(
@@ -735,9 +815,10 @@ class _OrderRow extends StatelessWidget {
 
 /// Card ảnh bằng chứng pickup: lưới thumbnail + thêm/xóa ảnh.
 class _ImagesCard extends ConsumerStatefulWidget {
-  const _ImagesCard({required this.pickupId});
+  const _ImagesCard({required this.pickupId, required this.canManage});
 
   final int pickupId;
+  final bool canManage;
 
   @override
   ConsumerState<_ImagesCard> createState() => _ImagesCardState();
@@ -747,6 +828,7 @@ class _ImagesCardState extends ConsumerState<_ImagesCard> {
   final _picker = ImagePicker();
 
   Future<void> _pickImage(ImageSource source) async {
+    if (!widget.canManage) return;
     try {
       final file = await _picker.pickImage(
         source: source,
@@ -774,6 +856,7 @@ class _ImagesCardState extends ConsumerState<_ImagesCard> {
   }
 
   void _openPickerSheet() {
+    if (!widget.canManage) return;
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -803,6 +886,7 @@ class _ImagesCardState extends ConsumerState<_ImagesCard> {
   }
 
   Future<void> _confirmDelete(PickupImage image) async {
+    if (!widget.canManage) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -853,7 +937,8 @@ class _ImagesCardState extends ConsumerState<_ImagesCard> {
   Widget build(BuildContext context) {
     final state = ref.watch(pickupImagesControllerProvider(widget.pickupId));
 
-    return Card(
+    return AppSurface(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -867,13 +952,13 @@ class _ImagesCardState extends ConsumerState<_ImagesCard> {
                     title: 'Ảnh bằng chứng (${state.images.length})',
                   ),
                 ),
-                if (state.isUploading)
+                if (widget.canManage && state.isUploading)
                   const SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                else
+                else if (widget.canManage)
                   TextButton.icon(
                     onPressed: _openPickerSheet,
                     icon: const Icon(Icons.add_a_photo_outlined, size: 18),
@@ -893,8 +978,8 @@ class _ImagesCardState extends ConsumerState<_ImagesCard> {
                 child: Text(
                   'Chưa có ảnh. Chụp ảnh kiện hàng để làm bằng chứng.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               )
             else
@@ -907,7 +992,9 @@ class _ImagesCardState extends ConsumerState<_ImagesCard> {
                       image: image,
                       isDeleting: state.deletingId == image.id,
                       onTap: () => _openViewer(image),
-                      onDelete: () => _confirmDelete(image),
+                      onDelete: widget.canManage
+                          ? () => _confirmDelete(image)
+                          : null,
                     ),
                 ],
               ),
@@ -930,7 +1017,7 @@ class _ImageThumb extends StatelessWidget {
   final PickupImage image;
   final bool isDeleting;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -972,35 +1059,36 @@ class _ImageThumb extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            top: 2,
-            right: 2,
-            child: Material(
-              color: Colors.black.withValues(alpha: 0.55),
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: isDeleting ? null : onDelete,
-                child: Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: isDeleting
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+          if (onDelete != null)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: Material(
+                color: Colors.black.withValues(alpha: 0.55),
+                shape: const CircleBorder(),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: isDeleting ? null : onDelete,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: isDeleting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.close,
+                            size: 14,
                             color: Colors.white,
                           ),
-                        )
-                      : const Icon(
-                          Icons.close,
-                          size: 14,
-                          color: Colors.white,
-                        ),
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

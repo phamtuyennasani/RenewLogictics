@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/utils/contact_actions.dart';
 import '../../../core/utils/date_formatters.dart';
+import '../../../shared/widgets/app_surfaces.dart';
 import '../../../shared/widgets/detail_widgets.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/status_chip.dart';
@@ -12,8 +13,10 @@ import '../domain/ops_order_repository.dart';
 import 'ops_order_providers.dart';
 
 /// Controller chi tiết order OPS.
-class OpsOrderDetailController extends StateNotifier<AsyncValue<OpsOrderDetail>> {
-  OpsOrderDetailController(this._repo, this.orderId) : super(const AsyncLoading()) {
+class OpsOrderDetailController
+    extends StateNotifier<AsyncValue<OpsOrderDetail>> {
+  OpsOrderDetailController(this._repo, this.orderId)
+    : super(const AsyncLoading()) {
     _load();
   }
 
@@ -28,13 +31,15 @@ class OpsOrderDetailController extends StateNotifier<AsyncValue<OpsOrderDetail>>
   Future<void> refresh() => _load();
 }
 
-final opsOrderDetailControllerProvider = StateNotifierProvider.family<
-    OpsOrderDetailController, AsyncValue<OpsOrderDetail>, int>(
-  (ref, orderId) {
-    final repo = ref.watch(opsOrderRepositoryProvider);
-    return OpsOrderDetailController(repo, orderId);
-  },
-);
+final opsOrderDetailControllerProvider =
+    StateNotifierProvider.family<
+      OpsOrderDetailController,
+      AsyncValue<OpsOrderDetail>,
+      int
+    >((ref, orderId) {
+      final repo = ref.watch(opsOrderRepositoryProvider);
+      return OpsOrderDetailController(repo, orderId);
+    });
 
 /// Màn chi tiết order OPS.
 class OpsOrderDetailScreen extends ConsumerWidget {
@@ -45,8 +50,9 @@ class OpsOrderDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(opsOrderDetailControllerProvider(orderId));
-    final notifier =
-        ref.read(opsOrderDetailControllerProvider(orderId).notifier);
+    final notifier = ref.read(
+      opsOrderDetailControllerProvider(orderId).notifier,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -59,15 +65,15 @@ class OpsOrderDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: state.when(
-        data: (detail) => RefreshIndicator(
-          onRefresh: notifier.refresh,
-          child: _DetailContent(detail: detail),
-        ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => ErrorState(
-          message: err.toString(),
-          onRetry: notifier.refresh,
+      body: AppPage(
+        child: state.when(
+          data: (detail) => RefreshIndicator(
+            onRefresh: notifier.refresh,
+            child: _DetailContent(detail: detail),
+          ),
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, _) =>
+              ErrorState(message: err.toString(), onRetry: notifier.refresh),
         ),
       ),
     );
@@ -161,8 +167,8 @@ class _DetailContent extends StatelessWidget {
             child: Text(
               detail.note!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -205,8 +211,8 @@ class _SenderCard extends StatelessWidget {
             Text(
               sender.fullname!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
           if (sender.address != null && sender.address!.trim().isNotEmpty) ...[
@@ -263,8 +269,7 @@ class _PackagesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final totalWeight =
-        packages.fold<double>(0, (sum, p) => sum + p.cWeight);
+    final totalWeight = packages.fold<double>(0, (sum, p) => sum + p.cWeight);
 
     return SectionCard(
       icon: Icons.inventory_2_outlined,
@@ -337,21 +342,14 @@ class _PickupAction extends StatelessWidget {
           ),
           icon: const Icon(Icons.add_box_outlined),
           label: const Text('Tạo phiếu pickup'),
-          style: FilledButton.styleFrom(
-            minimumSize: const Size.fromHeight(50),
-          ),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
         ),
       );
     }
 
     final theme = Theme.of(context);
-    return Container(
+    return AppSurface(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.green.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.green.withValues(alpha: 0.28)),
-      ),
       child: Row(
         children: [
           const Icon(Icons.check_circle_outline, color: Colors.green),

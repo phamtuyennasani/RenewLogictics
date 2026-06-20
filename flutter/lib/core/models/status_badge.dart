@@ -3,11 +3,7 @@
 /// `color` từ backend là Tailwind class (vd `bg-amber-100 text-amber-700`) —
 /// KHÔNG dùng trực tiếp ở Flutter. UI map `value` → màu Material qua StatusPalette.
 class StatusBadge {
-  const StatusBadge({
-    required this.value,
-    required this.label,
-    this.rawColor,
-  });
+  const StatusBadge({required this.value, required this.label, this.rawColor});
 
   final String value;
   final String label;

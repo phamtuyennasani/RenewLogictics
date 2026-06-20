@@ -10,7 +10,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 /// thật sự ra ngoài được. Đủ tốt cho hàng đợi offline (retry khi có mạng lại).
 class ConnectivityService {
   ConnectivityService([Connectivity? connectivity])
-      : _connectivity = connectivity ?? Connectivity();
+    : _connectivity = connectivity ?? Connectivity();
 
   final Connectivity _connectivity;
 

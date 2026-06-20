@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/utils/date_formatters.dart';
+import '../../../shared/widgets/app_surfaces.dart';
 import '../../../shared/widgets/detail_widgets.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/error_state.dart';
@@ -50,7 +51,7 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Đơn hàng của tôi'),
+        title: const Text('Đơn Hàng Của Tôi'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(108),
           child: Column(
@@ -71,19 +72,19 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   children: [
                     _FilterChip(
-                      label: 'Tất cả',
+                      label: 'Tất Cả',
                       selected: state.hasPickupFilter == null,
                       onTap: () => notifier.setHasPickupFilter(null),
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
-                      label: 'Chưa tạo pickup',
+                      label: 'Chưa Tạo Pickup',
                       selected: state.hasPickupFilter == false,
                       onTap: () => notifier.setHasPickupFilter(false),
                     ),
                     const SizedBox(width: 8),
                     _FilterChip(
-                      label: 'Đã tạo pickup',
+                      label: 'Đã Tạo Pickup',
                       selected: state.hasPickupFilter == true,
                       onTap: () => notifier.setHasPickupFilter(true),
                     ),
@@ -95,9 +96,11 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
           ),
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: notifier.refresh,
-        child: _buildBody(state, notifier),
+      body: AppPage(
+        child: RefreshIndicator(
+          onRefresh: notifier.refresh,
+          child: _buildBody(state, notifier),
+        ),
       ),
     );
   }
@@ -107,7 +110,10 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     if (state.errorMessage != null && state.items.isEmpty) {
-      return ErrorState(message: state.errorMessage!, onRetry: notifier.refresh);
+      return ErrorState(
+        message: state.errorMessage!,
+        onRetry: notifier.refresh,
+      );
     }
     if (state.items.isEmpty) {
       // Giữ scroll được (để pull-to-refresh) nhưng căn giữa nội dung theo
@@ -124,7 +130,8 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
                   child: EmptyState(
                     icon: Icons.inventory_2_outlined,
                     title: 'Chưa có đơn hàng',
-                    message: 'Không tìm thấy đơn hàng nào khớp bộ lọc hiện tại.',
+                    message:
+                        'Không tìm thấy đơn hàng nào khớp bộ lọc hiện tại.',
                     onRefresh: notifier.refresh,
                   ),
                 ),
@@ -146,7 +153,10 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        return _OrderCard(key: ValueKey(state.items[index].id), order: state.items[index]);
+        return _OrderCard(
+          key: ValueKey(state.items[index].id),
+          order: state.items[index],
+        );
       },
     );
   }
@@ -230,87 +240,77 @@ class _OrderCard extends StatelessWidget {
     final theme = Theme.of(context);
     final receiver = order.receiver.fullname?.trim() ?? '';
 
-    return Card(
+    return AppSurface(
       margin: const EdgeInsets.only(bottom: 10),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push(AppRoutes.opsOrderDetailLocation(order.id)),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      onTap: () => context.push(AppRoutes.opsOrderDetailLocation(order.id)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      order.idBill,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              Expanded(
+                child: Text(
+                  order.idBill,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                   ),
-                  const SizedBox(width: 10),
-                  StatusChip(badge: order.status),
-                ],
-              ),
-              if (order.trackingCode != null &&
-                  order.trackingCode!.trim().isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  order.trackingCode!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-              const SizedBox(height: 12),
-              _PartyRow(
-                icon: Icons.north_east,
-                label: 'Gửi',
-                name: order.sender.displayName,
               ),
-              if (receiver.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                _PartyRow(
-                  icon: Icons.south_west,
-                  label: 'Nhận',
-                  name: receiver,
-                ),
-              ],
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  MetaChip(
-                    icon: Icons.inventory_2_outlined,
-                    label: '${order.packageCount ?? 0} kiện',
-                  ),
-                  if (order.weightKg != null)
-                    MetaChip(
-                      icon: Icons.scale_outlined,
-                      label: DateFormatters.weight(order.weightKg),
-                    ),
-                  if (order.createdAt != null)
-                    MetaChip(
-                      icon: Icons.event_outlined,
-                      label: DateFormatters.date(order.createdAt),
-                    ),
-                  if (order.hasPickup)
-                    MetaChip(
-                      icon: Icons.check_circle_outline,
-                      label: 'Đã tạo pickup',
-                      color: Colors.green,
-                    ),
-                ],
-              ),
+              const SizedBox(width: 10),
+              StatusChip(badge: order.status),
             ],
           ),
-        ),
+          if (order.trackingCode != null &&
+              order.trackingCode!.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              order.trackingCode!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _PartyRow(
+            icon: Icons.north_east,
+            label: 'Gửi',
+            name: order.sender.displayName,
+          ),
+          if (receiver.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _PartyRow(icon: Icons.south_west, label: 'Nhận', name: receiver),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              MetaChip(
+                icon: Icons.inventory_2_outlined,
+                label: '${order.packageCount ?? 0} kiện',
+              ),
+              if (order.weightKg != null)
+                MetaChip(
+                  icon: Icons.scale_outlined,
+                  label: DateFormatters.weight(order.weightKg),
+                ),
+              if (order.createdAt != null)
+                MetaChip(
+                  icon: Icons.event_outlined,
+                  label: DateFormatters.date(order.createdAt),
+                ),
+              if (order.hasPickup)
+                MetaChip(
+                  icon: Icons.check_circle_outline,
+                  label: 'Đã tạo pickup',
+                  color: Colors.green,
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

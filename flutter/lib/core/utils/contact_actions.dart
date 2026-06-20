@@ -18,14 +18,15 @@ class ContactActions {
     required double lng,
     String? label,
   }) async {
-    // URL chung mở được trên cả iOS/Android (Google Maps web → app).
-    final query = label != null && label.isNotEmpty
-        ? Uri.encodeComponent(label)
-        : '$lat,$lng';
-    final uri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$lat,$lng($query)',
-    );
-    return _launch(uri);
+    final safeLabel = label?.trim();
+    final geoLabel = safeLabel != null && safeLabel.isNotEmpty
+        ? '(${Uri.encodeComponent(safeLabel)})'
+        : '';
+
+    return _launchAny([
+      Uri.parse('geo:0,0?q=$lat,$lng$geoLabel'),
+      Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng'),
+    ]);
   }
 
   /// Mở app bản đồ ngoài ở chế độ DẪN ĐƯỜNG (turn-by-turn) tới toạ độ đích.
@@ -38,16 +39,28 @@ class ContactActions {
     required double lat,
     required double lng,
   }) async {
-    final uri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1'
-      '&destination=$lat,$lng&travelmode=driving&dir_action=navigate',
-    );
-    return _launch(uri);
+    return _launchAny([
+      Uri.parse('google.navigation:q=$lat,$lng&mode=d'),
+      Uri.parse(
+        'https://www.google.com/maps/dir/?api=1'
+        '&destination=$lat,$lng&travelmode=driving&dir_action=navigate',
+      ),
+    ]);
   }
 
   static Future<bool> _launch(Uri uri) async {
-    if (await canLaunchUrl(uri)) {
-      return launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> _launchAny(List<Uri> uris) async {
+    for (final uri in uris) {
+      if (await _launch(uri)) {
+        return true;
+      }
     }
     return false;
   }

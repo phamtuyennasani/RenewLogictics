@@ -9,7 +9,11 @@ void main() {
       final p = Pickup.fromJson({
         'id': 7,
         'ma_pickup': 'PU-001',
-        'status': {'value': 'da_xac_nhan', 'label': 'Đã xác nhận', 'color': 'x'},
+        'status': {
+          'value': 'da_xac_nhan',
+          'label': 'Đã xác nhận',
+          'color': 'x',
+        },
         'customer': {'fullname': 'Nguyễn A', 'phone': '0900', 'address': 'HN'},
         'location': {'lat': 21.0, 'lng': 105.0, 'has_location': true},
         'allowed_transitions': [
@@ -20,6 +24,7 @@ void main() {
         'package_count': 3,
         'weight_kg': 12.5,
         'orders_count': 2,
+        'shipper': {'id': 11, 'name': 'Nguyễn Shipper'},
       });
 
       expect(p.id, 7);
@@ -30,6 +35,7 @@ void main() {
       expect(p.allowedTransitions, hasLength(2));
       expect(p.scheduledAt, isNotNull);
       expect(p.weightKg, 12.5);
+      expect(p.shipper?.name, 'Nguyễn Shipper');
     });
 
     test('thiếu trường tuỳ chọn → giá trị null/empty an toàn', () {
@@ -53,6 +59,25 @@ void main() {
         'customer': {'company': 'Cty ABC', 'fullname': 'Nguyễn A'},
       });
       expect(p.customer.displayName, 'Cty ABC');
+    });
+
+    test('parse shipper từ nested fullname hoặc field phẳng', () {
+      final nested = Pickup.fromJson({
+        'id': 1,
+        'ma_pickup': 'PU',
+        'status': {'value': 'moi_tao_pickup', 'label': 'Mới'},
+        'shipper': {'id': 8, 'fullname': 'Trần Shipper'},
+      });
+      expect(nested.shipper?.name, 'Trần Shipper');
+
+      final flat = Pickup.fromJson({
+        'id': 2,
+        'ma_pickup': 'PU-2',
+        'status': {'value': 'moi_tao_pickup', 'label': 'Mới'},
+        'id_shipper': 9,
+        'shipper_name': 'Lê Shipper',
+      });
+      expect(flat.shipper?.name, 'Lê Shipper');
     });
   });
 
@@ -145,16 +170,16 @@ void main() {
 
   group('Optimistic copyWith', () {
     PickupDetail sample() => PickupDetail.fromJson({
-          'id': 9,
-          'ma_pickup': 'PU-9',
-          'status': {'value': 'da_xac_nhan', 'label': 'Đã xác nhận'},
-          'allowed_transitions': [
-            {'value': 'pickup_dang_lay', 'label': 'Đang lấy'},
-          ],
-          'orders': [
-            {'id': 1, 'id_bill': 'B1'},
-          ],
-        });
+      'id': 9,
+      'ma_pickup': 'PU-9',
+      'status': {'value': 'da_xac_nhan', 'label': 'Đã xác nhận'},
+      'allowed_transitions': [
+        {'value': 'pickup_dang_lay', 'label': 'Đang lấy'},
+      ],
+      'orders': [
+        {'id': 1, 'id_bill': 'B1'},
+      ],
+    });
 
     test('Pickup.copyWith đổi status + giữ field khác', () {
       final p = sample().pickup;

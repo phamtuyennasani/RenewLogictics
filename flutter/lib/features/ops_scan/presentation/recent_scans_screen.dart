@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/date_formatters.dart';
+import '../../../shared/widgets/app_surfaces.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../domain/scan_result.dart';
 import 'scan_controller.dart';
@@ -32,25 +33,18 @@ class RecentScansScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: recent.isEmpty
-          ? const EmptyState(
-              icon: Icons.history,
-              title: 'Chưa có lịch sử',
-              message: 'Các mã bạn quét trong phiên này sẽ hiện ở đây.',
-            )
-          : Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant,
-                      ),
-                    ),
-                    child: Padding(
+      body: AppPage(
+        child: recent.isEmpty
+            ? const EmptyState(
+                icon: Icons.history,
+                title: 'Chưa có lịch sử',
+                message: 'Các mã bạn quét trong phiên này sẽ hiện ở đây.',
+              )
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
+                    child: AppSurface(
                       padding: const EdgeInsets.all(14),
                       child: Row(
                         children: [
@@ -61,7 +55,7 @@ class RecentScansScreen extends ConsumerWidget {
                               color: theme.colorScheme.primary.withValues(
                                 alpha: 0.1,
                               ),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                             child: Icon(
                               Icons.history,
@@ -86,17 +80,17 @@ class RecentScansScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    itemCount: recent.length,
-                    itemBuilder: (context, index) =>
-                        _RecentTile(scan: recent[index]),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                      itemCount: recent.length,
+                      itemBuilder: (context, index) =>
+                          _RecentTile(scan: recent[index]),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+      ),
     );
   }
 
@@ -138,15 +132,16 @@ class _RecentTile extends StatelessWidget {
     final received = scan.received;
     final color = received ? const Color(0xFF047857) : theme.colorScheme.error;
 
-    return Card(
+    return AppSurface(
       margin: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.zero,
       child: ListTile(
         leading: Container(
           width: 42,
           height: 42,
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Icon(
             received ? Icons.check_circle_outline : Icons.error_outline,

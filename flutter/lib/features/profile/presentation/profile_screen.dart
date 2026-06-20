@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../app/env.dart';
+import '../../../shared/widgets/app_surfaces.dart';
 import '../../../shared/widgets/app_toast.dart';
 import '../../auth/presentation/auth_controller.dart';
 import 'profile_edit_controller.dart';
@@ -17,7 +18,10 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabController = TabController(length: 2, vsync: this);
+  late final TabController _tabController = TabController(
+    length: 2,
+    vsync: this,
+  );
 
   // Tab Thông tin.
   final _fullnameCtrl = TextEditingController();
@@ -91,12 +95,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildInfoTab(theme, user, session?.roles ?? const [], bottomInset),
-          _buildPasswordTab(theme, bottomInset),
-        ],
+      body: AppPage(
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildInfoTab(theme, user, session?.roles ?? const [], bottomInset),
+            _buildPasswordTab(theme, bottomInset),
+          ],
+        ),
       ),
     );
   }
@@ -118,7 +124,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         AppToast.success(context, 'Cập nhật ảnh đại diện thành công.');
       }
     } catch (_) {
-      if (mounted) AppToast.error(context, 'Không mở được ảnh. Vui lòng thử lại.');
+      if (mounted) {
+        AppToast.error(context, 'Không mở được ảnh. Vui lòng thử lại.');
+      }
     }
   }
 
@@ -163,10 +171,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Widget _buildAvatarHeader(ThemeData theme, dynamic user) {
     final editState = ref.watch(profileEditControllerProvider);
     final avatarUrl = _resolveAvatar(user?.avatar as String?);
-    final initial = ((user?.username as String?) ?? 'U').isNotEmpty
-        ? (user!.username as String)[0].toUpperCase()
-        : 'U';
-
+    final username = (user?.username as String?)?.trim() ?? '';
+    final fullname = (user?.fullname as String?)?.trim() ?? '';
+    final initial = username.isNotEmpty ? username[0].toUpperCase() : 'U';
     final fallback = Text(
       initial,
       style: const TextStyle(
@@ -176,13 +183,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       ),
     );
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return AppHeroPanel(
+      trailingIcon: Icons.account_circle_outlined,
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: EdgeInsets.zero,
         child: Row(
           children: [
             Stack(
@@ -227,14 +231,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                     shape: const CircleBorder(),
                     child: InkWell(
                       customBorder: const CircleBorder(),
-                      onTap: editState.uploadingAvatar ? null : _openAvatarSheet,
+                      onTap: editState.uploadingAvatar
+                          ? null
+                          : _openAvatarSheet,
                       child: Padding(
                         padding: const EdgeInsets.all(6),
                         child: editState.uploadingAvatar
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : Icon(
                                 Icons.photo_camera,
@@ -254,15 +262,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 children: [
                   Text(
                     (user?.fullname as String?)?.isNotEmpty == true
-                        ? user!.fullname as String
+                        ? fullname
                         : ((user?.username as String?) ?? '—'),
                     style: theme.textTheme.titleLarge?.copyWith(
                       color: Colors.white,
                     ),
                   ),
-                  if (user?.username != null)
+                  if (username.isNotEmpty)
                     Text(
-                      '@${user!.username}',
+                      '@$username',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.white.withValues(alpha: 0.74),
                         fontWeight: FontWeight.w600,
@@ -548,11 +556,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 child: Row(
                   children: [
                     Icon(
-                      passed ? Icons.check_circle : Icons.radio_button_unchecked,
+                      passed
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
                       size: 16,
-                      color: passed
-                          ? Colors.green
-                          : theme.colorScheme.outline,
+                      color: passed ? Colors.green : theme.colorScheme.outline,
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -606,4 +614,3 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 }
-

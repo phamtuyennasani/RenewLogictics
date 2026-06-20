@@ -52,8 +52,9 @@ class ScanState {
       isLooking: isLooking ?? this.isLooking,
       isReceiving: isReceiving ?? this.isReceiving,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      receivedMessage:
-          clearReceived ? null : (receivedMessage ?? this.receivedMessage),
+      receivedMessage: clearReceived
+          ? null
+          : (receivedMessage ?? this.receivedMessage),
     );
   }
 }
@@ -152,7 +153,8 @@ class ScanController extends Notifier<ScanState> {
           reason: null,
         ),
         isReceiving: false,
-        receivedMessage: received.message ?? 'Đã nhập kho ${order.primaryCode}.',
+        receivedMessage:
+            received.message ?? 'Đã nhập kho ${order.primaryCode}.',
       );
       return true;
     } on Object catch (e) {
@@ -214,5 +216,6 @@ class ScanController extends Notifier<ScanState> {
   }
 }
 
-final scanControllerProvider =
-    NotifierProvider<ScanController, ScanState>(ScanController.new);
+final scanControllerProvider = NotifierProvider<ScanController, ScanState>(
+  ScanController.new,
+);

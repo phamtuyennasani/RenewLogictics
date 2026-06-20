@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/models/status_badge.dart';
 import '../../../../core/utils/status_palette.dart';
+import '../../../../shared/widgets/app_surfaces.dart';
 
 /// Kết quả người dùng chọn trong bottom sheet đổi trạng thái.
 class StatusActionChoice {
@@ -191,43 +192,32 @@ class _TransitionButton extends StatelessWidget {
     final icon = danger ? Icons.cancel_outlined : Icons.arrow_forward_rounded;
     final color = danger ? theme.colorScheme.error : palette.fg;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Ink(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: danger ? 0.06 : 0.08),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withValues(alpha: 0.18)),
+    return AppSurface(
+      onTap: onTap,
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              danger && label == 'Hủy' ? 'Hủy pickup' : label,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  danger && label == 'Hủy' ? 'Hủy pickup' : label,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: color),
-            ],
+            ),
           ),
-        ),
+          Icon(Icons.chevron_right_rounded, color: color),
+        ],
       ),
     );
   }

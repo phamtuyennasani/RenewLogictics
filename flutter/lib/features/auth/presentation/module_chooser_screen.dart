@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../shared/widgets/app_surfaces.dart';
 import 'auth_controller.dart';
 
 /// Màn chọn module khi user có cả role shipper lẫn OPS (`default_module = chooser`).
@@ -24,80 +25,79 @@ class ModuleChooserScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(18),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Xin chào',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.78),
+      body: AppPage(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            children: [
+              AppHeroPanel(
+                trailingIcon: Icons.workspaces_outline,
+                child: Padding(
+                  padding: EdgeInsets.zero,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Xin chào',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.78),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      session?.user.fullname.isNotEmpty == true
-                          ? session!.user.fullname
-                          : (session?.user.username ?? 'Nhân sự vận hành'),
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        color: Colors.white,
+                      const SizedBox(height: 4),
+                      Text(
+                        session?.user.fullname.isNotEmpty == true
+                            ? session!.user.fullname
+                            : (session?.user.username ?? 'Nhân sự vận hành'),
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final role in session?.roles ?? const <String>[])
-                          _RolePill(role: role),
-                      ],
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final role in session?.roles ?? const <String>[])
+                            _RolePill(role: role),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 22),
-            Text(
-              'Chọn không gian làm việc',
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Mỗi module được tối ưu cho thao tác nhanh tại hiện trường.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              const SizedBox(height: 22),
+              Text(
+                'Chọn không gian làm việc',
+                style: theme.textTheme.titleMedium,
               ),
-            ),
-            const SizedBox(height: 16),
-            if (session?.isShipper ?? false)
-              _ModuleCard(
-                icon: Icons.local_shipping_rounded,
-                title: 'Shipper',
-                subtitle: 'Quản lý pickup, gọi khách và cập nhật trạng thái.',
-                accent: theme.colorScheme.primary,
-                onTap: () => context.go('/shipper'),
+              const SizedBox(height: 6),
+              Text(
+                'Mỗi module được tối ưu cho thao tác nhanh tại hiện trường.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            if (session?.isOpsCapable ?? false) ...[
-              const SizedBox(height: 12),
-              _ModuleCard(
-                icon: Icons.qr_code_scanner_rounded,
-                title: 'OPS',
-                subtitle: 'Quét mã, kiểm tra đơn và xác nhận nhập kho.',
-                accent: theme.colorScheme.secondary,
-                onTap: () => context.go('/ops'),
-              ),
+              const SizedBox(height: 16),
+              if (session?.isShipper ?? false)
+                _ModuleCard(
+                  icon: Icons.local_shipping_rounded,
+                  title: 'Shipper',
+                  subtitle: 'Quản lý pickup, gọi khách và cập nhật trạng thái.',
+                  accent: theme.colorScheme.primary,
+                  onTap: () => context.go('/shipper'),
+                ),
+              if (session?.isOpsCapable ?? false) ...[
+                const SizedBox(height: 12),
+                _ModuleCard(
+                  icon: Icons.qr_code_scanner_rounded,
+                  title: 'OPS',
+                  subtitle: 'Quét mã, kiểm tra đơn và xác nhận nhập kho.',
+                  accent: theme.colorScheme.secondary,
+                  onTap: () => context.go('/ops'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -148,44 +148,40 @@ class _ModuleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, size: 28, color: accent),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Icon(Icons.arrow_forward_rounded, color: accent),
-            ],
+    return AppSurface(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: accent.withValues(alpha: 0.14)),
+            ),
+            child: Icon(icon, size: 28, color: accent),
           ),
-        ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.titleMedium),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Icon(Icons.arrow_forward_rounded, color: accent),
+        ],
       ),
     );
   }

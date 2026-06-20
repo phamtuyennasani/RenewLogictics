@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/widgets/app_surfaces.dart';
 import '../../../../shared/widgets/status_chip.dart';
 import '../../domain/shipper_scan_result.dart';
 
@@ -36,7 +37,7 @@ class ShipperScanResultCard extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
                 Icons.search_off,
@@ -115,13 +116,16 @@ class ShipperScanResultCard extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.amber.shade100,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.amber.shade300),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning_amber_rounded,
-                      size: 18, color: Colors.amber.shade800),
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: Colors.amber.shade800,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -162,12 +166,15 @@ class ShipperScanResultCard extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle,
-                      color: Colors.green.shade600, size: 20),
+                  Icon(
+                    Icons.check_circle,
+                    color: Colors.green.shade600,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -202,14 +209,17 @@ class _InfoRow extends StatelessWidget {
             width: 84,
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.hintColor,
+              ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -227,15 +237,10 @@ class _Shell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
+      child: AppSurface(
+        padding: EdgeInsets.zero,
         child: Stack(
           children: [
             Padding(padding: const EdgeInsets.all(14), child: child),

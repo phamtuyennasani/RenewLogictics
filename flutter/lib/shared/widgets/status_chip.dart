@@ -18,13 +18,13 @@ class StatusChip extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: dense ? 8 : 11,
-        vertical: dense ? 4 : 6,
+        horizontal: dense ? 8 : 10,
+        vertical: dense ? 4 : 5,
       ),
       decoration: BoxDecoration(
         color: palette.bg,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: palette.fg.withValues(alpha: 0.14)),
+        border: Border.all(color: palette.fg.withValues(alpha: 0.18)),
       ),
       child: Text(
         label,

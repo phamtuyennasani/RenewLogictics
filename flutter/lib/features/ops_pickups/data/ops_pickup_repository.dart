@@ -27,7 +27,8 @@ class OpsPickupRepository {
       data['summary'] as Map<String, dynamic>? ?? {},
     );
 
-    final items = (data['items'] as List?)
+    final items =
+        (data['items'] as List?)
             ?.whereType<Map<String, dynamic>>()
             .map(Pickup.fromJson)
             .toList() ??
@@ -61,12 +62,15 @@ class OpsPickupRepository {
   Future<List<ShipperOption>> shippers() async {
     final envelope = await _api.shippers();
     final data = envelope.data as Map<String, dynamic>? ?? {};
-    final shippers = (data['shippers'] as List?)
+    final shippers =
+        (data['shippers'] as List?)
             ?.whereType<Map<String, dynamic>>()
-            .map((s) => ShipperOption(
-                  id: (s['id'] as num?)?.toInt() ?? 0,
-                  name: (s['name'] ?? '').toString(),
-                ))
+            .map(
+              (s) => ShipperOption(
+                id: (s['id'] as num?)?.toInt() ?? 0,
+                name: (s['name'] ?? '').toString(),
+              ),
+            )
             .toList() ??
         [];
     return shippers;

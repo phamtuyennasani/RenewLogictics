@@ -23,13 +23,13 @@ class PendingStatusAction {
   final int queuedAtMs;
 
   Map<String, dynamic> toJson() => {
-        'pickup_id': pickupId,
-        'status': status,
-        if (reason != null) 'reason': reason,
-        if (lat != null) 'lat': lat,
-        if (lng != null) 'lng': lng,
-        'queued_at_ms': queuedAtMs,
-      };
+    'pickup_id': pickupId,
+    'status': status,
+    if (reason != null) 'reason': reason,
+    if (lat != null) 'lat': lat,
+    if (lng != null) 'lng': lng,
+    'queued_at_ms': queuedAtMs,
+  };
 
   factory PendingStatusAction.fromJson(Map<String, dynamic> json) {
     return PendingStatusAction(
@@ -73,9 +73,7 @@ class PendingStatusStore {
 
   /// Thêm/cập nhật action cho pickup (ghi đè action cũ cùng pickupId).
   Future<void> upsert(PendingStatusAction action) async {
-    final items = all()
-        .where((a) => a.pickupId != action.pickupId)
-        .toList()
+    final items = all().where((a) => a.pickupId != action.pickupId).toList()
       ..add(action);
     await _save(items);
   }
@@ -87,8 +85,7 @@ class PendingStatusStore {
   }
 
   /// Có action chờ đồng bộ cho pickup này không.
-  bool hasPending(int pickupId) =>
-      all().any((a) => a.pickupId == pickupId);
+  bool hasPending(int pickupId) => all().any((a) => a.pickupId == pickupId);
 
   Future<void> clear() => _prefs.remove(_key);
 

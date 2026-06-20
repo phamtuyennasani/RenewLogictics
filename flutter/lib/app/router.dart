@@ -7,6 +7,8 @@ import '../features/auth/presentation/auth_controller.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/module_chooser_screen.dart';
 import '../features/auth/presentation/splash_screen.dart';
+import '../features/ops_notifications/domain/app_notification.dart';
+import '../features/ops_notifications/presentation/ops_notification_detail_screen.dart';
 import '../features/ops_notifications/presentation/ops_notifications_screen.dart';
 import '../features/ops_orders/presentation/create_pickup_screen.dart';
 import '../features/ops_orders/presentation/ops_order_detail_screen.dart';
@@ -46,14 +48,18 @@ abstract class AppRoutes {
   static const opsPickupDetail = '/ops/pickups/:id';
   static const opsPickupDetailChild = 'pickups/:id';
   static const opsNotifications = '/ops/notifications';
+  static const opsNotificationDetail = '/ops/notifications/:id';
   static const opsAccount = '/ops/account';
   static const profile = '/profile';
 
   static String pickupDetailLocation(int id) => '/shipper/pickups/$id';
   static String pickupRouteLocation(int id) => '/shipper/pickups/$id/route';
   static String opsOrderDetailLocation(int id) => '/ops/orders/$id';
-  static String opsOrderCreatePickupLocation(int id) => '/ops/orders/$id/create-pickup';
+  static String opsOrderCreatePickupLocation(int id) =>
+      '/ops/orders/$id/create-pickup';
   static String opsPickupDetailLocation(int id) => '/ops/pickups/$id';
+  static String opsNotificationDetailLocation(int id) =>
+      '/ops/notifications/$id';
 }
 
 /// Router toàn app + auth guard.
@@ -175,7 +181,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                         builder: (_, state) {
                           final id =
                               int.tryParse(state.pathParameters['id'] ?? '') ??
-                                  0;
+                              0;
                           return CreatePickupScreen(
                             orderId: id,
                             orderDetail: state.extra as dynamic,
@@ -230,6 +236,19 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: AppRoutes.opsNotifications,
                 builder: (_, _) => const OpsNotificationsScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    parentNavigatorKey: rootNavigatorKey,
+                    builder: (_, state) {
+                      return OpsNotificationDetailScreen(
+                        notification: state.extra is AppNotification
+                            ? state.extra as AppNotification
+                            : null,
+                      );
+                    },
+                  ),
+                ],
               ),
             ],
           ),

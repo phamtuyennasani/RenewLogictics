@@ -157,5 +157,5 @@ class OpsPickupListController extends Notifier<OpsPickupListState> {
 
 final opsPickupListControllerProvider =
     NotifierProvider<OpsPickupListController, OpsPickupListState>(
-  OpsPickupListController.new,
-);
+      OpsPickupListController.new,
+    );

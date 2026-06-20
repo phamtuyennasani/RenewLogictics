@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../core/utils/date_formatters.dart';
+import '../../../shared/widgets/app_surfaces.dart';
 import '../../../shared/widgets/error_state.dart';
 import '../domain/pickup_repository.dart';
 import 'pickup_list_controller.dart';
@@ -75,31 +76,33 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
     final theme = Theme.of(context);
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _ListHeader(
-              controller: _searchCtrl,
-              pendingCount: state.summary.pendingCount,
-              nearest: state.summary.nearestScheduleAt,
-              onChanged: _onSearchChanged,
-              onClear: () {
-                _searchCtrl.clear();
-                _onSearchChanged('');
-                FocusScope.of(context).unfocus();
-              },
-              onProfile: () => context.push('/profile'),
-              onScan: () => context.push(AppRoutes.shipperScan),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-              child: _PickupSegmentedTabs(
-                controller: _tabController,
-                tabs: _tabs,
+      body: AppPage(
+        child: SafeArea(
+          child: Column(
+            children: [
+              _ListHeader(
+                controller: _searchCtrl,
+                pendingCount: state.summary.pendingCount,
+                nearest: state.summary.nearestScheduleAt,
+                onChanged: _onSearchChanged,
+                onClear: () {
+                  _searchCtrl.clear();
+                  _onSearchChanged('');
+                  FocusScope.of(context).unfocus();
+                },
+                onProfile: () => context.push('/profile'),
+                onScan: () => context.push(AppRoutes.shipperScan),
               ),
-            ),
-            Expanded(child: _buildBody(state, theme)),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: _PickupSegmentedTabs(
+                  controller: _tabController,
+                  tabs: _tabs,
+                ),
+              ),
+              Expanded(child: _buildBody(state, theme)),
+            ],
+          ),
         ),
       ),
     );
@@ -131,8 +134,9 @@ class _PickupListScreenState extends ConsumerState<PickupListScreen>
                   child: _PickupEmptyState(
                     tab: state.tab,
                     hasKeyword: state.keyword.isNotEmpty,
-                    onRefresh: () =>
-                        ref.read(pickupListControllerProvider.notifier).refresh(),
+                    onRefresh: () => ref
+                        .read(pickupListControllerProvider.notifier)
+                        .refresh(),
                   ),
                 ),
               ),
@@ -188,46 +192,20 @@ class _PickupEmptyState extends StatelessWidget {
         ? 'Thử đổi từ khóa hoặc xóa bộ lọc tìm kiếm để xem toàn bộ danh sách.'
         : _messageFor(tab);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            theme.colorScheme.surface,
-            theme.colorScheme.primary.withValues(alpha: 0.06),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.05),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
+    return AppSurface(
+      padding: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
         child: Column(
           children: [
             Container(
-              width: 82,
-              height: 82,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    theme.colorScheme.primary.withValues(alpha: 0.14),
-                    const Color(0xFF06B6D4).withValues(alpha: 0.12),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(26),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  width: 1.4,
+                  color: theme.colorScheme.primary.withValues(alpha: 0.14),
                 ),
               ),
               child: Icon(
@@ -266,9 +244,6 @@ class _PickupEmptyState extends StatelessWidget {
                   foregroundColor: theme.colorScheme.primary,
                   side: BorderSide(
                     color: theme.colorScheme.primary.withValues(alpha: 0.24),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),
@@ -352,7 +327,7 @@ class _ListHeader extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Pickup của tôi',
+                    'Pickup Của Tôi',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: theme.colorScheme.onSurface,
@@ -360,12 +335,12 @@ class _ListHeader extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Quét nhận hàng',
+                  tooltip: 'Quét Nhận Hàng',
                   onPressed: onScan,
                   icon: const Icon(Icons.qr_code_scanner_rounded),
                 ),
                 IconButton(
-                  tooltip: 'Tài khoản',
+                  tooltip: 'Tài Khoản',
                   onPressed: onProfile,
                   icon: const Icon(Icons.person_outline_rounded),
                 ),
@@ -450,7 +425,7 @@ class _PendingSummaryCard extends StatelessWidget {
       width: double.infinity,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
               color: theme.colorScheme.primary.withValues(alpha: 0.22),
@@ -460,7 +435,7 @@ class _PendingSummaryCard extends StatelessWidget {
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(18),
           child: DecoratedBox(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -477,27 +452,12 @@ class _PendingSummaryCard extends StatelessWidget {
               children: [
                 Positioned(
                   right: 18,
-                  top: 24,
+                  top: 22,
                   child: Container(
-                    width: 76,
-                    height: 76,
+                    width: 54,
+                    height: 54,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 32,
-                  top: 38,
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(16),
                       color: Colors.white.withValues(alpha: 0.1),
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.42),
@@ -512,12 +472,12 @@ class _PendingSummaryCard extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 92, 20),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 86, 20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Đơn hàng chưa nhận',
+                        'Đơn Hàng Chưa Nhận',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w800,

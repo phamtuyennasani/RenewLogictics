@@ -25,7 +25,8 @@ class OpsOrderRepositoryImpl implements OpsOrderRepository {
     );
 
     final data = envelope.data as Map<String, dynamic>? ?? {};
-    final items = (data['items'] as List?)
+    final items =
+        (data['items'] as List?)
             ?.whereType<Map<String, dynamic>>()
             .map(OpsOrder.fromJson)
             .toList() ??
@@ -52,7 +53,9 @@ class OpsOrderRepositoryImpl implements OpsOrderRepository {
 
   @override
   Future<Map<String, dynamic>> createPickup(
-      int orderId, Map<String, dynamic> data) async {
+    int orderId,
+    Map<String, dynamic> data,
+  ) async {
     final envelope = await _api.createPickup(orderId, data);
     return envelope.data as Map<String, dynamic>? ?? {};
   }

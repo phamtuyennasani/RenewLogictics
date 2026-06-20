@@ -53,8 +53,9 @@ class ShipperScanState {
       isLooking: isLooking ?? this.isLooking,
       isReceiving: isReceiving ?? this.isReceiving,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      receivedMessage:
-          clearReceived ? null : (receivedMessage ?? this.receivedMessage),
+      receivedMessage: clearReceived
+          ? null
+          : (receivedMessage ?? this.receivedMessage),
     );
   }
 }
@@ -143,6 +144,7 @@ class ShipperScanController extends Notifier<ShipperScanState> {
         ordersCount: pickup.ordersCount,
         note: pickup.note,
         createdBy: pickup.createdBy,
+        shipper: pickup.shipper,
       );
       state = state.copyWith(
         result: ShipperScanResult(
@@ -218,5 +220,5 @@ class ShipperScanController extends Notifier<ShipperScanState> {
 
 final shipperScanControllerProvider =
     NotifierProvider<ShipperScanController, ShipperScanState>(
-  ShipperScanController.new,
-);
+      ShipperScanController.new,
+    );

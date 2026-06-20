@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_surfaces.dart';
+
 /// Hiển thị trạng thái lỗi kèm nút thử lại.
 class ErrorState extends StatelessWidget {
   const ErrorState({
@@ -21,14 +23,8 @@ class ErrorState extends StatelessWidget {
         padding: const EdgeInsets.all(32),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 340),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: theme.colorScheme.error.withValues(alpha: 0.18),
-              ),
-            ),
+          child: AppSurface(
+            padding: EdgeInsets.zero,
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -41,7 +37,10 @@ class ErrorState extends StatelessWidget {
                       color: theme.colorScheme.errorContainer.withValues(
                         alpha: 0.55,
                       ),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: theme.colorScheme.error.withValues(alpha: 0.16),
+                      ),
                     ),
                     child: Icon(
                       Icons.error_outline,

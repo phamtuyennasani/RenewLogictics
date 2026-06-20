@@ -105,20 +105,20 @@ class RecentPickupScan {
   final String? note;
 
   Map<String, dynamic> toJson() => {
-        'code': code,
-        'scanned_at': scannedAt.toIso8601String(),
-        'received': received,
-        'pickup_code': pickupCode,
-        'status_label': statusLabel,
-        'note': note,
-      };
+    'code': code,
+    'scanned_at': scannedAt.toIso8601String(),
+    'received': received,
+    'pickup_code': pickupCode,
+    'status_label': statusLabel,
+    'note': note,
+  };
 
   factory RecentPickupScan.fromJson(Map<String, dynamic> json) {
     return RecentPickupScan(
       code: (json['code'] ?? '').toString(),
       scannedAt:
           DateTime.tryParse(json['scanned_at']?.toString() ?? '') ??
-              DateTime.now(),
+          DateTime.now(),
       received: json['received'] == true,
       pickupCode: json['pickup_code']?.toString(),
       statusLabel: json['status_label']?.toString(),

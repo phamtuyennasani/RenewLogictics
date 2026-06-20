@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../../../shared/widgets/app_surfaces.dart';
 import 'scan_controller.dart';
 import 'widgets/scan_result_card.dart';
 
@@ -210,31 +211,33 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
           ),
         ],
       ),
-      body: Padding(
-        // Chừa đáy cho FAB quét mã + bottom nav (extendBody) khỏi đè nội dung.
-        padding: const EdgeInsets.only(bottom: 80),
-        child: Column(
-          children: [
-            _buildScannerView(state, theme),
-            _buildManualInput(state, theme),
-            Expanded(
-              child: state.result != null
-                  ? SingleChildScrollView(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: ScanResultCard(
-                        result: state.result!,
-                        isReceiving: state.isReceiving,
-                        onReceive: () => ref
-                            .read(scanControllerProvider.notifier)
-                            .receiveCurrent(),
-                        onClear: () => ref
-                            .read(scanControllerProvider.notifier)
-                            .clearResult(),
-                      ),
-                    )
-                  : _buildHint(state, theme),
-            ),
-          ],
+      body: AppPage(
+        child: Padding(
+          // Chừa đáy cho FAB quét mã + bottom nav (extendBody) khỏi đè nội dung.
+          padding: const EdgeInsets.only(bottom: 80),
+          child: Column(
+            children: [
+              _buildScannerView(state, theme),
+              _buildManualInput(state, theme),
+              Expanded(
+                child: state.result != null
+                    ? SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: ScanResultCard(
+                          result: state.result!,
+                          isReceiving: state.isReceiving,
+                          onReceive: () => ref
+                              .read(scanControllerProvider.notifier)
+                              .receiveCurrent(),
+                          onClear: () => ref
+                              .read(scanControllerProvider.notifier)
+                              .clearResult(),
+                        ),
+                      )
+                    : _buildHint(state, theme),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -242,11 +245,11 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
 
   Widget _buildScannerView(ScanState state, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: SizedBox(
-        height: 280,
+        height: 292,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(18),
           child: _cameraOn
               ? _buildCameraStack(state, theme)
               : _buildCameraOff(theme),
@@ -257,28 +260,29 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
 
   /// Khung hiển thị khi camera đang tắt: nút bật + gợi ý nhập tay.
   Widget _buildCameraOff(ThemeData theme) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return AppSurface(
+      padding: EdgeInsets.zero,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.photo_camera_outlined,
-                size: 40,
-                color: theme.colorScheme.onSurfaceVariant,
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Icon(
+                  Icons.photo_camera_outlined,
+                  size: 34,
+                  color: theme.colorScheme.primary,
+                ),
               ),
               const SizedBox(height: 12),
-              Text(
-                'Camera đang tắt',
-                style: theme.textTheme.titleMedium,
-              ),
+              Text('Camera đang tắt', style: theme.textTheme.titleMedium),
               const SizedBox(height: 4),
               Text(
                 'Bật camera để quét, hoặc nhập mã thủ công bên dưới.',
@@ -331,7 +335,7 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
                 color: Colors.white.withValues(alpha: 0.95),
                 width: 2,
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(18),
             ),
           ),
         ),
@@ -394,35 +398,28 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
 
   Widget _buildManualInput(ScanState state, ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _manualCtrl,
-                  textInputAction: TextInputAction.search,
-                  onSubmitted: (_) => _submitManual(),
-                  decoration: const InputDecoration(
-                    hintText: 'Nhập mã thủ công',
-                    prefixIcon: Icon(Icons.keyboard_outlined),
-                  ),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: AppSurface(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _manualCtrl,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _submitManual(),
+                decoration: const InputDecoration(
+                  hintText: 'Nhập mã thủ công',
+                  prefixIcon: Icon(Icons.keyboard_outlined),
                 ),
               ),
-              const SizedBox(width: 8),
-              FilledButton(
-                onPressed: state.isBusy ? null : _submitManual,
-                child: const Text('Tra cứu'),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: state.isBusy ? null : _submitManual,
+              child: const Text('Tra cứu'),
+            ),
+          ],
         ),
       ),
     );
@@ -433,54 +430,47 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.qr_code_scanner,
-                    size: 30,
-                    color: theme.colorScheme.primary,
-                  ),
+        child: AppSurface(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  'Sẵn sàng quét mã vận đơn',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium,
+                child: Icon(
+                  Icons.qr_code_scanner,
+                  size: 30,
+                  color: theme.colorScheme.primary,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Camera sẽ tự tra cứu khi phát hiện mã hợp lệ.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Sẵn sàng quét mã vận đơn',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Camera sẽ tự tra cứu khi phát hiện mã hợp lệ.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                if (state.recent.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  TextButton.icon(
-                    onPressed: () => context.push('/ops/recent'),
-                    icon: const Icon(Icons.history, size: 18),
-                    label: Text('Phiên này: đã nhập $lastReceived đơn'),
-                  ),
-                ],
+              ),
+              if (state.recent.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                TextButton.icon(
+                  onPressed: () => context.push('/ops/recent'),
+                  icon: const Icon(Icons.history, size: 18),
+                  label: Text('Phiên này: đã nhập $lastReceived đơn'),
+                ),
               ],
-            ),
+            ],
           ),
         ),
       ),

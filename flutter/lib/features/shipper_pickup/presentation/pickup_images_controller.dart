@@ -43,8 +43,7 @@ class PickupImagesState {
 }
 
 /// Quản lý ảnh bằng chứng theo pickupId (family).
-class PickupImagesController
-    extends FamilyNotifier<PickupImagesState, int> {
+class PickupImagesController extends FamilyNotifier<PickupImagesState, int> {
   PickupRepository get _repo => ref.read(pickupRepositoryProvider);
 
   late int _pickupId;
@@ -104,7 +103,7 @@ class PickupImagesController
   }
 }
 
-final pickupImagesControllerProvider = NotifierProvider.family<
-    PickupImagesController, PickupImagesState, int>(
-  PickupImagesController.new,
-);
+final pickupImagesControllerProvider =
+    NotifierProvider.family<PickupImagesController, PickupImagesState, int>(
+      PickupImagesController.new,
+    );

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'app_surfaces.dart';
+
 /// Hiển thị trạng thái rỗng (danh sách không có dữ liệu).
 ///
 /// Đồng bộ phong cách với empty state bên shipper: card gradient mềm, icon bo
@@ -30,50 +32,24 @@ class EmptyState extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 380),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  scheme.surface,
-                  scheme.primary.withValues(alpha: 0.06),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: scheme.outlineVariant),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF0F172A).withValues(alpha: 0.05),
-                  blurRadius: 24,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
+          child: AppSurface(
+            padding: EdgeInsets.zero,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 28, 22, 26),
+              padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 82,
-                    height: 82,
+                    width: 72,
+                    height: 72,
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          scheme.primary.withValues(alpha: 0.14),
-                          scheme.secondary.withValues(alpha: 0.12),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(26),
+                      color: scheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        width: 1.4,
+                        color: scheme.primary.withValues(alpha: 0.14),
                       ),
                     ),
-                    child: Icon(icon, size: 38, color: scheme.primary),
+                    child: Icon(icon, size: 34, color: scheme.primary),
                   ),
                   const SizedBox(height: 18),
                   if (title != null) ...[
@@ -108,9 +84,6 @@ class EmptyState extends StatelessWidget {
                           foregroundColor: scheme.primary,
                           side: BorderSide(
                             color: scheme.primary.withValues(alpha: 0.24),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                       ),

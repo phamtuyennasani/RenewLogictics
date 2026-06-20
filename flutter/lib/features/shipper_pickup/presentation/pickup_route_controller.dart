@@ -28,7 +28,8 @@ class PickupRouteState {
   /// true khi lỗi vị trí cần người dùng mở Cài đặt (quyền/GPS).
   final bool canOpenSettings;
 
-  bool get isBusy => phase == RoutePhase.locating || phase == RoutePhase.routing;
+  bool get isBusy =>
+      phase == RoutePhase.locating || phase == RoutePhase.routing;
 
   PickupRouteState copyWith({
     RoutePhase? phase,
@@ -58,12 +59,13 @@ class PickupRouteController extends StateNotifier<PickupRouteState> {
     required LocationService locationService,
     required this.destination,
     // ignore: prefer_initializing_formals
-  })  : _vietmapApi = vietmapApi,
-        _location = locationService,
-        super(const PickupRouteState());
+  }) : _vietmapApi = vietmapApi,
+       _location = locationService,
+       super(const PickupRouteState());
 
   final VietmapApi _vietmapApi;
   final LocationService _location;
+
   /// Điểm pickup cần tới (toạ độ từ Pickup.location).
   final LatLngPoint destination;
 
@@ -99,10 +101,7 @@ class PickupRouteController extends StateNotifier<PickupRouteState> {
       state = state.copyWith(phase: RoutePhase.drawn, route: route);
     } on ApiException catch (e) {
       // Vẫn giữ vị trí shipper đã có; chỉ báo lỗi tuyến.
-      state = state.copyWith(
-        phase: RoutePhase.error,
-        errorMessage: e.message,
-      );
+      state = state.copyWith(phase: RoutePhase.error, errorMessage: e.message);
     }
   }
 

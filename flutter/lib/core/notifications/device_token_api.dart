@@ -28,9 +28,6 @@ class DeviceTokenApi {
 
   /// Thu hồi token (gọi trước khi logout).
   Future<ApiEnvelope> revoke(String fcmToken) {
-    return _client.post(
-      '/device-tokens/revoke',
-      body: {'fcm_token': fcmToken},
-    );
+    return _client.post('/device-tokens/revoke', body: {'fcm_token': fcmToken});
   }
 }
