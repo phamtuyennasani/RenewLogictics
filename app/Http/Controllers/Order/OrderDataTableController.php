@@ -254,7 +254,7 @@ class OrderDataTableController extends Controller
         $user = $request->user();
         $pickupStatus = PickupStatusEnum::tryFrom((string) $request->input('pickupStatus'));
 
-        return Order::query()
+        return OrderAccess::scopeVisibleTo(Order::query(), $user)
             ->with([
                 'sale:id,fullname,username,code',
                 'customerAccount:id,fullname,username,phone,code,options',
@@ -274,10 +274,6 @@ class OrderDataTableController extends Controller
                 'congNoDaiLyDetails.congNoDaiLy:id,uuid,sohoadon,status',
                 'pickups:id,ma_pickup,status',
             ])
-            ->when($user->hasRole('sale'), fn ($q) => $q->where('id_sale', $user->id))
-            ->when($user->hasRole('ctv'), fn ($q) => $q->where('id_customer', $user->id))
-            ->when($user->hasRole('cs'), fn ($q) => $q->where(fn ($sub) => $sub->whereNull('id_cs')->orWhere('id_cs', $user->id)))
-            ->when($user->hasRole('ops'), fn ($q) => $q->where(fn ($sub) => $sub->whereNull('id_ops')->orWhere('id_ops', $user->id)))
             ->when($includeStatus && $request->filled('status'), fn ($q) => $q->where('bill_status', $request->string('status')))
             ->when($request->filled('fromDate'), fn ($q) => $q->whereDate('created_at', '>=', $request->date('fromDate')))
             ->when($request->filled('toDate'), fn ($q) => $q->whereDate('created_at', '<=', $request->date('toDate')))

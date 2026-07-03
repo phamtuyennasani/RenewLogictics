@@ -294,6 +294,7 @@
                 const updateBulkState = () => {
                     document.querySelectorAll('[data-selected-count]').forEach((el) => el.textContent = selected.size);
                     document.querySelectorAll('[data-delete-cancelled]').forEach((el) => el.disabled = selected.size === 0 || !capabilities.canDeleteCancelled);
+                    document.querySelectorAll('[data-bulk-pdf]').forEach((el) => el.disabled = selected.size === 0);
                     const currentStatus = appliedStatus;
                     const allowedBulkStatusByFilter = {
                         da_xac_nhan: 'da_nhan_hang',
@@ -458,6 +459,18 @@
                         confirmText: 'Xóa',
                         onConfirm: () => postJson(routes.deleteCancelled, { ids: [...selected] }).then(reload),
                     }}));
+                });
+
+                // PDF hàng loạt (tính năng mới): mở 1 file PDF gộp các đơn đã chọn trong tab mới.
+                document.querySelectorAll('[data-bulk-pdf]').forEach((button) => {
+                    button.addEventListener('click', () => {
+                        if (selected.size === 0) {
+                            notify('Vui lòng chọn ít nhất một order trước khi in PDF.');
+                            return;
+                        }
+                        const route = button.dataset.bulkPdf === 'bill' ? routes.bulkPdfBill : routes.bulkPdfLabel;
+                        window.open(`${route}?ids=${[...selected].join(',')}`, '_blank');
+                    });
                 });
 
                 tableEl.addEventListener('click', (event) => {

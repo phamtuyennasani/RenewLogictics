@@ -676,12 +676,9 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
         $receiver = $this->receiver;
         $service = $this->service;
         $packages = $this->packages;
+        // Không parse số ở đây — OrderPaymentCalculator::parseNumber xử lý
+        // đủ các dạng "1.000.000" / "1,000,000" / "1,000.50" trong Action.
         $phuphihaiquan = $this->phuphihaiquan;
-        foreach($phuphihaiquan as $k => &$v) {
-            $v['price'] = str_replace(['.', ','], '', $v['price'] ?? 0);
-            $v['total'] = str_replace(['.', ','], '', $v['total'] ?? 0);
-        }
-        unset($v);
 
         foreach($service as $k => &$v) {
             if(is_numeric($v)) $v = (int) $v;
@@ -717,7 +714,7 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
             }
 
             try {
-                $order = app(CreateOrderAction::class)->execute(new OrderFormData(
+                $result = app(CreateOrderAction::class)->execute(new OrderFormData(
                     idSale: $this->idSale,
                     idCustomer: $this->idCustomer,
                     service: $service,
@@ -736,12 +733,27 @@ new #[Layout('layouts.app')] #[Title('Tạo đơn hàng')] class extends Compone
                 $lock->release();
             }
 
-            Flux::toast(
-                duration: 5000,
-                heading: 'Thành công',
-                text: 'Tạo đơn hàng ' . $order->id_bill . ' thành công',
-                variant: 'success'
-            );
+            $order = $result->order;
+
+            if ($result->hasWarnings()) {
+                // Đơn đã tạo nhưng một phần dữ liệu chưa lưu được — báo rõ để
+                // user bổ sung ở trang chi tiết, không im lặng như trước.
+                Flux::toast(
+                    duration: 20000,
+                    heading: 'Đơn đã tạo — cần bổ sung',
+                    text: 'Đơn ' . $order->id_bill . ' đã tạo, nhưng chưa lưu được: '
+                        . implode(', ', $result->warnings)
+                        . '. Vui lòng bổ sung trong trang chi tiết đơn.',
+                    variant: 'warning'
+                );
+            } else {
+                Flux::toast(
+                    duration: 5000,
+                    heading: 'Thành công',
+                    text: 'Tạo đơn hàng ' . $order->id_bill . ' thành công',
+                    variant: 'success'
+                );
+            }
             $this->redirectRoute('orders.show', ['uuid' => $order->uuid]);
         } catch (\Exception $e) {
             Flux::toast(

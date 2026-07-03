@@ -54,6 +54,8 @@ new class extends Component
             'deleteCancelled' => route('orders.delete-cancelled'),
             'export' => route('orders.export'),
             'customers' => route('orders.customers'),
+            'bulkPdfLabel' => route('orders.pdf.bulk-label'),
+            'bulkPdfBill' => route('orders.pdf.bulk-bill'),
         ];
 
         $this->statusOptions = collect(OrderStatusEnum::cases())

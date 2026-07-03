@@ -23,6 +23,9 @@ class CongNoDataTableController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
+        // Defense-in-depth: gate congno.index không cấp cho CS/OPS — chặn cả khi route gate hỏng.
+        abort_unless($request->user()->can('congno.index'), 403);
+
         $response = DataTables::eloquent($this->query($request))
             ->addColumn('check', fn (CongNo $debt) => '<label class="debt-checkbox relative mx-auto flex w-fit cursor-pointer select-none items-center justify-center"><input type="checkbox" class="debt-check peer sr-only" value="'.$debt->id.'"><span class="flex h-[18px] w-[18px] items-center justify-center rounded-md border border-neutral-300 bg-white transition peer-checked:border-primary-600 peer-checked:bg-primary-600 peer-hover:border-primary-400"></span><svg class="pointer-events-none absolute hidden h-3 w-3 text-white peer-checked:block" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.5l5 5 10-11" /></svg></label>')
             ->addColumn('debt_code', fn (CongNo $debt) => '<a wire:navigate href="'.route('congno.show', $debt->uuid).'" class="font-bold text-primary-700 hover:text-primary-800">'.$debt->sohoadon.'</a><div class="mt-0.5 text-xs text-neutral-500">Tạo '.$debt->created_at?->format('d/m/Y H:i').'</div>')
@@ -47,6 +50,8 @@ class CongNoDataTableController extends Controller
 
     public function customers(Request $request): JsonResponse
     {
+        abort_unless($request->user()->can('congno.index'), 403);
+
         $user = $request->user();
         $saleId = $request->integer('saleId') ?: null;
 
@@ -134,6 +139,8 @@ class CongNoDataTableController extends Controller
 
     public function export(Request $request): BinaryFileResponse
     {
+        abort_unless($request->user()->can('congno.index'), 403);
+
         $query = $this->query($request)->latest('congno.id');
         $fileName = 'cong-no-khach-hang-'.now()->format('Ymd-His').'.xlsx';
 

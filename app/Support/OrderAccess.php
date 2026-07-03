@@ -5,9 +5,24 @@ namespace App\Support;
 use App\Enums\OrderStatusEnum;
 use App\Models\Order;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 
 class OrderAccess
 {
+    /**
+     * Row-level filter theo role — dùng chung cho mọi query danh sách đơn
+     * (datatable, global search...) để các nơi không lệch nhau:
+     * sale chỉ thấy đơn mình, ctv đơn của mình, cs/ops đơn chưa gán hoặc gán mình.
+     */
+    public static function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return $query
+            ->when($user->hasRole('sale'), fn ($q) => $q->where('id_sale', $user->id))
+            ->when($user->hasRole('ctv'), fn ($q) => $q->where('id_customer', $user->id))
+            ->when($user->hasRole('cs'), fn ($q) => $q->where(fn ($sub) => $sub->whereNull('id_cs')->orWhere('id_cs', $user->id)))
+            ->when($user->hasRole('ops'), fn ($q) => $q->where(fn ($sub) => $sub->whereNull('id_ops')->orWhere('id_ops', $user->id)));
+    }
+
     public static function canView(User $user, Order $order): bool
     {
         if ($user->hasAnyRole(['admin', 'manager', 'ketoan'])) {

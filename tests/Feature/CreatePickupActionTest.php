@@ -23,6 +23,15 @@ class CreatePickupActionTest extends TestCase
         Schema::dropIfExists('pickup');
         Schema::dropIfExists('order_package');
         Schema::dropIfExists('orders');
+        Schema::dropIfExists('user');
+
+        // CreatePickupAction tra cứu actor để tự gán OPS → cần bảng user tồn tại.
+        Schema::create('user', function (Blueprint $table) {
+            $table->id();
+            $table->string('username')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
 
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
@@ -71,6 +80,7 @@ class CreatePickupActionTest extends TestCase
         Schema::dropIfExists('pickup');
         Schema::dropIfExists('order_package');
         Schema::dropIfExists('orders');
+        Schema::dropIfExists('user');
 
         parent::tearDown();
     }

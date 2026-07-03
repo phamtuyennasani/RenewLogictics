@@ -1,8 +1,17 @@
 # Huong Dan Tinh Payment Don Hang
 
-Tai lieu nay mo ta cong thuc tinh gia tai giao dien payment don hang:
+Tai lieu nay mo ta cong thuc tinh gia don hang.
 
-`resources/views/pages/order/⚡payment.blade.php`
+> **Nguon code (cap nhat 2026-07-03):** toan bo cong thuc trong tai lieu nay
+> duoc implement tai `app/Support/OrderPaymentCalculator.php` — nguon su that
+> duy nhat, dung chung cho man tao don (`CreateOrderAction`) va man cap nhat gia
+> (`resources/views/pages/order/⚡payment.blade.php`). Moi thay doi cong thuc
+> phai sua o calculator + cap nhat test so lieu
+> `tests/Unit/OrderPaymentCalculatorTest.php`, KHONG sua le o tung man hinh.
+>
+> Luu y semantics: `total_phuphi` la tong phu phi SAU VAT
+> (`total_phuphi_no_vat` la truoc VAT). O buoc tao don VAT phu phi = 0 nen
+> hai gia tri bang nhau.
 
 ## 1. Nhom Du Lieu Payment
 

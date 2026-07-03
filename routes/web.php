@@ -6,6 +6,7 @@ use App\Http\Controllers\CongNo\CongNoDaiLyDataTableController;
 use App\Http\Controllers\CongNo\CongNoDataTableController;
 use App\Http\Controllers\Invoice\InvoiceDataTableController;
 use App\Http\Controllers\Order\OrderDataTableController;
+use App\Http\Controllers\Order\OrderPdfController;
 use App\Http\Controllers\Payment\PaymentReturnController;
 use App\Livewire\Dashboard;
 use App\Livewire\DuLieu;
@@ -97,7 +98,7 @@ Route::middleware('auth')->group(function () {
     Route::livewire('/dashboard', 'pages::dashboard.index')->name('dashboard')
         ->middleware('can:dashboard');
     // --- Đơn hàng ---
-    Route::prefix('orders')->name('orders.')->group(function () {
+    Route::middleware('can:orders.index')->prefix('orders')->name('orders.')->group(function () {
         Route::livewire('/', 'pages::order.index')->name('index');
         Route::get('/datatable', OrderDataTableController::class)->name('datatable');
         Route::get('/customers', [OrderDataTableController::class, 'customers'])->name('customers');
@@ -105,15 +106,20 @@ Route::middleware('auth')->group(function () {
         Route::post('/delete-cancelled', [OrderDataTableController::class, 'deleteCancelled'])->name('delete-cancelled');
         Route::get('/export', [OrderDataTableController::class, 'export'])->name('export');
         Route::livewire('/create', 'pages::order.create')->name('create')->middleware('can:orders.create');
+        // PDF vận đơn/tem — tính năng mới, tách khỏi luồng in trình duyệt sẵn có.
+        Route::get('/pdf/bulk-label', [OrderPdfController::class, 'bulkLabel'])->name('pdf.bulk-label');
+        Route::get('/pdf/bulk-bill', [OrderPdfController::class, 'bulkBill'])->name('pdf.bulk-bill');
+        Route::get('/{uuid}/pdf/label', [OrderPdfController::class, 'label'])->name('pdf.label');
+        Route::get('/{uuid}/pdf/bill', [OrderPdfController::class, 'bill'])->name('pdf.bill');
         Route::livewire('/{uuid}/payment', 'pages::order.payment')->name('payment');
         Route::livewire('/{uuid}/tracking', 'pages::order.tracking')->name('tracking');
         Route::livewire('/{uuid}', 'pages::order.show')->name('show');
-    })->middleware('can:orders.index');
+    });
     // --- Pickup ---
-    Route::prefix('pickups')->name('pickups.')->group(function () {
+    Route::middleware('can:pickups.index')->prefix('pickups')->name('pickups.')->group(function () {
         Route::livewire('/', 'pages::pickups.index')->name('index');
         Route::get('/create', fn () => redirect()->route('orders.index'))->name('create');
-    })->middleware('can:pickups.index');
+    });
 
     // --- Shipper Mobile Pickup ---
     Route::livewire('/shipper/pickups', 'pages::pickups.shipper')->name('shipper.pickups')
@@ -156,23 +162,23 @@ Route::middleware('auth')->group(function () {
     });
 
     // --- Công nợ CTV ---
-    Route::prefix('cong-no')->name('congno.')->group(function () {
+    Route::middleware('can:congno.index')->prefix('cong-no')->name('congno.')->group(function () {
         Route::livewire('/', 'pages::congno.index')->name('index');
         Route::get('/datatable', CongNoDataTableController::class)->name('datatable');
         Route::get('/customers', [CongNoDataTableController::class, 'customers'])->name('customers');
         Route::post('/delete-selected', [CongNoDataTableController::class, 'deleteSelected'])->name('delete-selected');
         Route::get('/export', [CongNoDataTableController::class, 'export'])->name('export');
         Route::livewire('/{id}', 'pages::congno.show')->name('show');
-    })->middleware('can:congno.index');
+    });
 
     // --- Công nợ Đại lý ---
-    Route::prefix('cong-no-dai-ly')->name('congno.daily.')->group(function () {
+    Route::middleware('can:congno_daily.view')->prefix('cong-no-dai-ly')->name('congno.daily.')->group(function () {
         Route::livewire('/', 'pages::congnodaily.index')->name('index');
         Route::get('/datatable', CongNoDaiLyDataTableController::class)->name('datatable');
         Route::post('/delete-selected', [CongNoDaiLyDataTableController::class, 'deleteSelected'])->name('delete-selected');
         Route::get('/export', [CongNoDaiLyDataTableController::class, 'export'])->name('export');
         Route::livewire('/{id}', 'pages::congnodaily.show')->name('show');
-    })->middleware('can:congno_daily.view');
+    });
 
     // --- Hóa đơn thu ---
     Route::prefix('hoa-don-thu')->name('invoice.')->middleware(['feature:invoice', 'can:invoice.index'])->group(function () {
@@ -194,40 +200,40 @@ Route::middleware('auth')->group(function () {
 
     // --- Thống kê ---
     // --- Khách hàng ---
-    Route::prefix('khach-hang')->name('customers.')->group(function () {
+    Route::middleware('can:customers.index')->prefix('khach-hang')->name('customers.')->group(function () {
         Route::get('/', fn () => view('customers.index'))->name('index');
-    })->middleware('can:customers.index');
+    });
 
     // --- Địa chỉ gửi ---
-    Route::prefix('sender')->name('sender.')->group(function () {
+    Route::middleware('can:sender.index')->prefix('sender')->name('sender.')->group(function () {
         Route::livewire('/', 'pages::sender.index')->name('index');
         Route::livewire('/add', 'pages::sender.create')->name('add');
         Route::livewire('/edit/{uuid}', 'pages::sender.create')->name('edit');
-    })->middleware('can:sender.index');
+    });
 
     // --- Địa chỉ nhận ---
-    Route::prefix('receiver')->name('receiver.')->group(function () {
+    Route::middleware('can:receiver.index')->prefix('receiver')->name('receiver.')->group(function () {
         Route::livewire('/', 'pages::receiver.index')->name('index');
         Route::livewire('/add', 'pages::receiver.create')->name('add');
         Route::livewire('/edit/{uuid}', 'pages::receiver.create')->name('edit');
-    })->middleware('can:receiver.index');
+    });
 
     // --- CTV ---
-    Route::prefix('ctv')->name('ctv.')->group(function () {
+    Route::middleware('can:ctv.index')->prefix('ctv')->name('ctv.')->group(function () {
         Route::livewire('/', 'pages::ctv.index')->name('index');
         Route::livewire('/add', 'pages::ctv.create')->name('add');
         Route::livewire('/edit/{id}', 'pages::ctv.create')->name('edit');
-    })->middleware('can:ctv.index');
+    });
 
     // --- Nhân sự ---
-    Route::prefix('nhan-su')->name('nhansu.')->group(function () {
+    Route::middleware('can:nhansu.index')->prefix('nhan-su')->name('nhansu.')->group(function () {
         Route::livewire('/{type}', 'pages::nhansu.index')->name('index');
         Route::livewire('/{type}/add', 'pages::nhansu.create')->name('add');
         Route::livewire('/{type}/edit/{id}', 'pages::nhansu.create')->name('edit');
-    })->middleware('can:nhansu.index');
+    });
 
     // --- Dữ liệu ---
-    Route::prefix('dich-vu')->name('dichvu.')->group(function () {
+    Route::middleware('can:dulieu.index')->prefix('dich-vu')->name('dichvu.')->group(function () {
         Route::get('/vsvx/mau-excel', function () {
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
@@ -259,27 +265,27 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
         Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
         Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
-    })->middleware('can:dulieu.index');
+    });
 
-    Route::prefix('don-vi')->name('donvi.')->group(function () {
+    Route::middleware('can:dulieu.index')->prefix('don-vi')->name('donvi.')->group(function () {
         Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
         Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
         Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
-    })->middleware('can:dulieu.index');
+    });
 
-    Route::prefix('phan-loai')->name('phanloai.')->group(function () {
+    Route::middleware('can:dulieu.index')->prefix('phan-loai')->name('phanloai.')->group(function () {
         Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
         Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
         Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
-    })->middleware('can:dulieu.index');
+    });
 
-    Route::prefix('doi-tac')->name('doitac.')->group(function () {
+    Route::middleware('can:dulieu.index')->prefix('doi-tac')->name('doitac.')->group(function () {
         Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
         Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
         Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
-    })->middleware('can:dulieu.index');
+    });
 
-    Route::prefix('phu-phi')->name('phuphi.')->group(function () {
+    Route::middleware('can:phuphi.index')->prefix('phu-phi')->name('phuphi.')->group(function () {
         Route::prefix('bang-gia-dich-vu')->name('service-prices.')->group(function () {
             Route::get('/mau-excel', function () {
                 $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
@@ -323,13 +329,13 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/{type}', 'pages::dulieu.index')->name('index');
         Route::livewire('/{type}/add', 'pages::dulieu.create')->name('add');
         Route::livewire('/{type}/edit/{id}', 'pages::dulieu.create')->name('edit');
-    })->middleware('can:phuphi.index');
+    });
 
-    Route::prefix('place')->name('place.')->group(function () {
+    Route::middleware('can:dulieu.index')->prefix('place')->name('place.')->group(function () {
         Route::livewire('/{type}', 'pages::place.index')->name('index');
         Route::livewire('/{type}/add', 'pages::place.create')->name('add');
         Route::livewire('/{type}/edit/{id}', 'pages::place.create')->name('edit');
-    })->middleware('can:dulieu.index');
+    });
 
     // ================================================================
     // DULIEU — Mỗi view là 1 Livewire component cùng cấu trúc
@@ -337,17 +343,17 @@ Route::middleware('auth')->group(function () {
     // ================================================================
 
     // --- Chính sách ---
-    Route::prefix('chinh-sach')->name('chinhsach.')->group(function () {
+    Route::middleware('can:chinhsach.index')->prefix('chinh-sach')->name('chinhsach.')->group(function () {
         Route::get('/', fn () => view('chinhsach.index'))->name('index');
         Route::livewire('/{slug}', 'pages::chinhsach.edit')->name('show');
-    })->middleware('can:chinhsach.index');
+    });
 
     Route::livewire('/cai-dat/thong-bao', 'pages::settings.thongbao')
         ->name('settings.thongbao')
         ->middleware('can:notifications.view');
 
     // --- Cấu hình ---
-    Route::prefix('cai-dat')->name('settings.')->group(function () {
+    Route::middleware('can:settings.index')->prefix('cai-dat')->name('settings.')->group(function () {
         Route::livewire('/', 'pages::settings.index')->name('index')->middleware('can:settings.admin');
         Route::livewire('/logo', 'pages::settings.logo')->name('logo')->middleware('can:settings.admin');
         Route::livewire('/favicon', 'pages::settings.favicon')->name('favicon')->middleware('can:settings.admin');
@@ -355,7 +361,7 @@ Route::middleware('auth')->group(function () {
         Route::livewire('/social', 'pages::settings.social')->name('social')->middleware('can:settings.admin');
         Route::livewire('/thong-tin-cong-ty', 'pages::settings.company')->name('company')->middleware('can:settings.admin');
         Route::livewire('/he-thong', 'pages::settings.he-thong')->name('he-thong')->middleware('can:settings.admin');
-    })->middleware('can:settings.index');
+    });
 
     // --- Profile ---
     Route::livewire('/ho-so', 'pages::taikhoan.index')->name('profile');
@@ -382,9 +388,14 @@ Route::get('/thanh-toan/{provider}/return', PaymentReturnController::class)
     ->name('payment.return')
     ->middleware('throttle:30,1');
 
-Route::get('/theo-doi/{idbill}', fn ($idbill) => view('tracking.index', ['idbill' => $idbill]))
+Route::get('/theo-doi/{idbill?}', \App\Http\Controllers\TrackingPageController::class)
     ->name('tracking')
     ->middleware('throttle:10,1');
+
+// Tra cước công khai — feature flag `quote` (tắt được trong Cài đặt), throttle chống dò bảng giá.
+Route::get('/tra-cuoc', \App\Http\Controllers\PublicQuoteController::class)
+    ->name('quote')
+    ->middleware(['feature:quote', 'throttle:20,1']);
 
 /* ============================================================
    HOME — Redirect theo trạng thái login

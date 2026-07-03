@@ -16,6 +16,7 @@ use App\Services\Payments\InvoiceCodeGenerator;
 use App\Services\Payments\PaymentProviderManager;
 use App\Services\Payments\Data\PaymentRequestData;
 use App\Support\OrderAccess;
+use App\Support\OrderPaymentCalculator;
 use Flux\Flux;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -180,28 +181,9 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
     protected function normalizePayment(?array $payment, string $priceKey): array
     {
-        $payment ??= [];
-
-        $payment = array_merge([
-            $priceKey => 0,
-            'vat_percent' => 0,
-            'vat_amount' => 0,
-            'ppxd_percent' => 0,
-            'ppxd_amount' => 0,
-            'tongcuoc' => 0,
-            'phuphi' => [],
-            'phichiho' => [],
-            'hh_khachhang' => [],
-            'bonus_sale_percent' => 0,
-            'bonus_sale_amount' => 0,
-            'total_hh_khachhang' => 0,
-            'total_vat' => 0,
-            'total_vat_phuphi' => 0,
-            'total_phuphi_no_vat' => 0,
-            'total_phuphi' => 0,
-            'total_tongcuoc_no_vat' => 0,
-            'total_tongcuoc' => 0,
-        ], $payment);
+        // Khung key chuẩn lấy từ calculator; page chỉ bổ sung _key (uuid)
+        // cho từng dòng bucket để Blade wire:key ổn định.
+        $payment = OrderPaymentCalculator::normalizeGroup($payment, $priceKey);
 
         foreach (['phuphi', 'phichiho', 'hh_khachhang'] as $bucket) {
             $payment[$bucket] = array_values(array_map(function ($row) {
@@ -549,113 +531,21 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
     protected function recalculateAll(): void
     {
-        $this->payment['cuocban'] = $this->recalculateGroup($this->payment['cuocban'] ?? [], 'dongiaban', ['phuphi', 'hh_khachhang']);
-        $this->payment['cuocvon'] = $this->recalculateGroup($this->payment['cuocvon'] ?? [], 'dongiavon', ['phuphi', 'phichiho'], ['phichiho']);
-        $this->payment['cuocgoc'] = $this->recalculateGroup($this->payment['cuocgoc'] ?? [], 'dongiagoc', ['phuphi']);
-
-        $saleTotalNoVat = $this->number($this->payment['cuocban']['total_tongcuoc_no_vat'] ?? 0);
-        $saleBonusPercent = $this->canEditAllCharges()
-            ? $this->number($this->payment['cuocvon']['bonus_sale_percent'] ?? 0)
-            : $this->number(data_get($this->order->payment_cuocvon, 'bonus_sale_percent', 0));
-        $this->payment['cuocvon']['bonus_sale_percent'] = $saleBonusPercent;
-        $this->payment['cuocvon']['bonus_sale_amount'] = round($saleTotalNoVat * ($saleBonusPercent / 100));
-    }
-
-    protected function recalculateGroup(array $group, string $priceKey, array $buckets, array $excludedBuckets = []): array
-    {
-        $price = $this->number($group[$priceKey] ?? 0);
-        $vatPercent = $this->number($group['vat_percent'] ?? 0);
-        $ppxdPercent = $this->number($group['ppxd_percent'] ?? 0);
-        $ppxdAmount = round($price * $ppxdPercent / 100);
-        $vatAmount = round(($price + $ppxdAmount) * $vatPercent / 100);
-        $tongcuoc = $price + $ppxdAmount + $vatAmount;
-        $feeTotalNoVat = 0;
-        $feeVatTotal = 0;
-        $feeTotal = 0;
-
-        foreach ($buckets as $bucket) {
-            $rows = $group[$bucket] ?? [];
-
-            foreach ($rows as $index => $row) {
-                if ($bucket === 'hh_khachhang') {
-                    $amount = $this->number($row['so_tien'] ?? ($row['price'] ?? 0));
-                    $rows[$index]['total'] = $amount;
-                    $rows[$index]['total_after_vat'] = $amount;
-                    $rows[$index]['vat_amount'] = 0;
-                    continue;
-                }
-
-                $qty = max(0, $this->number($row['soluong'] ?? 0));
-                $rowPrice = $this->number($row['price'] ?? ($row['so_tien'] ?? 0));
-                $rowVatPercent = $this->number($row['vat_percent'] ?? ($row['vat'] ?? 0));
-                $rowTotal = round(($qty ?: 1) * $rowPrice);
-                $rowVatAmount = round($rowTotal * $rowVatPercent / 100);
-                $rows[$index]['vat_amount'] = $rowVatAmount;
-                $rows[$index]['total'] = $rowTotal;
-                $rows[$index]['total_after_vat'] = $rowTotal + $rowVatAmount;
-
-                if (in_array($bucket, $excludedBuckets, true)) {
-                    continue;
-                }
-
-                $feeTotalNoVat += $rowTotal;
-                $feeVatTotal += $rowVatAmount;
-                $feeTotal += $rows[$index]['total_after_vat'];
-            }
-
-            $group[$bucket] = array_values($rows);
+        // Quyền sửa bonus percent là việc của page; công thức là việc của calculator.
+        if (! $this->canEditAllCharges()) {
+            $this->payment['cuocvon']['bonus_sale_percent'] = data_get($this->order->payment_cuocvon, 'bonus_sale_percent', 0);
         }
 
-        $group[$priceKey] = $price;
-        $group['ppxd_amount'] = $ppxdAmount;
-        $group['vat_amount'] = $vatAmount;
-        $group['total_vat'] = $vatAmount + $feeVatTotal;
-        $group['total_vat_phuphi'] = $feeVatTotal;
-        $group['total_phuphi_no_vat'] = $feeTotalNoVat;
-        $group['total_phuphi'] = $feeTotal;
-        $group['total_phichiho'] = array_sum(array_map(
-            fn ($row) => $this->number($row['price'] ?? ($row['so_tien'] ?? 0)),
-            $group['phichiho'] ?? []
-        ));
-        $group['total_hh_khachhang'] = array_sum(array_map(
-            fn ($row) => $this->number($row['so_tien'] ?? ($row['price'] ?? 0)),
-            $group['hh_khachhang'] ?? []
-        ));
-        $group['total_tongcuoc_no_vat'] = $price + $ppxdAmount + $feeTotalNoVat;
-        $group['tongcuoc'] = $tongcuoc;
-        $group['total_tongcuoc'] = $tongcuoc + $feeVatTotal + $feeTotalNoVat;
+        $recalculated = OrderPaymentCalculator::recalculateAll($this->payment);
 
-        return $group;
+        foreach (['cuocban', 'cuocvon', 'cuocgoc'] as $group) {
+            $this->payment[$group] = $recalculated[$group];
+        }
     }
 
     protected function profitSnapshot(): array
     {
-        $saleNoVat = $this->number($this->payment['cuocban']['total_tongcuoc_no_vat'] ?? 0);
-        $sale = $this->number($this->payment['cuocban']['total_tongcuoc'] ?? 0);
-        $costNoVat = $this->number($this->payment['cuocvon']['total_tongcuoc_no_vat'] ?? 0);
-        $cost = $this->number($this->payment['cuocvon']['total_tongcuoc'] ?? 0);
-        $baseNoVat = $this->number($this->payment['cuocgoc']['total_tongcuoc_no_vat'] ?? 0);
-        $base = $this->number($this->payment['cuocgoc']['total_tongcuoc'] ?? 0);
-        $customerCommission = $this->number($this->payment['cuocban']['total_hh_khachhang'] ?? 0);
-        $saleBonus = $this->number($this->payment['cuocvon']['bonus_sale_amount'] ?? 0);
-        $estimatedProfit = $saleNoVat - $costNoVat - $customerCommission;
-        $profit = $estimatedProfit - $saleBonus;
-        $estimatedProfitRate = $saleNoVat > 0 ? round(($estimatedProfit * 100) / $saleNoVat, 2) : 0;
-        $profitRate = $saleNoVat > 0 ? round(($profit * 100) / $saleNoVat, 2) : 0;
-
-        return [
-            'cuocban_no_vat' => $saleNoVat,
-            'cuocban' => $sale,
-            'cuocvon_no_vat' => $costNoVat,
-            'cuocvon' => $cost,
-            'cuocgoc_no_vat' => $baseNoVat,
-            'cuocgoc' => $base,
-            'loinhuantamtinh' => $estimatedProfit,
-            'tysuattamtinh' => $estimatedProfitRate,
-            'loinhuan' => $profit,
-            'tysuat' => $profitRate,
-            'tysuatloinhuan' => $profitRate,
-        ];
+        return OrderPaymentCalculator::profitSnapshot($this->payment);
     }
 
     protected function paymentSnapshot(): array
@@ -695,40 +585,7 @@ new #[Layout('layouts.app')] #[Title('Cập nhật giá đơn hàng')] class ext
 
     public function number(mixed $value): float
     {
-        if (is_int($value) || is_float($value)) {
-            return (float) $value;
-        }
-
-        $normalized = preg_replace('/[^\d.,-]/', '', (string) $value);
-
-        if ($normalized === '' || $normalized === '-') {
-            return 0;
-        }
-
-        $hasComma = str_contains($normalized, ',');
-        $hasDot = str_contains($normalized, '.');
-
-        if ($hasComma && $hasDot) {
-            $lastComma = strrpos($normalized, ',');
-            $lastDot = strrpos($normalized, '.');
-
-            if ($lastComma > $lastDot) {
-                $normalized = str_replace('.', '', $normalized);
-                $normalized = str_replace(',', '.', $normalized);
-            } else {
-                $normalized = str_replace(',', '', $normalized);
-            }
-        } elseif ($hasComma) {
-            if (preg_match('/^-?\d{1,3}(,\d{3})+$/', $normalized)) {
-                $normalized = str_replace(',', '', $normalized);
-            } else {
-                $normalized = str_replace(',', '.', $normalized);
-            }
-        } elseif ($hasDot && preg_match('/^-?\d{1,3}(\.\d{3})+$/', $normalized)) {
-            $normalized = str_replace('.', '', $normalized);
-        }
-
-        return (float) $normalized;
+        return OrderPaymentCalculator::parseNumber($value);
     }
 
     public function showSaleCharge(): bool

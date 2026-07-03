@@ -18,6 +18,14 @@ return [
             'default' => true,
         ],
 
+        'quote' => [
+            'label' => 'Tra cước công khai',
+            'description' => 'Bật/tắt trang tra cước /tra-cuoc cho khách (không cần đăng nhập).',
+            'icon' => 'calculator',
+            'available' => true,
+            'default' => true,
+        ],
+
         // Khi cần mở rộng, thêm key mới tại đây rồi gắn `feature:<key>`
         // vào route/menu hoặc gọi Feature::enabled('<key>') ở đúng điểm nghiệp vụ.
         // Ví dụ: online_payment, einvoice, email_order, customer_portal...

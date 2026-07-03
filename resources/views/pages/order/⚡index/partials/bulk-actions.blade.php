@@ -10,7 +10,8 @@
         $quickActions = collect($quickActions)
             ->filter(fn (array $action) => $capabilities[$action['capability']] ?? false)
             ->values();
-        $bulkActionCount = $quickActions->count() + (!empty($capabilities['canDeleteCancelled']) ? 1 : 0);
+        // +2: nút PDF hàng loạt (mọi role thấy danh sách đều in được đơn trong phạm vi mình).
+        $bulkActionCount = $quickActions->count() + (!empty($capabilities['canDeleteCancelled']) ? 1 : 0) + 2;
     @endphp
 
     @if ($bulkActionCount > 0)
@@ -52,6 +53,26 @@
                         <span class="truncate">{{ $action['label'] }}</span>
                     </button>
                 @endforeach
+
+                {{-- PDF hàng loạt (tính năng mới) — mở 1 file PDF gộp các đơn đã chọn --}}
+                <button
+                    type="button"
+                    data-bulk-pdf="label"
+                    disabled
+                    class="inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-fuchsia-200 bg-transparent px-3 py-2 text-center text-sm font-medium text-fuchsia-700 transition hover:border-transparent hover:bg-fuchsia-50 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-fuchsia-200 disabled:hover:bg-transparent"
+                >
+                    <flux:icon.document-arrow-down class="size-4 shrink-0" />
+                    <span class="truncate">PDF Tem</span>
+                </button>
+                <button
+                    type="button"
+                    data-bulk-pdf="bill"
+                    disabled
+                    class="inline-flex min-h-9 min-w-0 items-center justify-center gap-1.5 rounded-lg border border-cyan-200 bg-transparent px-3 py-2 text-center text-sm font-medium text-cyan-700 transition hover:border-transparent hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-cyan-200 disabled:hover:bg-transparent"
+                >
+                    <flux:icon.document-arrow-down class="size-4 shrink-0" />
+                    <span class="truncate">PDF Bill</span>
+                </button>
             </div>
         </div>
     @endif

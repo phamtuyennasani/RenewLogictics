@@ -2,6 +2,12 @@
 
 Tài liệu này mô tả cách hệ thống tự lấy giá từ menu `Phụ phí / Bảng giá dịch vụ` khi tạo đơn hàng.
 
+> **Nguồn code (cập nhật 2026-07-03):** phần dò bảng giá nằm ở
+> `app/Actions/Order/ResolveServicePriceAction.php`; phần tính tổng cước,
+> phụ phí, VAT, PPXD và lợi nhuận dùng chung
+> `app/Support/OrderPaymentCalculator.php` với màn cập nhật giá.
+> Test số liệu: `tests/Unit/OrderPaymentCalculatorTest.php`.
+
 ## Dữ liệu dùng để dò bảng giá
 
 Khi tạo đơn, hệ thống lấy các dữ liệu sau:
@@ -41,7 +47,16 @@ Sau khi có tổng cân tính cước, hệ thống tìm chi tiết bảng giá 
 Cân nặng từ <= tổng cân tính cước <= Cân nặng đến
 ```
 
-Nếu không có bảng giá hoặc không có dòng cân phù hợp, hệ thống chặn tạo đơn và báo lỗi.
+Hệ thống chỉ **chặn tạo đơn** khi thiếu dữ liệu dò giá: chưa chọn dịch vụ,
+chưa chọn quốc gia nhận, hoặc chưa nhập kiện (tổng cân = 0).
+
+Nếu dò được nhưng **không có bảng giá** cho cặp dịch vụ + quốc gia, hoặc
+**không có dòng cân phù hợp**, hệ thống KHÔNG chặn — đơn vẫn được tạo với
+cước = 0 để bổ sung giá sau ở màn cập nhật giá (xem
+`ResolveServicePriceAction::zeroPriceResult`).
+
+Khi nhiều bảng giá cùng khớp dịch vụ + quốc gia, hệ thống lấy bảng giá
+**cập nhật gần nhất** (`updated_at` mới nhất).
 
 ## Quy cách tính giá
 

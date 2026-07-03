@@ -24,6 +24,9 @@ class CongNoDaiLyDataTableController extends Controller
 {
     public function __invoke(Request $request): JsonResponse
     {
+        // Defense-in-depth: dữ liệu chứa giá vốn — không phụ thuộc mỗi route gate.
+        abort_unless($request->user()->can('congno_daily.view'), 403);
+
         $response = DataTables::eloquent($this->query($request))
             ->addColumn('check', fn (CongNoDaiLy $debt) => '<label class="debt-checkbox relative mx-auto flex w-fit cursor-pointer select-none items-center justify-center"><input type="checkbox" class="daily-debt-check peer sr-only" value="'.$debt->id.'"><span class="flex h-[18px] w-[18px] items-center justify-center rounded-md border border-neutral-300 bg-white transition peer-checked:border-primary-600 peer-checked:bg-primary-600 peer-hover:border-primary-400"></span><svg class="pointer-events-none absolute hidden h-3 w-3 text-white peer-checked:block" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.5l5 5 10-11" /></svg></label>')
             ->addColumn('debt_code', fn (CongNoDaiLy $debt) => '<a href="'.route('congno.daily.show', $debt->uuid).'" class="font-bold text-primary-700 hover:text-primary-800">'.$debt->sohoadon.'</a><div class="mt-0.5 text-xs text-neutral-500">Tạo '.$debt->created_at?->format('d/m/Y H:i').'</div>')
@@ -124,6 +127,8 @@ class CongNoDaiLyDataTableController extends Controller
 
     public function export(Request $request): BinaryFileResponse
     {
+        abort_unless($request->user()->can('congno_daily.view'), 403);
+
         $query = $this->query($request)->latest('congno_daily.id');
         $fileName = 'cong-no-dai-ly-'.now()->format('Ymd-His').'.xlsx';
 

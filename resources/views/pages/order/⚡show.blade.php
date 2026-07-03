@@ -791,6 +791,19 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                     Print Bill
                 </button>
             </flux:modal.trigger>
+            {{-- PDF server-side (tính năng mới) — độc lập với 2 nút Print phía trên --}}
+            <a href="{{ route('orders.pdf.label', ['uuid' => $order->uuid]) }}" target="_blank" rel="noopener"
+                class="inline-flex items-center gap-2 rounded-xl border border-fuchsia-200 bg-fuchsia-50 px-4 py-2 text-sm font-medium text-fuchsia-700 shadow-xs transition-all hover:border-fuchsia-300 hover:bg-fuchsia-100">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                PDF Label
+            </a>
+            <flux:modal.trigger name="pdf-bill-confirm">
+                <button type="button"
+                    class="inline-flex items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-2 text-sm font-medium text-cyan-700 shadow-xs transition-all hover:border-cyan-300 hover:bg-cyan-100">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M7 3h7l5 5v13H7a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>
+                    PDF Bill
+                </button>
+            </flux:modal.trigger>
             @if(auth()->user()->hasAnyRole(['admin', 'cs', 'manager']))
                 <a href="{{ route('orders.tracking', ['uuid' => $order->uuid]) }}" wire:navigate
                     class="inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 shadow-xs transition-all hover:border-indigo-300 hover:bg-indigo-100">
@@ -1236,6 +1249,34 @@ new #[Layout('layouts.app')] #[Title('Chi tiết đơn hàng')] class extends Co
                 </flux:modal.close>
                 <flux:button type="button" variant="filled" wire:click="printBill(false)">Không kèm CVCK</flux:button>
                 <flux:button type="button" variant="primary" wire:click="printBill(true)">In kèm CVCK</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    {{-- Modal chọn CVCK cho PDF Bill (tính năng mới, tách khỏi modal Print Bill) --}}
+    <flux:modal name="pdf-bill-confirm" class="min-w-[22rem]">
+        <div class="space-y-6">
+            <div>
+                <flux:heading size="lg">PDF Bill</flux:heading>
+                <flux:subheading>Bạn có cần xuất kèm công văn cam kết nội dung hàng xuất không?</flux:subheading>
+            </div>
+
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <flux:modal.close>
+                    <flux:button type="button" variant="ghost">Hủy</flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button type="button" variant="filled"
+                        onclick="window.open('{{ route('orders.pdf.bill', ['uuid' => $order->uuid]) }}', '_blank')">
+                        Không kèm CVCK
+                    </flux:button>
+                </flux:modal.close>
+                <flux:modal.close>
+                    <flux:button type="button" variant="primary"
+                        onclick="window.open('{{ route('orders.pdf.bill', ['uuid' => $order->uuid, 'cvck' => 1]) }}', '_blank')">
+                        Kèm CVCK
+                    </flux:button>
+                </flux:modal.close>
             </div>
         </div>
     </flux:modal>

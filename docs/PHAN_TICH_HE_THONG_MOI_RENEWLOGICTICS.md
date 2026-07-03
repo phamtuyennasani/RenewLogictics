@@ -2,6 +2,15 @@
 
 Ngay phan tich: 2026-05-20
 
+> **Cap nhat 2026-07-03:** Cac muc P0/P1 trong tai lieu nay da duoc xu ly:
+> - P0 `idCtv` (muc 6): da fix truoc do (dung `idCustomer`).
+> - P1 transaction tao don: phan loi (order + tracking history) da boc `DB::transaction`;
+>   packages/invoices/photos/contacts fail mem co chu dich (bo sung sau duoc),
+>   buoc fail duoc tra ve qua `CreateOrderResult::$warnings` de UI canh bao.
+> - P1 `generateMemberCode()`: da boc transaction quanh save contact + unique index `member.code`.
+> - P2 ExampleTest: da doi thanh assertRedirect.
+> - Ngoai ra: fix 17 route group middleware `can:` vo hieu (xem `tests/Feature/RoutePermissionTest.php`).
+
 ## 1. Tong quan
 
 RenewLogictics la ung dung Laravel 13, PHP 8.3, Livewire 4, Flux UI, Tailwind/Vite. He thong moi tap trung vao nghiep vu quan ly van chuyen quoc te, dac biet la module don hang:

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Support\OrderAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,8 +20,8 @@ class GlobalSearchController extends Controller
 
         $results = [];
 
-        // Search orders by id_bill or tracking_code
-        $orders = Order::query()
+        // Search orders by id_bill or tracking_code — chỉ trong phạm vi đơn user được thấy.
+        $orders = OrderAccess::scopeVisibleTo(Order::query(), $request->user())
             ->where(function ($query) use ($q) {
                 $query->where('id_bill', 'like', "%{$q}%")
                     ->orWhere('tracking_code', 'like', "%{$q}%");

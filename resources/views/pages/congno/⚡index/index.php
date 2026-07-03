@@ -50,6 +50,8 @@ new #[Layout('layouts.app')] #[Title('Công nợ khách hàng')] class extends C
 
     public function mount(): void
     {
+        abort_unless(\Gate::allows('congno.index'), 403);
+
         $user = auth()->user();
 
         $this->isSaleUser = $user->hasRole('sale');

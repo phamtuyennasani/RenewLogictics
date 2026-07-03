@@ -2,6 +2,7 @@
 
 namespace App\Actions\Order;
 
+use App\DataTransferObjects\CreateOrderResult;
 use App\DataTransferObjects\OrderFormData;
 use App\Enums\OrderStatusEnum;
 use App\Models\Invoice;
@@ -10,90 +11,22 @@ use App\Models\Order;
 use App\Models\OrderPhoto;
 use App\Models\OrderPackage;
 use App\Models\User;
+use App\Support\OrderPaymentCalculator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Throwable;
 
 class CreateOrderAction
 {
-    public array $paymentDefault;
     public function __construct(
         protected GenerateOrderCodeAction $generateOrderCode,
         protected CalculateChargeableWeightAction $calculateWeight,
         protected ResolveServicePriceAction $resolveServicePrice,
     ) {
-        $this->defaultPayment();
     }
-    protected function defaultPayment(): array
-    {
-        $this->paymentDefault = [
-            'cuocban' => [
-                'dongiaban' => 0,
-                'vat_percent' => 0,
-                'vat_amount' => 0,
-                'ppxd_percent' => 0,
-                'ppxd_amount' => 0,
-                'tongcuoc' => 0,
-                'phuphi' => [],
-                'hh_khachhang' => [],
-                'total_vat_phuphi' => 0,
-                'total_phuphi_no_vat' => 0,
-                'total_phuphi' => 0,
-                'total_hh_khachhang' => 0,
-                'total_tongcuoc_no_vat' => 0,
-                'total_vat' => 0,
-                'total_tongcuoc' => 0,
-            ],
-            'cuocvon' => [
-                'dongiavon' => 0,
-                'vat_percent' => 0,
-                'vat_amount' => 0,
-                'ppxd_percent' => 0,
-                'ppxd_amount' => 0,
-                'tongcuoc' => 0,
-                'phichiho' => [],
-                'phuphi' => [],
-                'total_vat_phuphi' => 0,
-                'total_phuphi_no_vat' => 0,
-                'total_phuphi' => 0,
-                'total_vat' => 0,
-                'total_tongcuoc' => 0,
-                'total_tongcuoc_no_vat' => 0,
-                'bonus_sale_percent' => 0,
-                'bonus_sale_amount' => 0,
-            ],
-            'cuocgoc' => [
-                'dongiagoc' => 0,
-                'vat_percent' => 0,
-                'vat_amount' => 0,
-                'ppxd_percent' => 0,
-                'ppxd_amount' => 0,
-                'tongcuoc' => 0,
-                'phuphi' => [],
-                'total_vat_phuphi' => 0,
-                'total_phuphi_no_vat' => 0,
-                'total_phuphi' => 0,
-                'total_vat' => 0,
-                'total_tongcuoc_no_vat' => 0,
-                'total_tongcuoc' => 0,
-            ],
-            'payment_loinhuan' => [
-                'cuocban_no_vat' => 0,
-                'cuocban' => 0,
-                'cuocvon_no_vat' => 0,
-                'cuocvon' => 0,
-                'cuocgoc_no_vat' => 0,
-                'cuocgoc' => 0,
-                'loinhuantamtinh' => 0,
-                'tysuattamtinh' => 0,
-                'loinhuan' => 0,
-                'tysuatloinhuan' => 0,
-            ],
-        ];
 
-        return $this->paymentDefault;
-    }
-    public function execute(OrderFormData $formData): Order
+    public function execute(OrderFormData $formData): CreateOrderResult
     {
         $payment = $this->calculatePrice(
             phuphihaiquan: $formData->phuphihaiquan,
@@ -104,57 +37,59 @@ class CreateOrderAction
         );
         $currentUser = auth()->user();
         $currentUserId = auth()->id();
-        $orderCode = $this->generateOrderCode->execute();
 
-        $order = Order::create([
-            'uuid' => $this->generateOrderUuid(),
-            'id_bill' => $orderCode,
-            'id_sale' => $formData->idSale ?? 0,
-            'id_customer' => $formData->idCustomer ?? 0,
-            'id_manager' => 0,
-            'id_ketoan' => 0,
-            'id_ops' => 0,
-            'id_cs' => $currentUser?->hasRole('cs') ? $currentUserId : ($formData->idCs ?? 0),
-            'id_create' => $currentUserId,
-            'sender' => $formData->sender,
-            'receiver' => $formData->receiver,
-            'service' => $formData->service,
-            'bill_status' => OrderStatusEnum::MOI_TAO,
-            'dim' => $formData->dim,
-            'ghichu' => $formData->notes,
-            'payment_cuocban' => $payment['cuocban'],
-            'payment_cuocvon' => $payment['cuocvon'],
-            'payment_cuocgoc' => $payment['cuocgoc'],
-            'payment_loinhuan' => $payment['payment_loinhuan'],
-        ]);
+        // Lõi bắt buộc (all-or-nothing): mã đơn + record orders + history khởi tạo.
+        // generateOrderCode có transaction riêng → chạy lồng thành savepoint, an toàn.
+        $order = DB::transaction(function () use ($formData, $payment, $currentUser, $currentUserId) {
+            $orderCode = $this->generateOrderCode->execute();
 
-        RecordTrackingHistoryAction::execute($order, OrderStatusEnum::MOI_TAO, $order->created_at);
+            $order = Order::create([
+                'uuid' => $this->generateOrderUuid(),
+                'id_bill' => $orderCode,
+                'id_sale' => $formData->idSale ?? 0,
+                'id_customer' => $formData->idCustomer ?? 0,
+                'id_manager' => 0,
+                'id_ketoan' => 0,
+                'id_ops' => 0,
+                'id_cs' => $currentUser?->hasRole('cs') ? $currentUserId : ($formData->idCs ?? 0),
+                'id_create' => $currentUserId,
+                'sender' => $formData->sender,
+                'receiver' => $formData->receiver,
+                'service' => $formData->service,
+                'bill_status' => OrderStatusEnum::MOI_TAO,
+                'dim' => $formData->dim,
+                'ghichu' => $formData->notes,
+                'payment_cuocban' => $payment['cuocban'],
+                'payment_cuocvon' => $payment['cuocvon'],
+                'payment_cuocgoc' => $payment['cuocgoc'],
+                'payment_loinhuan' => $payment['payment_loinhuan'],
+            ]);
 
-        try {
-            $this->createPackages($order, $formData->packages, $formData->dim);
-        } catch (Throwable $e) {
-            report($e);
+            RecordTrackingHistoryAction::execute($order, OrderStatusEnum::MOI_TAO, $order->created_at);
+
+            return $order;
+        });
+
+        // Các bước bổ sung: fail mềm — đơn vẫn hợp lệ, user bổ sung sau ở trang
+        // chi tiết. Bước fail được trả về qua warnings để UI cảnh báo (không im lặng).
+        $warnings = [];
+        $steps = [
+            'kiện hàng' => fn () => $this->createPackages($order, $formData->packages, $formData->dim),
+            'khai báo hàng hóa' => fn () => $this->createInvoices($order, $formData->invoiceItems),
+            'ảnh đơn hàng' => fn () => $this->createPhotos($order, $formData->orderPhotos),
+            'thông tin liên hệ' => fn () => $this->saveContacts($formData, $order),
+        ];
+
+        foreach ($steps as $label => $step) {
+            try {
+                $step();
+            } catch (Throwable $e) {
+                report($e);
+                $warnings[] = $label;
+            }
         }
 
-        try {
-            $this->createInvoices($order, $formData->invoiceItems);
-        } catch (Throwable $e) {
-            report($e);
-        }
-
-        try {
-            $this->createPhotos($order, $formData->orderPhotos);
-        } catch (Throwable $e) {
-            report($e);
-        }
-
-        try {
-            $this->saveContacts($formData, $order);
-        } catch (Throwable $e) {
-            report($e);
-        }
-
-        return $order;
+        return new CreateOrderResult($order, $warnings);
     }
     protected function calculatePrice(array $phuphihaiquan, array $service, array $receiver, array $packages, float $dim): array
     {
@@ -162,13 +97,6 @@ class CreateOrderAction
         $priceList = $resolvedPrice['price_list'];
         $detail = $resolvedPrice['detail'];
         $chargeableWeight = (float) $resolvedPrice['chargeable_weight'];
-        $phuphihaiquan = $this->normalizeFeeRows($phuphihaiquan);
-
-        $this->paymentDefault['cuocvon']['phuphi'] = $phuphihaiquan;
-        $this->paymentDefault['cuocban']['phuphi'] = $phuphihaiquan;
-        $this->paymentDefault['cuocgoc']['phuphi'] = $phuphihaiquan;
-
-        $totalPhuphi = array_sum(array_map(fn ($item) => (float) ($item['total'] ?? 0), $phuphihaiquan));
 
         $priceMeta = [
             'service_price_list_id' => $priceList?->id,
@@ -186,124 +114,32 @@ class CreateOrderAction
             'service_price_base_amount' => (float) $resolvedPrice['base_price'],
         ];
 
-        $this->paymentDefault['cuocban'] = $this->buildPaymentGroup(
-            group: $this->paymentDefault['cuocban'],
-            priceKey: 'dongiaban',
-            price: (float) $resolvedPrice['sale_price'],
-            totalPhuphi: $totalPhuphi,
-            meta: $priceMeta + ['service_price_unit' => (float) ($detail?->sale_price ?? 0)],
-        );
-        $this->paymentDefault['cuocvon'] = $this->buildPaymentGroup(
-            group: $this->paymentDefault['cuocvon'],
-            priceKey: 'dongiavon',
-            price: (float) $resolvedPrice['cost_price'],
-            totalPhuphi: $totalPhuphi,
-            meta: $priceMeta + ['service_price_unit' => (float) ($detail?->cost_price ?? 0)],
-        );
-        $this->paymentDefault['cuocgoc'] = $this->buildPaymentGroup(
-            group: $this->paymentDefault['cuocgoc'],
-            priceKey: 'dongiagoc',
-            price: (float) $resolvedPrice['base_price'],
-            totalPhuphi: $totalPhuphi,
-            meta: $priceMeta + ['service_price_unit' => (float) ($detail?->base_price ?? 0)],
-        );
+        // Đổ giá từ bảng giá + phụ phí hải quan vào 3 nhóm, phần tính toán
+        // (PPXD/VAT/tổng/lợi nhuận) giao hết cho OrderPaymentCalculator —
+        // cùng một công thức với màn cập nhật giá.
+        $phuphihaiquan = array_values(array_filter($phuphihaiquan, 'is_array'));
 
-        $this->paymentDefault['payment_loinhuan'] = $this->profitSnapshot(
-            salePayment: $this->paymentDefault['cuocban'],
-            costPayment: $this->paymentDefault['cuocvon'],
-            basePayment: $this->paymentDefault['cuocgoc'],
-        );
-
-        return $this->paymentDefault;
-    }
-
-    protected function buildPaymentGroup(array $group, string $priceKey, float $price, float $totalPhuphi, array $meta = []): array
-    {
-        $ppxdAmount = round($price * ((float) ($group['ppxd_percent'] ?? 0)) / 100);
-        $vatAmount = round(($price + $ppxdAmount) * ((float) ($group['vat_percent'] ?? 0)) / 100);
-        $tongcuoc = $price + $ppxdAmount + $vatAmount;
-
-        return array_merge($group, $meta, [
-            $priceKey => $price,
-            'ppxd_amount' => $ppxdAmount,
-            'vat_amount' => $vatAmount,
-            'tongcuoc' => $tongcuoc,
-            'total_vat' => $vatAmount,
-            'total_vat_phuphi' => 0,
-            'total_phuphi_no_vat' => $totalPhuphi,
-            'total_phuphi' => $totalPhuphi,
-            'total_tongcuoc_no_vat' => $price + $ppxdAmount + $totalPhuphi,
-            'total_tongcuoc' => $tongcuoc + $totalPhuphi,
+        $payment = OrderPaymentCalculator::recalculateAll([
+            'cuocban' => $priceMeta + [
+                'service_price_unit' => (float) ($detail?->sale_price ?? 0),
+                'dongiaban' => (float) $resolvedPrice['sale_price'],
+                'phuphi' => $phuphihaiquan,
+            ],
+            'cuocvon' => $priceMeta + [
+                'service_price_unit' => (float) ($detail?->cost_price ?? 0),
+                'dongiavon' => (float) $resolvedPrice['cost_price'],
+                'phuphi' => $phuphihaiquan,
+            ],
+            'cuocgoc' => $priceMeta + [
+                'service_price_unit' => (float) ($detail?->base_price ?? 0),
+                'dongiagoc' => (float) $resolvedPrice['base_price'],
+                'phuphi' => $phuphihaiquan,
+            ],
         ]);
-    }
 
-    protected function normalizeFeeRows(array $feeRows): array
-    {
-        return array_values(array_map(function ($row) {
-            if (! is_array($row)) {
-                $row = [];
-            }
+        $payment['payment_loinhuan'] = OrderPaymentCalculator::profitSnapshot($payment);
 
-            $quantity = max(1, (int) ($row['soluong'] ?? 1));
-            $price = $this->number($row['price'] ?? 0);
-            $total = $price > 0
-                ? round($quantity * $price)
-                : $this->number($row['total'] ?? 0);
-
-            $row['soluong'] = $quantity;
-            $row['price'] = $price;
-            $row['total'] = $total;
-            $row['total_after_vat'] = $total;
-            $row['vat_percent'] = (float) ($row['vat_percent'] ?? 0);
-            $row['vat_amount'] = 0;
-
-            return $row;
-        }, $feeRows));
-    }
-
-    protected function number(mixed $value): float
-    {
-        if (is_int($value) || is_float($value)) {
-            return (float) $value;
-        }
-
-        if (! is_string($value)) {
-            return 0;
-        }
-
-        $normalized = preg_replace('/[^\d.-]/', '', $value);
-
-        return $normalized === '' ? 0 : (float) $normalized;
-    }
-
-    protected function profitSnapshot(array $salePayment, array $costPayment, array $basePayment): array
-    {
-        $saleNoVat = (float) ($salePayment['total_tongcuoc_no_vat'] ?? 0);
-        $sale = (float) ($salePayment['total_tongcuoc'] ?? 0);
-        $costNoVat = (float) ($costPayment['total_tongcuoc_no_vat'] ?? 0);
-        $cost = (float) ($costPayment['total_tongcuoc'] ?? 0);
-        $baseNoVat = (float) ($basePayment['total_tongcuoc_no_vat'] ?? 0);
-        $base = (float) ($basePayment['total_tongcuoc'] ?? 0);
-        $customerCommission = (float) ($salePayment['total_hh_khachhang'] ?? 0);
-        $saleBonus = (float) ($costPayment['bonus_sale_amount'] ?? 0);
-        $estimatedProfit = $saleNoVat - $costNoVat - $customerCommission;
-        $profit = $estimatedProfit - $saleBonus;
-        $estimatedProfitRate = $saleNoVat > 0 ? round(($estimatedProfit * 100) / $saleNoVat, 2) : 0;
-        $profitRate = $saleNoVat > 0 ? round(($profit * 100) / $saleNoVat, 2) : 0;
-
-        return [
-            'cuocban_no_vat' => $saleNoVat,
-            'cuocban' => $sale,
-            'cuocvon_no_vat' => $costNoVat,
-            'cuocvon' => $cost,
-            'cuocgoc_no_vat' => $baseNoVat,
-            'cuocgoc' => $base,
-            'loinhuantamtinh' => $estimatedProfit,
-            'tysuattamtinh' => $estimatedProfitRate,
-            'loinhuan' => $profit,
-            'tysuat' => $profitRate,
-            'tysuatloinhuan' => $profitRate,
-        ];
+        return $payment;
     }
 
     protected function calculatePackageWeights(array $packages, float $dim): array {
@@ -453,51 +289,57 @@ class CreateOrderAction
 
     protected function saveSenderContact(OrderFormData $formData, Order $order): void{
         $sender = $formData->sender;
-        Member::updateOrCreate(
-            ['id' => $sender['id'] ?? null],
-            [
-                'code' => $sender['id'] ? null : $this->generateMemberCode(),
-                'uuid' => $sender['id'] ? null : \Illuminate\Support\Str::uuid(),
-                'fullname' => $sender['company'],
-                'phone' => $sender['phone'],
-                'email' => $sender['email'] ?? null,
-                'id_province' => $sender['province_id'] ?? null,
-                'id_ward' => $sender['ward_id'] ?? null,
-                'id_ctv' => $formData->idCustomer ?: null,
-                'type' => 'sender',
-                'options' => [
-                    'tenlienhe' => $sender['fullname'],
-                    'address' => $sender['address'],
-                ],
-            ]
-        );
+        // Transaction để lockForUpdate trong generateMemberCode có hiệu lực
+        // (tránh 2 user cùng lúc sinh trùng mã CUSxxxxxx).
+        DB::transaction(function () use ($formData, $sender) {
+            Member::updateOrCreate(
+                ['id' => $sender['id'] ?? null],
+                [
+                    'code' => $sender['id'] ? null : $this->generateMemberCode(),
+                    'uuid' => $sender['id'] ? null : \Illuminate\Support\Str::uuid(),
+                    'fullname' => $sender['company'],
+                    'phone' => $sender['phone'],
+                    'email' => $sender['email'] ?? null,
+                    'id_province' => $sender['province_id'] ?? null,
+                    'id_ward' => $sender['ward_id'] ?? null,
+                    'id_ctv' => $formData->idCustomer ?: null,
+                    'type' => 'sender',
+                    'options' => [
+                        'tenlienhe' => $sender['fullname'],
+                        'address' => $sender['address'],
+                    ],
+                ]
+            );
+        });
     }
 
     protected function saveReceiverContact(OrderFormData $formData, Order $order): void{
         $receiver = $formData->receiver;
-        Member::updateOrCreate(
-            ['id' => $receiver['id'] ?? null],
-            [
-                'code' => $receiver['id'] ? null : $this->generateMemberCode(),
-                'uuid' => $receiver['id'] ? null : \Illuminate\Support\Str::uuid(),
-                'fullname' => $receiver['company'],
-                'phone' => $receiver['phone'],
-                'email' => $receiver['email'] ?? null,
-                'id_ctv' => $formData->idCustomer ?: null,
-                'id_sale' => $formData->idSale,
-                'id_khachhang' => $formData->sender['type'] === 'ctv' ? 0 : ($formData->sender['id'] ?? 0),
-                'type' => 'receiver',
-                'options' => [
-                    'tenlienhe' => $receiver['tenlienhe'] ?? $receiver['fullname'] ?? '',
-                    'id_country' => $receiver['country_id'] ?? null,
-                    'mavung' => $receiver['mavung'] ?? '',
-                    'address' => $receiver['address'],
-                    'state' => $receiver['state'] ?? '',
-                    'city' => $receiver['city'] ?? '',
-                    'postcode' => $receiver['postcode'],
-                ],
-            ]
-        );
+        DB::transaction(function () use ($formData, $receiver) {
+            Member::updateOrCreate(
+                ['id' => $receiver['id'] ?? null],
+                [
+                    'code' => $receiver['id'] ? null : $this->generateMemberCode(),
+                    'uuid' => $receiver['id'] ? null : \Illuminate\Support\Str::uuid(),
+                    'fullname' => $receiver['company'],
+                    'phone' => $receiver['phone'],
+                    'email' => $receiver['email'] ?? null,
+                    'id_ctv' => $formData->idCustomer ?: null,
+                    'id_sale' => $formData->idSale,
+                    'id_khachhang' => $formData->sender['type'] === 'ctv' ? 0 : ($formData->sender['id'] ?? 0),
+                    'type' => 'receiver',
+                    'options' => [
+                        'tenlienhe' => $receiver['tenlienhe'] ?? $receiver['fullname'] ?? '',
+                        'id_country' => $receiver['country_id'] ?? null,
+                        'mavung' => $receiver['mavung'] ?? '',
+                        'address' => $receiver['address'],
+                        'state' => $receiver['state'] ?? '',
+                        'city' => $receiver['city'] ?? '',
+                        'postcode' => $receiver['postcode'],
+                    ],
+                ]
+            );
+        });
     }
     protected function generateMemberCode(): string {
         $prefix = 'CUS';
@@ -515,24 +357,5 @@ class CreateOrderAction
     }
     protected function mergeUserOptions(array $user): array{
         return array_merge($user, $user['options'] ?? []);
-    }
-    protected function acquireOrderCodeLock(string $lockName, int $timeoutSeconds = 10): void{
-        $driver = DB::getDriverName();
-        if (! in_array($driver, ['mysql', 'mariadb'], true)) {
-            return;
-        }
-        $result = DB::selectOne('SELECT GET_LOCK(?, ?) AS lock_acquired', [$lockName, $timeoutSeconds]);
-        if (! $result || (int) ($result->lock_acquired ?? 0) !== 1) {
-            throw new \RuntimeException('Unable to acquire order code lock.');
-        }
-    }
-
-    protected function releaseOrderCodeLock(string $lockName): void
-    {
-        $driver = DB::getDriverName();
-        if (! in_array($driver, ['mysql', 'mariadb'], true)) {
-            return;
-        }
-        DB::selectOne('SELECT RELEASE_LOCK(?)', [$lockName]);
     }
 }

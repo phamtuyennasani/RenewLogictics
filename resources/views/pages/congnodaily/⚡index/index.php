@@ -45,6 +45,8 @@ new #[Layout('layouts.app')] #[Title('Công nợ đại lý')] class extends Com
 
     public function mount(): void
     {
+        abort_unless(\Gate::allows('congno_daily.view'), 403);
+
         $this->fromDate ??= now()->subDays(30)->format('Y-m-d');
         $this->toDate ??= now()->format('Y-m-d');
         $this->createDailyId ??= $this->dailyId;

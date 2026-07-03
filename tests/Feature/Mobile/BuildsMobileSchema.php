@@ -164,11 +164,39 @@ trait BuildsMobileSchema
             $table->timestamps();
             $table->softDeletes();
         });
+
+        // --- activity_logs (shipper update status ghi audit log) ---
+        Schema::create('activity_logs', function (Blueprint $table): void {
+            $table->id();
+            $table->string('subject_type')->nullable();
+            $table->unsignedBigInteger('subject_id')->nullable();
+            $table->unsignedBigInteger('actor_id')->nullable();
+            $table->string('actor_name')->nullable();
+            $table->string('actor_role')->nullable();
+            $table->string('action');
+            $table->string('title');
+            $table->text('note')->nullable();
+            $table->json('snapshot')->nullable();
+            $table->string('ip_address', 45)->nullable();
+            $table->json('metadata')->nullable();
+            $table->timestamps();
+        });
+
+        // --- user_device_tokens (push notification cho shipper/OPS) ---
+        Schema::create('user_device_tokens', function (Blueprint $table): void {
+            $table->id();
+            $table->unsignedBigInteger('user_id');
+            $table->string('token', 512);
+            $table->string('platform')->nullable();
+            $table->timestamp('revoked_at')->nullable();
+            $table->timestamps();
+        });
     }
 
     protected function dropMobileSchema(): void
     {
         foreach ([
+            'user_device_tokens', 'activity_logs',
             'pickup_orders', 'pickup', 'order_history', 'order_package', 'orders',
             'role_has_permissions', 'model_has_permissions', 'model_has_roles',
             'permissions', 'roles', 'personal_access_tokens', 'user', 'news',
