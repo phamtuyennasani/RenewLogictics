@@ -9,7 +9,8 @@
   - **Đợt 5 (cùng ngày):** sửa trang tra cứu đơn công khai `/theo-doi/{idbill}` — trước đó lỗi 500 (route trỏ view không tồn tại), giờ là trang tracking hoàn chỉnh cho khách cuối. Xem mục 4E.
   - **Đợt 6 (cùng ngày):** in hàng loạt PDF tem/bill từ danh sách đơn — chọn nhiều đơn bằng checkbox → 1 file PDF gộp. Xem mục 4F.
   - **Đợt 7 (cùng ngày):** trang tra cước công khai `/tra-cuoc` (quote calculator, không cần đăng nhập) — có feature flag tắt/bật. Xem mục 4G.
-- **Trạng thái sau vá:** `php artisan test` → **110/110 passed** (trước vá: 57/70; đợt 1: 78; đợt 2: 90; đợt 4: 94; đợt 5: 100; đợt 6: 104).
+  - **Đợt 8 (cùng ngày, APP FLUTTER):** sửa P0 release signing Android — bản release trước đây ký bằng **debug key** (không phát hành store được, user không update đè được). Giờ ký bằng keystore release thật + fail-fast khi thiếu cấu hình. Xem mục 4H.
+- **Trạng thái sau vá:** `php artisan test` → **110/110 passed**; app Flutter: `flutter analyze` 0 issue, `flutter test` 40/40, build release AAB ✓ ký đúng keystore.
 - **Tài liệu liên quan:** `docs/PHAN_TICH_HE_THONG_MOI_RENEWLOGICTICS.md` (mục cập nhật 2026-07-03), `PHAN_QUYEN_CHI_TIET.md` (ma trận quyền chuẩn), `docs/payment-calculation-guide.md` + `docs/SERVICE_PRICE_CALCULATION.md` (công thức tính tiền chuẩn), `docs/QUEUE_OPERATIONS.md` (vận hành queue worker).
 
 ---
@@ -119,6 +120,20 @@
 > **Nguyên tắc dữ liệu trang public:** CHỈ hiện cước bán. Cước vốn/cước gốc
 > tuyệt đối không xuất hiện trong response (có test riêng chốt chặn). Giá kèm
 > disclaimer "tham khảo, chưa gồm phụ phí/VAT".
+
+### Đợt 8 — App Flutter: sửa release signing Android (P0)
+
+| Loại | File | Nội dung |
+|---|---|---|
+| Sửa | `flutter/android/app/build.gradle.kts` | Bỏ `signingConfig = debug` ở buildType release; thêm signingConfig `release` đọc từ `key.properties`; **fail-fast** kèm hướng dẫn nếu thiếu file (không âm thầm ký debug) |
+| Mới | `flutter/android/key.properties.example` | Mẫu cấu hình ký (file thật đã gitignore) + lệnh tạo keystore per-KH |
+| Mới | `flutter/android/keystore/README.md` | Cảnh báo backup bắt buộc (mất keystore = mất khả năng update app vĩnh viễn), thông tin keystore, lệnh kiểm tra chữ ký |
+| Mới (không commit) | `flutter/android/keystore/release.jks` + `key.properties` | Keystore RSA 2048 hạn 30 năm, alias `shipper_ops_release` — cả 2 đã nằm trong gitignore sẵn có |
+
+Đã kiểm chứng khi fix: build `flutter build appbundle --release` thành công,
+fingerprint SHA-256 trong AAB **khớp keystore release**; xóa `key.properties`
+→ build fail với thông báo hướng dẫn (fail-fast hoạt động); build debug không
+bị ảnh hưởng.
 
 ---
 
@@ -463,6 +478,22 @@ Chuẩn bị: ít nhất 1 bảng giá có cả dòng `DON_GIA` và `CO_DINH` (m
 
 ---
 
+## 4H. Test case — App Flutter: release signing (đợt 8)
+
+Cần máy có Flutter SDK + keystore (`android/key.properties` — hỏi dev nếu thiếu).
+
+| ID | Thao tác | Kỳ vọng | Kết quả |
+|---|---|---|---|
+| FL-01 | `flutter build appbundle --release` trong `flutter/` | Build thành công, ra `app-release.aab` | ☐ |
+| FL-02 | `keytool -printcert -jarfile <file .aab>` so với `keytool -list -keystore android/keystore/release.jks` | SHA-256 fingerprint **khớp nhau** (ký đúng keystore release, không phải debug) | ☐ |
+| FL-03 | Tạm đổi tên `android/key.properties` → build release lại | Build **FAIL ngay** với thông báo tiếng Việt hướng dẫn tạo file (không âm thầm ký debug key) — khôi phục file sau khi test | ☐ |
+| FL-04 | `flutter build apk --debug` | Vẫn build bình thường (fail-fast chỉ áp cho release) | ☐ |
+| FL-05 | Cài bản release cũ (ký debug) trên máy thật → cài đè bản release mới (ký release key) | **Không cài đè được** (khác chữ ký) — đây là hành vi ĐÚNG; phải gỡ bản cũ trước. Ghi chú vận hành: các máy shipper/OPS đang chạy bản debug-signed cần gỡ + cài lại MỘT LẦN khi nhận bản chính thức đầu tiên | ☐ |
+| FL-06 | Xác nhận backup: keystore + key.properties đã được lưu ở ≥2 nơi an toàn ngoài máy dev (theo `android/keystore/README.md`) | Có bản backup — **mất keystore = mất khả năng update app vĩnh viễn** | ☐ |
+| FL-07 | Hồi quy nhanh app: `flutter analyze` + `flutter test` | 0 issue / 40 passed (fix chỉ đụng build config, không đụng code Dart) | ☐ |
+
+---
+
 ## 5. Test case — Vận hành / môi trường
 
 | ID | Thao tác | Kỳ vọng | Kết quả |
@@ -494,3 +525,4 @@ Chuẩn bị: ít nhất 1 bảng giá có cả dòng `DON_GIA` và `CO_DINH` (m
 - **Đợt 5:** link tra cứu `/theo-doi/<mã đơn>` giờ hoạt động (trước đây lỗi trắng trang) — CSKH có thể gửi link này cho khách; khách thấy hành trình nhưng KHÔNG thấy giá và thông tin người gửi (chủ đích, không phải thiếu).
 - **Đợt 6:** danh sách đơn có thêm 2 nút **PDF Tem** / **PDF Bill** trong thanh thao tác hàng loạt — tick nhiều đơn in 1 file. Bulk bill không kèm CVCK là chủ đích (cần CVCK thì vào chi tiết đơn).
 - **Đợt 7:** có trang tra cước công khai `/tra-cuoc` — sale/CSKH có thể gửi link cho khách tự ước tính giá; giá hiện là cước bán tham khảo (chưa phụ phí/VAT), có thể tắt trang trong Cài đặt nếu không muốn công khai bảng giá.
+- **Đợt 8 (app):** bản app chính thức đầu tiên ký release key sẽ **không cài đè** được lên bản test cũ (ký debug) — shipper/OPS cần gỡ bản cũ cài lại một lần duy nhất; các bản update sau đó cài đè bình thường.

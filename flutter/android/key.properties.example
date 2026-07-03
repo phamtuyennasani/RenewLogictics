@@ -1,0 +1,15 @@
+# Mẫu cấu hình ký bản release Android.
+# Copy thành `key.properties` (cùng thư mục) rồi điền giá trị thật.
+# `key.properties` và mọi file *.jks/*.keystore đã được gitignore — KHÔNG commit.
+#
+# Tạo keystore mới (mỗi KH một keystore riêng nếu KH tự đứng tên app):
+#   keytool -genkeypair -v -keystore keystore/release.jks \
+#     -alias shipper_ops_release -keyalg RSA -keysize 2048 -validity 10950
+#
+# QUAN TRỌNG: mất keystore = mất khả năng update app trên store.
+# Backup keystore + file này vào nơi an toàn (password manager / két số).
+
+storeFile=keystore/release.jks
+storePassword=DIEN_MAT_KHAU_STORE
+keyAlias=shipper_ops_release
+keyPassword=DIEN_MAT_KHAU_KEY
