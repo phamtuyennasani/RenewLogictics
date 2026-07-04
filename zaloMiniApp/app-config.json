@@ -1,0 +1,10 @@
+{
+  "app": {
+    "title": "Hệ Thống Logistics",
+    "textColor": "black",
+    "statusBarColor": "#ffffff",
+    "leftButton": "none"
+  },
+  "debug": true,
+  "pages": ["pages/index"]
+}

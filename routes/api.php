@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Mobile\MobileOpsScanController;
 use App\Http\Controllers\Api\Mobile\MobileShipperPickupController;
 use App\Http\Controllers\Api\ThirdPartyOrderTrackingController;
 use App\Http\Controllers\Api\VietmapProxyController;
+use App\Http\Controllers\Api\ZaloMiniAppController;
 use App\Http\Controllers\Webhook\MoMoWebhookController;
 use App\Http\Controllers\Webhook\SepayGatewayIpnController;
 use App\Http\Controllers\Webhook\SepayWebhookController;
@@ -32,6 +33,16 @@ Route::match(['post', 'get'], '/webhooks/vnpay', VNPayWebhookController::class)
 Route::post('/third-party/orders/tracking', ThirdPartyOrderTrackingController::class)
     ->middleware(['throttle:third-party-tracking', 'third-party.tracking-api'])
     ->name('api.third-party.orders.tracking');
+
+Route::prefix('zalo-mini-app')
+    ->middleware('throttle:60,1')
+    ->name('api.zalo-mini-app.')
+    ->group(function (): void {
+        Route::get('/bootstrap', [ZaloMiniAppController::class, 'bootstrap'])->name('bootstrap');
+        Route::get('/countries', [ZaloMiniAppController::class, 'countries'])->name('countries');
+        Route::post('/quote', [ZaloMiniAppController::class, 'quote'])->name('quote');
+        Route::post('/shipping-requests', [ZaloMiniAppController::class, 'storeShippingRequest'])->name('shipping-requests.store');
+    });
 
 /*
 |--------------------------------------------------------------------------

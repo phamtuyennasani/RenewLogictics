@@ -29,7 +29,7 @@ use Picqer\Barcode\Types\TypeCode128;
 class OrderPdfRenderer
 {
     /** Khổ giấy khớp print CSS hiện hành (app.css @page label/bill). */
-    private const A6_POINTS = [0, 0, 297.64, 419.53];
+    private const A6_POINTS = [0, 0, 298, 470];
 
     /**
      * Chặn PDF hàng loạt quá lớn: mỗi đơn có thể sinh nhiều trang tem
