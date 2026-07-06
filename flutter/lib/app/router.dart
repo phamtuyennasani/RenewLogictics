@@ -70,8 +70,9 @@ abstract class AppRoutes {
   /// Gom về một nơi để điều hướng thông báo nhất quán giữa push và tap.
   static String notificationsLocation({required bool ops}) =>
       ops ? opsNotifications : shipperNotifications;
-  static String notificationDetailLocation(int id, {required bool ops}) =>
-      ops ? opsNotificationDetailLocation(id) : shipperNotificationDetailLocation(id);
+  static String notificationDetailLocation(int id, {required bool ops}) => ops
+      ? opsNotificationDetailLocation(id)
+      : shipperNotificationDetailLocation(id);
 }
 
 /// Router toàn app + auth guard.

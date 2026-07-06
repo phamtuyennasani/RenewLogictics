@@ -35,6 +35,8 @@ trait BuildsMobileSchema
             $table->string('code')->nullable();
             $table->json('options')->nullable();
             $table->unsignedBigInteger('id_sale')->nullable();
+            $table->string('zalo_user_id', 100)->nullable()->unique();
+            $table->timestamp('zalo_linked_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
@@ -96,6 +98,10 @@ trait BuildsMobileSchema
             $table->string('uuid')->nullable();
             $table->string('id_bill')->unique();
             $table->unsignedBigInteger('id_sale')->nullable();
+            $table->unsignedBigInteger('id_customer')->nullable();
+            $table->unsignedBigInteger('id_cs')->nullable();
+            $table->unsignedBigInteger('id_ops')->nullable();
+            $table->unsignedBigInteger('id_create')->nullable();
             $table->string('bill_status');
             $table->timestamp('ngaynhanhang')->nullable();
             $table->string('tracking_code')->nullable();

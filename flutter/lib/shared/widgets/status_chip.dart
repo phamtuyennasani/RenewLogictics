@@ -19,23 +19,40 @@ class StatusChip extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: dense ? 8 : 10,
-        vertical: dense ? 4 : 5,
+        vertical: dense ? 5 : 6,
       ),
       decoration: BoxDecoration(
         color: palette.bg,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: palette.fg.withValues(alpha: 0.18)),
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: palette.fg,
-          fontSize: dense ? 11 : 12,
-          fontWeight: FontWeight.w800,
-          height: 1.1,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: dense ? 5 : 6,
+            height: dense ? 5 : 6,
+            decoration: BoxDecoration(
+              color: palette.fg,
+              shape: BoxShape.circle,
+            ),
+          ),
+          SizedBox(width: dense ? 5 : 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: palette.fg,
+                fontSize: dense ? 11 : 12,
+                fontWeight: FontWeight.w900,
+                height: 1.1,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

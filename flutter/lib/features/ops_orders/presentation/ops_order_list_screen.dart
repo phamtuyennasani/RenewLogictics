@@ -51,7 +51,7 @@ class _OpsOrderListScreenState extends ConsumerState<OpsOrderListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Đơn Hàng Của Tôi'),
+        title: const Text('Đơn hàng của tôi'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(108),
           child: Column(
@@ -183,6 +183,9 @@ class _SearchField extends StatelessWidget {
         return TextField(
           controller: controller,
           textInputAction: TextInputAction.search,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: const Icon(Icons.search),
@@ -197,8 +200,9 @@ class _SearchField extends StatelessWidget {
                 : null,
             isDense: true,
             filled: true,
+            fillColor: Theme.of(context).colorScheme.surface,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(18),
               borderSide: BorderSide.none,
             ),
           ),
@@ -226,6 +230,7 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
+      avatar: selected ? const Icon(Icons.check_rounded, size: 16) : null,
     );
   }
 }
@@ -252,7 +257,7 @@ class _OrderCard extends StatelessWidget {
                 child: Text(
                   order.idBill,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

@@ -246,9 +246,9 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: SizedBox(
-        height: 292,
+        height: 304,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(24),
           child: _cameraOn
               ? _buildCameraStack(state, theme)
               : _buildCameraOff(theme),
@@ -268,11 +268,16 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: 70,
+                height: 70,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(18),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.68,
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Icon(
                   Icons.photo_camera_outlined,
@@ -318,9 +323,9 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withValues(alpha: 0.2),
+                Colors.black.withValues(alpha: 0.24),
                 Colors.transparent,
-                Colors.black.withValues(alpha: 0.46),
+                Colors.black.withValues(alpha: 0.5),
               ],
             ),
           ),
@@ -334,7 +339,7 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
                 color: Colors.white.withValues(alpha: 0.95),
                 width: 2,
               ),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(22),
             ),
           ),
         ),
@@ -399,7 +404,7 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
       child: AppSurface(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             Expanded(
@@ -407,6 +412,9 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
                 controller: _manualCtrl,
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _submitManual(),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
                 decoration: const InputDecoration(
                   hintText: 'Nhập mã kiện thủ công',
                   prefixIcon: Icon(Icons.keyboard_outlined),
@@ -429,37 +437,46 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+          child: AppSurface(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer.withValues(
+                      alpha: 0.68,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.qr_code_scanner,
+                    size: 30,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
-                child: Icon(
-                  Icons.qr_code_scanner,
-                  size: 30,
-                  color: theme.colorScheme.primary,
+                const SizedBox(height: 12),
+                Text(
+                  'Sẵn sàng quét mã kiện',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium,
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Sẵn sàng quét mã kiện',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Camera sẽ tự tìm pickup khi phát hiện mã hợp lệ.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                const SizedBox(height: 4),
+                Text(
+                  'Camera sẽ tự tìm pickup khi phát hiện mã hợp lệ.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -468,32 +485,44 @@ class _ShipperScannerScreenState extends ConsumerState<ShipperScannerScreen>
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
       itemCount: state.recent.length,
-      separatorBuilder: (_, _) => const Divider(height: 1),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final scan = state.recent[index];
         final time =
             '${scan.scannedAt.hour.toString().padLeft(2, '0')}:${scan.scannedAt.minute.toString().padLeft(2, '0')}';
-        return ListTile(
-          dense: true,
-          leading: Icon(
-            scan.received ? Icons.check_circle : Icons.cancel_outlined,
-            color: scan.received
-                ? Colors.green
-                : theme.colorScheme.onSurfaceVariant,
-          ),
-          title: Text(
-            scan.code,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontWeight: FontWeight.w700,
+        final color = scan.received
+            ? const Color(0xFF047857)
+            : theme.colorScheme.onSurfaceVariant;
+        return AppSurface(
+          padding: EdgeInsets.zero,
+          child: ListTile(
+            leading: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: color.withValues(alpha: 0.12)),
+              ),
+              child: Icon(
+                scan.received ? Icons.check_circle : Icons.cancel_outlined,
+                color: color,
+              ),
             ),
+            title: Text(
+              scan.code,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            subtitle: Text(
+              scan.received
+                  ? 'Đã nhận · ${scan.pickupCode ?? ''} ${scan.statusLabel ?? ''}'
+                  : (scan.note ?? 'Không nhận được'),
+            ),
+            trailing: Text(time, style: theme.textTheme.bodySmall),
           ),
-          subtitle: Text(
-            scan.received
-                ? 'Đã nhận · ${scan.pickupCode ?? ''} ${scan.statusLabel ?? ''}'
-                : (scan.note ?? 'Không nhận được'),
-          ),
-          trailing: Text(time, style: theme.textTheme.bodySmall),
         );
       },
     );

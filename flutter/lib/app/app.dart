@@ -74,8 +74,8 @@ class _ShipperOpsAppState extends ConsumerState<ShipperOpsApp> {
       case 'notification':
         // Chọn nhánh theo khả năng của user: OPS-capable ưu tiên module OPS,
         // còn lại (shipper) dùng nhánh shipper. Cả hai tái dùng cùng màn hình.
-        final ops = ref.read(authControllerProvider).session?.isOpsCapable ??
-            false;
+        final ops =
+            ref.read(authControllerProvider).session?.isOpsCapable ?? false;
         router.go(
           route.newsId != null
               ? AppRoutes.notificationDetailLocation(route.newsId!, ops: ops)

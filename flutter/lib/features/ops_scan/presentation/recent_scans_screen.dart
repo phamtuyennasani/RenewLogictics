@@ -49,13 +49,17 @@ class RecentScansScreen extends ConsumerWidget {
                       child: Row(
                         children: [
                           Container(
-                            width: 40,
-                            height: 40,
+                            width: 44,
+                            height: 44,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withValues(
-                                alpha: 0.1,
+                              color: theme.colorScheme.primaryContainer
+                                  .withValues(alpha: 0.68),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.12,
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(14),
                             ),
                             child: Icon(
                               Icons.history,
@@ -141,7 +145,8 @@ class _RecentTile extends StatelessWidget {
           height: 42,
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.12)),
           ),
           child: Icon(
             received ? Icons.check_circle_outline : Icons.error_outline,

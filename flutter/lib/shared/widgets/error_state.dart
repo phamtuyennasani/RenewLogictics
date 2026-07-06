@@ -26,18 +26,18 @@ class ErrorState extends StatelessWidget {
           child: AppSurface(
             padding: EdgeInsets.zero,
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 64,
+                    height: 64,
                     decoration: BoxDecoration(
                       color: theme.colorScheme.errorContainer.withValues(
                         alpha: 0.55,
                       ),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: theme.colorScheme.error.withValues(alpha: 0.16),
                       ),
@@ -62,6 +62,8 @@ class ErrorState extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                      height: 1.38,
                     ),
                   ),
                   if (onRetry != null) ...[

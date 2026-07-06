@@ -410,20 +410,34 @@ class _ConfigError extends StatelessWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.map_outlined, size: 48, color: Colors.grey),
-            const SizedBox(height: 12),
-            Text(
-              message ?? 'Không tải được cấu hình bản đồ.',
-              textAlign: TextAlign.center,
-            ),
-            if (onRetry != null) ...[
+        child: AppSurface(
+          padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.map_outlined,
+                size: 48,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(height: 12),
-              OutlinedButton(onPressed: onRetry, child: const Text('Thử lại')),
+              Text(
+                message ?? 'Không tải được cấu hình bản đồ.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: onRetry,
+                  child: const Text('Thử lại'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

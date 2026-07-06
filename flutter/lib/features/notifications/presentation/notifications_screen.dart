@@ -144,11 +144,12 @@ class _NotificationCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: item.isRead ? 0.08 : 0.12),
-              borderRadius: BorderRadius.circular(13),
+              color: accent.withValues(alpha: item.isRead ? 0.08 : 0.14),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: accent.withValues(alpha: 0.12)),
             ),
             child: Icon(
               item.isRead
@@ -171,6 +172,7 @@ class _NotificationCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w900,
+                          height: 1.18,
                         ),
                       ),
                     ),
@@ -231,8 +233,8 @@ class _MetaPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(

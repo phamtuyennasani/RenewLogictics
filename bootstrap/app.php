@@ -24,9 +24,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // --- Mobile API envelope (success/message/errors) — chỉ áp cho api/mobile/* ---
+        // --- API envelope (success/message/errors) cho mobile + Zalo Mini App ---
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, $request) {
-            if ($request->is('api/mobile/*')) {
+            if ($request->is('api/mobile/*') || $request->is('api/zalo-mini-app/*')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Dữ liệu không hợp lệ.',
@@ -36,7 +36,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             return null;
         });
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
-            if ($request->is('api/mobile/*')) {
+            if ($request->is('api/mobile/*') || $request->is('api/zalo-mini-app/*')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
@@ -45,7 +45,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             return null;
         });
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
-            if ($request->is('api/mobile/*') && $e->getStatusCode() === 403) {
+            if (($request->is('api/mobile/*') || $request->is('api/zalo-mini-app/*')) && $e->getStatusCode() === 403) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Tài khoản không có quyền thực hiện thao tác này.',
@@ -53,7 +53,22 @@ $app = Application::configure(basePath: dirname(__DIR__))
             }
             return null;
         });
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, $request) {
+            if ($request->is('api/zalo-mini-app/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Không tìm thấy dữ liệu.',
+                ], 404);
+            }
+            return null;
+        });
         $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
+            if ($request->is('api/zalo-mini-app/*')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tài khoản không có quyền thực hiện thao tác này.',
+                ], 403);
+            }
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Không có quyền truy cập.'], 403);
             }

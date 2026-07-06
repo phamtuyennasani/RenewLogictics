@@ -9,6 +9,7 @@ use App\Models\News;
 use App\Models\Setting;
 use App\Models\ServicePriceList;
 use App\Models\ZaloShippingRequest;
+use App\Services\Zalo\ZaloMiniAppIdentityVerifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,9 +19,10 @@ class ZaloMiniAppController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(protected ResolveServicePriceAction $resolvePrice)
-    {
-    }
+    public function __construct(
+        protected ResolveServicePriceAction $resolvePrice,
+        protected ZaloMiniAppIdentityVerifier $zaloVerifier,
+    ) {}
 
     public function bootstrap(Request $request): JsonResponse
     {
@@ -85,11 +87,23 @@ class ZaloMiniAppController extends Controller
             'height_cm' => ['nullable', 'numeric', 'min:0', 'max:1000'],
             'note' => ['nullable', 'string', 'max:1000'],
             'quote_snapshot' => ['nullable', 'array'],
-            'zalo_user_id' => ['nullable', 'string', 'max:100'],
+            'zalo_access_token' => ['nullable', 'string', 'max:2048'],
         ]);
 
+        $zaloUserId = null;
+        $accessToken = trim((string) ($validated['zalo_access_token'] ?? ''));
+
+        if ($accessToken !== '') {
+            try {
+                $zaloUserId = $this->zaloVerifier->verifyAccessToken($accessToken)['id'];
+            } catch (Throwable) {
+                return $this->fail('Không xác thực được tài khoản Zalo. Vui lòng thử lại.', 422);
+            }
+        }
+
         $shippingRequest = ZaloShippingRequest::query()->create([
-            ...$validated,
+            ...collect($validated)->except('zalo_access_token')->all(),
+            'zalo_user_id' => $zaloUserId,
             'status' => 'new',
         ]);
 

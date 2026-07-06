@@ -1,0 +1,18 @@
+{
+  "name": "hethong-zalo-miniapp",
+  "framework": "react-typescript",
+  "cssPreProcessor": "css",
+  "includeTailwind": false,
+  "package": "zmp-ui",
+  "stateManagement": "react-state",
+  "newProject": false,
+  "template": "single-view",
+  "theming": {
+    "customColor": false,
+    "color": "#0f6cff",
+    "darkTheme": false,
+    "iconFonts": true,
+    "fillBars": false,
+    "useUiKits": true
+  }
+}

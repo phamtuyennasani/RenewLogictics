@@ -339,7 +339,7 @@ class _ListHeader extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Pickup Của Tôi',
+                    'Pickup của tôi',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w900,
                       color: theme.colorScheme.onSurface,
@@ -373,13 +373,13 @@ class _ListHeader extends StatelessWidget {
           DecoratedBox(
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.07),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
                 ),
               ],
             ),
@@ -462,9 +462,9 @@ class _PendingSummaryCard extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFF2563EB),
-                  Color(0xFF1D4ED8),
-                  Color(0xFF1E40AF),
+                  Color(0xFF073F3B),
+                  Color(0xFF0F766E),
+                  Color(0xFF315E7C),
                 ],
               ),
             ),
@@ -500,7 +500,7 @@ class _PendingSummaryCard extends StatelessWidget {
                         'Đơn Hàng Chưa Nhận',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                           height: 1.1,
                         ),
                       ),
@@ -561,13 +561,13 @@ class _PickupSegmentedTabs extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            color: theme.colorScheme.primary.withValues(alpha: 0.06),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -631,7 +631,7 @@ class _PickupSegment extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: selected
-                ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.72)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(14),
           ),

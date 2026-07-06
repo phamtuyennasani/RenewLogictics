@@ -150,12 +150,17 @@ class _LoginBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFFEAF2FF), Color(0xFFF8FAFC), Color(0xFFF6F8FC)],
+          colors: [
+            scheme.surfaceContainerHigh,
+            scheme.surfaceContainerLow,
+            scheme.surfaceContainer,
+          ],
         ),
       ),
       child: Stack(
@@ -165,11 +170,11 @@ class _LoginBackground extends StatelessWidget {
             right: 0,
             top: 0,
             child: Container(
-              height: 260,
+              height: 255,
               decoration: BoxDecoration(
-                color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                color: scheme.primaryContainer.withValues(alpha: 0.52),
                 borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(34),
+                  bottom: Radius.circular(38),
                 ),
               ),
             ),
@@ -181,8 +186,8 @@ class _LoginBackground extends StatelessWidget {
             child: Container(
               height: 190,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.22),
-                borderRadius: BorderRadius.circular(36),
+                color: scheme.secondaryContainer.withValues(alpha: 0.26),
+                borderRadius: BorderRadius.circular(40),
               ),
             ),
           ),
@@ -203,21 +208,21 @@ class _BrandHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 66,
-          height: 66,
+          width: 70,
+          height: 70,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+              colors: [Color(0xFF073F3B), Color(0xFF0F766E)],
             ),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: Colors.white.withValues(alpha: 0.72)),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2563EB).withValues(alpha: 0.18),
-                blurRadius: 22,
-                offset: const Offset(0, 12),
+                color: const Color(0xFF0F766E).withValues(alpha: 0.22),
+                blurRadius: 28,
+                offset: const Offset(0, 16),
               ),
             ],
           ),
@@ -226,7 +231,7 @@ class _BrandHeader extends StatelessWidget {
               'H',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 36,
+                fontSize: 34,
                 fontWeight: FontWeight.w900,
                 height: 1,
               ),
@@ -239,7 +244,7 @@ class _BrandHeader extends StatelessWidget {
           textAlign: TextAlign.center,
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
-            letterSpacing: 0.4,
+            letterSpacing: 0,
           ),
         ),
         const SizedBox(height: 5),
@@ -278,8 +283,8 @@ class _ModuleBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.68),
-        borderRadius: BorderRadius.circular(999),
+        color: Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withValues(alpha: 0.8)),
         boxShadow: [
           BoxShadow(
@@ -336,19 +341,24 @@ class _LoginPanel extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white),
+        color: theme.colorScheme.surface.withValues(alpha: 0.96),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.82)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, 14),
+            color: theme.colorScheme.primary.withValues(alpha: 0.1),
+            blurRadius: 34,
+            offset: const Offset(0, 20),
+          ),
+          BoxShadow(
+            color: const Color(0xFF10201E).withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
         child: Form(
           key: formKey,
           child: Column(
@@ -364,6 +374,7 @@ class _LoginPanel extends StatelessWidget {
                           'Đăng nhập',
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w900,
+                            height: 1.08,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -383,16 +394,18 @@ class _LoginPanel extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(999),
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.7,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'SECURE',
+                      'BẢO MẬT',
                       style: TextStyle(
                         color: theme.colorScheme.primary,
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 0.6,
+                        letterSpacing: 0.4,
                       ),
                     ),
                   ),
@@ -433,10 +446,10 @@ class _LoginPanel extends StatelessWidget {
                 child: FilledButton(
                   onPressed: submitting ? null : onSubmit,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
+                    backgroundColor: theme.colorScheme.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 0,
                   ),
@@ -491,7 +504,7 @@ class _LoginPanel extends StatelessWidget {
                         ),
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                   ),
@@ -552,26 +565,26 @@ class _LoginField extends StatelessWidget {
           minHeight: 46,
         ),
         filled: true,
-        fillColor: const Color(0xFFF8FAFC),
+        fillColor: theme.colorScheme.surfaceContainerLow,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 14,
         ),
         labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.4),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: theme.colorScheme.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: theme.colorScheme.error, width: 1.4),
         ),
       ),

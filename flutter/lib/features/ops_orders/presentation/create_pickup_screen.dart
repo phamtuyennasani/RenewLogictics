@@ -430,6 +430,13 @@ class _CreatePickupScreenState extends ConsumerState<CreatePickupScreen> {
           border: Border(
             top: BorderSide(color: theme.colorScheme.outlineVariant),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF10201E).withValues(alpha: 0.06),
+              blurRadius: 22,
+              offset: const Offset(0, -8),
+            ),
+          ],
         ),
         child: SafeArea(
           child: Padding(

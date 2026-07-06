@@ -29,6 +29,8 @@ class User extends Authenticatable
         'code',
         'options',
         'id_sale',
+        'zalo_user_id',
+        'zalo_linked_at',
     ];
 
     protected $hidden = [
@@ -39,6 +41,7 @@ class User extends Authenticatable
     protected $casts = [
         'options' => 'array',
         'status'  => 'boolean',
+        'zalo_linked_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',

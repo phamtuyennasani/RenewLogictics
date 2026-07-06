@@ -35,21 +35,21 @@ class EmptyState extends StatelessWidget {
           child: AppSurface(
             padding: EdgeInsets.zero,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 26),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 72,
-                    height: 72,
+                    width: 76,
+                    height: 76,
                     decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(18),
+                      color: scheme.primaryContainer.withValues(alpha: 0.66),
+                      borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: scheme.primary.withValues(alpha: 0.14),
                       ),
                     ),
-                    child: Icon(icon, size: 34, color: scheme.primary),
+                    child: Icon(icon, size: 36, color: scheme.primary),
                   ),
                   const SizedBox(height: 18),
                   if (title != null) ...[
@@ -59,6 +59,7 @@ class EmptyState extends StatelessWidget {
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w900,
                         color: scheme.onSurface,
+                        height: 1.12,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -75,7 +76,7 @@ class EmptyState extends StatelessWidget {
                   if (onRefresh != null) ...[
                     const SizedBox(height: 20),
                     SizedBox(
-                      height: 44,
+                      height: 46,
                       child: OutlinedButton.icon(
                         onPressed: onRefresh,
                         icon: const Icon(Icons.refresh_rounded, size: 18),

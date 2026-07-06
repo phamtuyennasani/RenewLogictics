@@ -247,9 +247,9 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: SizedBox(
-        height: 292,
+        height: 304,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(24),
           child: _cameraOn
               ? _buildCameraStack(state, theme)
               : _buildCameraOff(theme),
@@ -269,11 +269,16 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 64,
-                height: 64,
+                width: 70,
+                height: 70,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(18),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.68,
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Icon(
                   Icons.photo_camera_outlined,
@@ -319,9 +324,9 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withValues(alpha: 0.2),
+                Colors.black.withValues(alpha: 0.24),
                 Colors.transparent,
-                Colors.black.withValues(alpha: 0.46),
+                Colors.black.withValues(alpha: 0.5),
               ],
             ),
           ),
@@ -335,7 +340,7 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
                 color: Colors.white.withValues(alpha: 0.95),
                 width: 2,
               ),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(22),
             ),
           ),
         ),
@@ -400,7 +405,7 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
       child: AppSurface(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             Expanded(
@@ -408,6 +413,9 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
                 controller: _manualCtrl,
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _submitManual(),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
                 decoration: const InputDecoration(
                   hintText: 'Nhập mã thủ công',
                   prefixIcon: Icon(Icons.keyboard_outlined),
@@ -436,11 +444,16 @@ class _OpsScannerScreenState extends ConsumerState<OpsScannerScreen>
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(18),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.68,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Icon(
                   Icons.qr_code_scanner,

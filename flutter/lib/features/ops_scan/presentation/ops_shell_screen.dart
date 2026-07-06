@@ -55,16 +55,32 @@ class _ScanFab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      width: 64,
-      height: 64,
+    return Container(
+      width: 66,
+      height: 66,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.82),
+          width: 3,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(
+              alpha: active ? 0.28 : 0.2,
+            ),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
       child: FloatingActionButton(
         onPressed: onTap,
-        elevation: active ? 6 : 4,
+        elevation: 0,
         backgroundColor: active
             ? theme.colorScheme.primary
             : Color.alphaBlend(
-                Colors.black.withValues(alpha: 0.06),
+                Colors.black.withValues(alpha: 0.05),
                 theme.colorScheme.primary,
               ),
         shape: const CircleBorder(),
@@ -78,7 +94,7 @@ class _ScanFab extends StatelessWidget {
   }
 }
 
-/// Thanh điều hướng dưới có notch cho FAB ở giữa.
+/// Thanh điều hướng dưới dạng surface nổi, chừa nhịp cho FAB quét ở giữa.
 class _OpsBottomBar extends StatelessWidget {
   const _OpsBottomBar({
     required this.currentIndex,
@@ -93,69 +109,72 @@ class _OpsBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return BottomAppBar(
-      height: 70,
-      padding: EdgeInsets.zero,
-      color: theme.colorScheme.surface,
-      surfaceTintColor: theme.colorScheme.surface,
-      elevation: 0,
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 9,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: theme.colorScheme.outlineVariant),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+        child: Container(
+          height: 72,
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface.withValues(alpha: 0.96),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.78)),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                blurRadius: 28,
+                offset: const Offset(0, 14),
+              ),
+              BoxShadow(
+                color: const Color(0xFF10201E).withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, -8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: _NavItem(
-                icon: Icons.inventory_2_outlined,
-                activeIcon: Icons.inventory_2,
-                label: 'Đơn hàng',
-                selected: currentIndex == 0,
-                onTap: () => onTap(0),
+          child: Row(
+            children: [
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.inventory_2_outlined,
+                  activeIcon: Icons.inventory_2,
+                  label: 'Đơn hàng',
+                  selected: currentIndex == 0,
+                  onTap: () => onTap(0),
+                ),
               ),
-            ),
-            Expanded(
-              child: _NavItem(
-                icon: Icons.local_shipping_outlined,
-                activeIcon: Icons.local_shipping,
-                label: 'Pickup',
-                selected: currentIndex == 1,
-                onTap: () => onTap(1),
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.local_shipping_outlined,
+                  activeIcon: Icons.local_shipping,
+                  label: 'Pickup',
+                  selected: currentIndex == 1,
+                  onTap: () => onTap(1),
+                ),
               ),
-            ),
-            // Khoảng trống cho FAB ở giữa.
-            const SizedBox(width: 70),
-            Expanded(
-              child: _NavItem(
-                icon: Icons.notifications_none_outlined,
-                activeIcon: Icons.notifications,
-                label: 'Thông báo',
-                selected: currentIndex == 3,
-                badgeCount: unreadCount,
-                onTap: () => onTap(3),
+              // Khoảng trống cho FAB ở giữa.
+              const SizedBox(width: 76),
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.notifications_none_outlined,
+                  activeIcon: Icons.notifications,
+                  label: 'Thông báo',
+                  selected: currentIndex == 3,
+                  badgeCount: unreadCount,
+                  onTap: () => onTap(3),
+                ),
               ),
-            ),
-            Expanded(
-              child: _NavItem(
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'Tài khoản',
-                selected: currentIndex == 4,
-                onTap: () => onTap(4),
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.person_outline,
+                  activeIcon: Icons.person,
+                  label: 'Tài khoản',
+                  selected: currentIndex == 4,
+                  onTap: () => onTap(4),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -198,14 +217,17 @@ class _NavItem extends StatelessWidget {
             UnreadBadge(
               count: badgeCount,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 34,
-                height: 28,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                width: 36,
+                height: 30,
                 decoration: BoxDecoration(
                   color: selected
-                      ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.72,
+                        )
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(13),
                 ),
                 child: Icon(
                   selected ? activeIcon : icon,

@@ -300,96 +300,121 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       children: [
         _buildAvatarHeader(theme, user),
         const SizedBox(height: 16),
-
-        // Read-only: username + mã nhân viên.
-        Row(
-          children: [
-            Expanded(
-              child: _readonlyField(
-                theme,
-                label: 'Tên đăng nhập',
-                value: (user?.username as String?) ?? '—',
+        AppSurface(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: _readonlyField(
+                      theme,
+                      label: 'Tên đăng nhập',
+                      value: (user?.username as String?) ?? '—',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _readonlyField(
+                      theme,
+                      label: 'Mã nhân viên',
+                      value: ((user?.code as String?)?.isNotEmpty ?? false)
+                          ? user!.code as String
+                          : '—',
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _readonlyField(
-                theme,
-                label: 'Mã nhân viên',
-                value: ((user?.code as String?)?.isNotEmpty ?? false)
-                    ? user!.code as String
-                    : '—',
+              if (roles.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final role in roles)
+                        Chip(
+                          avatar: const Icon(Icons.verified_user_outlined),
+                          label: Text(role),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              _fieldLabel(theme, 'Họ và tên'),
+              TextField(
+                controller: _fullnameCtrl,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  hintText: 'Nhập họ và tên',
+                  prefixIcon: const Icon(Icons.person_outline),
+                  errorText: state.infoErrors['fullname'],
+                ),
               ),
+              const SizedBox(height: 14),
+              _fieldLabel(theme, 'Email'),
+              TextField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'Nhập email',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  errorText: state.infoErrors['email'],
+                ),
+              ),
+              const SizedBox(height: 14),
+              _fieldLabel(theme, 'Số điện thoại'),
+              TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  hintText: 'Nhập số điện thoại',
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                  errorText: state.infoErrors['phone'],
+                ),
+              ),
+              const SizedBox(height: 14),
+              _fieldLabel(theme, 'Địa chỉ'),
+              TextField(
+                controller: _addressCtrl,
+                decoration: InputDecoration(
+                  hintText: 'Nhập địa chỉ',
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  errorText: state.infoErrors['address'],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: state.savingInfo ? null : _onSaveInfo,
+                  icon: state.savingInfo
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: const Text('Lưu thay đổi'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        AppSurface(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              onPressed: () =>
+                  ref.read(authControllerProvider.notifier).logout(),
+              icon: const Icon(Icons.logout),
+              label: const Text('Đăng xuất'),
             ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        _fieldLabel(theme, 'Họ và tên'),
-        TextField(
-          controller: _fullnameCtrl,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(
-            hintText: 'Nhập họ và tên',
-            prefixIcon: const Icon(Icons.person_outline),
-            border: const OutlineInputBorder(),
-            errorText: state.infoErrors['fullname'],
           ),
-        ),
-        const SizedBox(height: 14),
-        _fieldLabel(theme, 'Email'),
-        TextField(
-          controller: _emailCtrl,
-          keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
-            hintText: 'Nhập email',
-            prefixIcon: const Icon(Icons.email_outlined),
-            border: const OutlineInputBorder(),
-            errorText: state.infoErrors['email'],
-          ),
-        ),
-        const SizedBox(height: 14),
-        _fieldLabel(theme, 'Số điện thoại'),
-        TextField(
-          controller: _phoneCtrl,
-          keyboardType: TextInputType.phone,
-          decoration: InputDecoration(
-            hintText: 'Nhập số điện thoại',
-            prefixIcon: const Icon(Icons.phone_outlined),
-            border: const OutlineInputBorder(),
-            errorText: state.infoErrors['phone'],
-          ),
-        ),
-        const SizedBox(height: 14),
-        _fieldLabel(theme, 'Địa chỉ'),
-        TextField(
-          controller: _addressCtrl,
-          decoration: InputDecoration(
-            hintText: 'Nhập địa chỉ',
-            prefixIcon: const Icon(Icons.location_on_outlined),
-            border: const OutlineInputBorder(),
-            errorText: state.infoErrors['address'],
-          ),
-        ),
-        const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: state.savingInfo ? null : _onSaveInfo,
-          icon: state.savingInfo
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.save_outlined),
-          label: const Text('Lưu thay đổi'),
-        ),
-        const SizedBox(height: 24),
-        const Divider(),
-        const SizedBox(height: 8),
-        FilledButton.tonalIcon(
-          onPressed: () => ref.read(authControllerProvider.notifier).logout(),
-          icon: const Icon(Icons.logout),
-          label: const Text('Đăng xuất'),
         ),
       ],
     );
@@ -433,72 +458,81 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 20, 16, bottomInset),
       children: [
-        _fieldLabel(theme, 'Mật khẩu cũ'),
-        TextField(
-          controller: _currentPwCtrl,
-          obscureText: _obscureCurrent,
-          decoration: InputDecoration(
-            hintText: 'Nhập mật khẩu hiện tại',
-            prefixIcon: const Icon(Icons.lock_outline),
-            border: const OutlineInputBorder(),
-            errorText: state.passwordErrors['current_password'],
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscureCurrent ? Icons.visibility_off : Icons.visibility,
+        AppSurface(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+          child: Column(
+            children: [
+              _fieldLabel(theme, 'Mật khẩu cũ'),
+              TextField(
+                controller: _currentPwCtrl,
+                obscureText: _obscureCurrent,
+                decoration: InputDecoration(
+                  hintText: 'Nhập mật khẩu hiện tại',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  errorText: state.passwordErrors['current_password'],
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureCurrent ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureCurrent = !_obscureCurrent),
+                  ),
+                ),
               ),
-              onPressed: () =>
-                  setState(() => _obscureCurrent = !_obscureCurrent),
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        _fieldLabel(theme, 'Mật khẩu mới'),
-        TextField(
-          controller: _newPwCtrl,
-          obscureText: _obscureNew,
-          decoration: InputDecoration(
-            hintText: 'Nhập mật khẩu mới',
-            prefixIcon: const Icon(Icons.lock_reset_outlined),
-            border: const OutlineInputBorder(),
-            errorText: state.passwordErrors['new_password'],
-            suffixIcon: IconButton(
-              icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility),
-              onPressed: () => setState(() => _obscureNew = !_obscureNew),
-            ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        _fieldLabel(theme, 'Nhập lại mật khẩu mới'),
-        TextField(
-          controller: _confirmPwCtrl,
-          obscureText: _obscureConfirm,
-          decoration: InputDecoration(
-            hintText: 'Nhập lại mật khẩu mới',
-            prefixIcon: const Icon(Icons.lock_outline),
-            border: const OutlineInputBorder(),
-            errorText: state.passwordErrors['confirm_password'],
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+              const SizedBox(height: 14),
+              _fieldLabel(theme, 'Mật khẩu mới'),
+              TextField(
+                controller: _newPwCtrl,
+                obscureText: _obscureNew,
+                decoration: InputDecoration(
+                  hintText: 'Nhập mật khẩu mới',
+                  prefixIcon: const Icon(Icons.lock_reset_outlined),
+                  errorText: state.passwordErrors['new_password'],
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureNew ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () => setState(() => _obscureNew = !_obscureNew),
+                  ),
+                ),
               ),
-              onPressed: () =>
-                  setState(() => _obscureConfirm = !_obscureConfirm),
-            ),
+              const SizedBox(height: 14),
+              _fieldLabel(theme, 'Nhập lại mật khẩu mới'),
+              TextField(
+                controller: _confirmPwCtrl,
+                obscureText: _obscureConfirm,
+                decoration: InputDecoration(
+                  hintText: 'Nhập lại mật khẩu mới',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  errorText: state.passwordErrors['confirm_password'],
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirm ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscureConfirm = !_obscureConfirm),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildPasswordChecklist(theme, pw),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: state.savingPassword ? null : _onSavePassword,
+                  icon: state.savingPassword
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check),
+                  label: const Text('Đổi mật khẩu'),
+                ),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        _buildPasswordChecklist(theme, pw),
-        const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: state.savingPassword ? null : _onSavePassword,
-          icon: state.savingPassword
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.check),
-          label: const Text('Đổi mật khẩu'),
         ),
       ],
     );
@@ -534,8 +568,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(10),
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),

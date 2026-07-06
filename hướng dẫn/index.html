@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sổ tay hướng dẫn sử dụng BEE Express</title>
+  <style>
+    :root {
+      --bg: #f3f7fb;
+      --paper: #ffffff;
+      --ink: #111827;
+      --text: #344055;
+      --muted: #687386;
+      --line: #dce6ef;
+      --soft: #eef5fb;
+      --accent: #2563eb;
+      --accent-2: #0f8b8d;
+      --green: #11835f;
+      --amber: #a86412;
+      --red: #b42318;
+      --violet: #635bff;
+      --radius: 14px;
+      --shadow: 0 22px 60px rgba(17, 24, 39, .09);
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        linear-gradient(180deg, rgba(37, 99, 235, .08), transparent 420px),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.7;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .wrap { width: min(1400px, calc(100% - 40px)); margin: 0 auto; }
+
+    .hero {
+      padding: 34px 0 26px;
+      border-bottom: 1px solid var(--line);
+      background:
+        radial-gradient(circle at 16% 18%, rgba(15, 139, 141, .18), transparent 26%),
+        radial-gradient(circle at 86% 12%, rgba(37, 99, 235, .18), transparent 25%),
+        rgba(255, 255, 255, .76);
+      backdrop-filter: blur(18px);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(380px, .95fr);
+      gap: 28px;
+      align-items: center;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      color: #fff;
+      background: linear-gradient(135deg, #2563eb, #0f8b8d);
+      font-weight: 900;
+      box-shadow: 0 14px 30px rgba(37, 99, 235, .24);
+    }
+    .brand-row b { display: block; color: var(--ink); font-size: 18px; line-height: 1.2; }
+    .brand-row span { color: var(--muted); font-size: 14px; }
+    .label {
+      display: inline-flex;
+      min-height: 34px;
+      padding: 6px 12px;
+      border: 1px solid rgba(37, 99, 235, .20);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    h1, h2, h3, h4 { margin: 0; color: var(--ink); line-height: 1.16; }
+    h1 {
+      max-width: 780px;
+      margin-top: 18px;
+      font-size: clamp(38px, 6vw, 74px);
+      letter-spacing: 0;
+      line-height: .96;
+    }
+    .lead {
+      max-width: 760px;
+      margin: 22px 0 0;
+      color: #344055;
+      font-size: 19px;
+      line-height: 1.65;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+      box-shadow: 0 12px 30px rgba(17, 24, 39, .06);
+    }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .button:hover { transform: translateY(-1px); text-decoration: none; }
+    .hero-card {
+      border: 1px solid rgba(220, 230, 239, .90);
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .86);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .hero-card img { display: block; width: 100%; height: auto; }
+    .hero-card-caption {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 16px 18px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+    .hero-card-caption b { display: block; color: var(--ink); }
+    .hero-card-caption span { color: var(--muted); font-size: 14px; }
+    .mini-stat {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #e7f6f3;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      padding-top: 22px;
+    }
+    .quick-card {
+      min-height: 118px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, .82);
+      box-shadow: 0 14px 34px rgba(17, 24, 39, .05);
+    }
+    .quick-card strong { display: block; color: var(--ink); margin-bottom: 5px; }
+    .quick-card span { display: block; color: var(--muted); font-size: 14px; line-height: 1.48; }
+    .layout {
+      display: grid;
+      grid-template-columns: 310px minmax(0, 1fr);
+      gap: 28px;
+      padding: 30px 0 72px;
+      align-items: start;
+    }
+    .toc {
+      position: sticky;
+      top: 18px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, .92);
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+    .toc h2 { margin: 0 0 12px; font-size: 15px; }
+    .toc a {
+      display: block;
+      padding: 9px 10px;
+      border-radius: 10px;
+      color: #526071;
+      font-size: 14px;
+      line-height: 1.3;
+    }
+    .toc a:hover { background: var(--soft); color: var(--ink); text-decoration: none; }
+    .toc-note {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 14px;
+      background: #eef8f7;
+      color: #256263;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .section {
+      margin-bottom: 26px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .section-head {
+      padding: 28px;
+      border-bottom: 1px solid var(--line);
+      background:
+        linear-gradient(90deg, rgba(37, 99, 235, .08), transparent),
+        #fbfdff;
+    }
+    .section-kicker {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #eaf1ff;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+    }
+    .section-head h2 { margin-top: 12px; font-size: clamp(26px, 3.2vw, 42px); }
+    .section-head p { max-width: 900px; margin: 12px 0 0; color: var(--muted); font-size: 17px; }
+    .section-body { padding: 28px; }
+    .chapter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .chapter-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .info-card { border: 1px solid var(--line); border-radius: var(--radius); background: #fff; padding: 18px; }
+    .info-card h3 { margin-bottom: 8px; font-size: 18px; }
+    .info-card p { margin: 0; color: var(--muted); }
+    .steps { counter-reset: step; display: grid; gap: 12px; padding: 0; margin: 18px 0; list-style: none; }
+    .steps li {
+      counter-increment: step;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+    .steps li:before {
+      content: counter(step);
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      background: var(--ink);
+      color: #fff;
+      font-weight: 900;
+    }
+    .steps b { display: block; color: var(--ink); margin-bottom: 4px; }
+    .steps span { display: block; color: var(--muted); }
+    .workflow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin: 18px 0 8px; }
+    .workflow div { min-height: 92px; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; background: #fff; }
+    .workflow b { display: block; color: var(--ink); margin-bottom: 4px; }
+    .workflow span { display: block; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .callout {
+      margin: 18px 0;
+      padding: 16px 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: #f7fbff;
+      color: #344055;
+    }
+    .callout strong { color: var(--ink); }
+    .callout.good { background: #edf9f4; border-color: #ccebdd; }
+    .callout.warn { background: #fff7ea; border-color: #f0d7aa; }
+    .callout.danger { background: #fff1f1; border-color: #f1caca; }
+    .screen-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 22px 0; }
+    figure {
+      margin: 22px 0;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      overflow: hidden;
+      box-shadow: 0 16px 42px rgba(17, 24, 39, .06);
+    }
+    .screen-grid figure { margin: 0; }
+    figure img { display: block; width: 100%; height: auto; }
+    figcaption { padding: 12px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; background: #fff; }
+    table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px; overflow: hidden; border-radius: 12px; }
+    th, td { border: 1px solid var(--line); padding: 12px 13px; text-align: left; vertical-align: top; }
+    th { background: #eef5fb; color: var(--ink); font-weight: 900; }
+    td { color: #3d495d; }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 32px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #eef5fb;
+      color: #344055;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .badge.green { background: #e3f6ee; color: var(--green); }
+    .badge.amber { background: #fff0d6; color: var(--amber); }
+    .badge.red { background: #ffe4e2; color: var(--red); }
+    .badge.violet { background: #eeeeff; color: var(--violet); }
+    .checklist { display: grid; gap: 10px; padding: 0; margin: 16px 0; list-style: none; }
+    .checklist li { position: relative; padding-left: 28px; color: #3d495d; }
+    .checklist li:before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .58em;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 5px #e1f4ed;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: .92em;
+      padding: 2px 6px;
+      border-radius: 7px;
+      border: 1px solid #d9e3ef;
+      background: #f2f6fb;
+      color: #243044;
+    }
+    .footer { padding: 32px 0 58px; color: var(--muted); text-align: center; font-size: 14px; }
+    @media (max-width: 1120px) {
+      .hero-grid, .layout { grid-template-columns: 1fr; }
+      .toc { position: static; }
+      .quick-grid, .workflow, .chapter-grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .wrap { width: min(100% - 24px, 1400px); }
+      .hero { padding-top: 24px; }
+      h1 { font-size: 42px; }
+      .hero-grid, .quick-grid, .chapter-grid, .chapter-grid.three, .workflow, .screen-grid { grid-template-columns: 1fr; }
+      .section-head, .section-body { padding: 22px; }
+      table { display: block; overflow-x: auto; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="brand-row">
+          <div class="brand-mark">BE</div>
+          <div><b>BEE Express</b><span>Sổ tay hướng dẫn sử dụng hệ thống</span></div>
+        </div>
+        <span class="label">Dành cho khách hàng và nhân sự vận hành</span>
+        <h1>Sử dụng hệ thống từ A-Z, không cần biết kỹ thuật.</h1>
+        <p class="lead">Tài liệu này hướng dẫn từng bước để đăng nhập, tạo đơn, quản lý dữ liệu, theo dõi vận chuyển, xử lý công nợ và thanh toán. Mỗi phần đều có ảnh chụp thật từ hệ thống để người dùng dễ đối chiếu khi thao tác.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#bat-dau">Bắt đầu sử dụng</a>
+          <a class="button" href="#crud">Xem hướng dẫn CRUD</a>
+          <a class="button" href="#tao-don">Học cách tạo đơn</a>
+        </div>
+      </div>
+      <figure class="hero-card">
+        <img src="image/01-dashboard.png" alt="Màn hình dashboard tổng quan của hệ thống BEE Express">
+        <figcaption class="hero-card-caption">
+          <span><b>Ảnh chụp thật từ hệ thống</b> Dashboard hiển thị đơn hàng, doanh thu, công nợ và tình trạng xử lý.</span>
+          <span class="mini-stat">Cập nhật 05/07/2026</span>
+        </figcaption>
+      </figure>
+    </div>
+    <div class="wrap quick-grid">
+      <div class="quick-card"><strong>Đọc theo công việc</strong><span>Không cần đọc từ đầu đến cuối. Chọn mục lục theo việc đang làm.</span></div>
+      <div class="quick-card"><strong>Ảnh thật từng màn</strong><span>Toàn bộ hình trong tài liệu được chụp trực tiếp từ hệ thống local.</span></div>
+      <div class="quick-card"><strong>CRUD rõ ràng</strong><span>Mỗi dữ liệu đều có hướng dẫn thêm, xem, sửa, xóa và lưu ý nhập liệu.</span></div>
+      <div class="quick-card"><strong>Cho người mới</strong><span>Giải thích theo ngôn ngữ người dùng, hạn chế thuật ngữ kỹ thuật.</span></div>
+    </div>
+  </header>
+
+  <main class="wrap layout">
+    <nav class="toc" aria-label="Mục lục hướng dẫn">
+      <h2>Mục lục nhanh</h2>
+      <a href="#bat-dau">1. Bắt đầu và đăng nhập</a>
+      <a href="#tong-quan">2. Làm quen giao diện</a>
+      <a href="#quy-trinh">3. Quy trình vận hành</a>
+      <a href="#tao-don">4. Tạo đơn hàng</a>
+      <a href="#quan-ly-don">5. Quản lý đơn hàng</a>
+      <a href="#tai-chinh">6. Giá, công nợ, hóa đơn</a>
+      <a href="#van-hanh">7. Pickup, tải hàng, tracking</a>
+      <a href="#scan">8. Quét đơn và kiện hàng</a>
+      <a href="#crud">9. CRUD dữ liệu</a>
+      <a href="#dia-chi">10. Địa chỉ gửi và nhận</a>
+      <a href="#ctv">11. Khách hàng và CTV</a>
+      <a href="#du-lieu-nen">12. Dữ liệu nền</a>
+      <a href="#nhan-su">13. Nhân sự và quyền</a>
+      <a href="#cau-hinh">14. Cài đặt hệ thống</a>
+      <a href="#cong-khai">15. Tra cước và theo dõi</a>
+      <a href="#loi">16. Lỗi thường gặp</a>
+      <a href="#checklist">17. Checklist vận hành</a>
+      <div class="toc-note">Mẹo: khi hướng dẫn nhân viên mới, hãy bắt đầu từ mục 1, 2, 3, 4 rồi cho thực hành tạo một đơn mẫu.</div>
+    </nav>
+
+    <article>
+      <section class="section" id="bat-dau">
+        <div class="section-head"><span class="section-kicker">Bước đầu</span><h2>Đăng Nhập Và Chuẩn Bị Tài Khoản</h2><p>Người dùng chỉ cần tài khoản, mật khẩu và quyền phù hợp. Nếu không thấy một menu nào đó, nguyên nhân thường là tài khoản chưa được cấp quyền.</p></div>
+        <div class="section-body">
+          <figure><img loading="lazy" src="image/00-login.png" alt="Màn hình đăng nhập BEE Express"><figcaption>Màn hình đăng nhập: nhập tên đăng nhập, mật khẩu, có thể chọn ghi nhớ đăng nhập nếu dùng máy cá nhân.</figcaption></figure>
+          <ol class="steps">
+            <li><div><b>Mở trang đăng nhập</b><span>Truy cập địa chỉ hệ thống do công ty cung cấp. Trên màn hình sẽ có logo BEE Express và form đăng nhập.</span></div></li>
+            <li><div><b>Nhập tên đăng nhập</b><span>Dùng tên đăng nhập được quản trị viên cấp. Một số tài khoản cũng có thể đăng nhập bằng email.</span></div></li>
+            <li><div><b>Nhập mật khẩu</b><span>Nhập đúng mật khẩu, có thể bấm biểu tượng mắt để kiểm tra lại khi cần.</span></div></li>
+            <li><div><b>Bấm Đăng nhập</b><span>Sau khi đăng nhập thành công, hệ thống tự đưa bạn tới màn hình phù hợp theo quyền.</span></div></li>
+          </ol>
+          <div class="callout warn"><strong>Lưu ý cho khách hàng:</strong> không chia sẻ tài khoản cho nhiều người. Khi đổi nhân sự, hãy yêu cầu quản trị viên khóa tài khoản cũ và tạo tài khoản mới để lịch sử thao tác được ghi nhận đúng.</div>
+        </div>
+      </section>
+
+      <section class="section" id="tong-quan">
+        <div class="section-head"><span class="section-kicker">Giao diện</span><h2>Làm Quen Với Màn Hình Chính</h2><p>Hệ thống gồm menu bên trái, thanh tìm kiếm phía trên, khu vực nội dung ở giữa và thông tin tài khoản ở góc phải.</p></div>
+        <div class="section-body">
+          <figure><img loading="lazy" src="image/01-dashboard.png" alt="Dashboard tổng quan hệ thống"><figcaption>Dashboard tổng quan: xem số đơn, đơn đang xử lý, doanh thu cước bán, chi phí, lợi nhuận và trạng thái đơn.</figcaption></figure>
+          <div class="chapter-grid three">
+            <div class="info-card"><h3>Menu bên trái</h3><p>Chứa các phân hệ như Đơn hàng, Tạo đơn nhanh, Pickup, Công nợ, Hóa đơn, Địa chỉ, Nhân sự và Dữ liệu.</p></div>
+            <div class="info-card"><h3>Thanh tìm kiếm</h3><p>Tìm nhanh mã đơn, mã tracking hoặc thông tin liên quan. Phù hợp khi cần mở một đơn đang xử lý.</p></div>
+            <div class="info-card"><h3>Thông tin tài khoản</h3><p>Xem tên người dùng, vai trò, hồ sơ cá nhân và đăng xuất khi kết thúc làm việc.</p></div>
+          </div>
+          <table><thead><tr><th>Vai trò</th><th>Người dùng thường làm gì</th><th>Menu hay dùng</th></tr></thead><tbody>
+            <tr><td>Khách hàng / CTV</td><td>Tạo đơn, xem đơn của mình, theo dõi công nợ.</td><td>Tạo đơn nhanh, Đơn hàng, Địa chỉ gửi, Địa chỉ nhận, Công nợ khách hàng.</td></tr>
+            <tr><td>Sale / CS</td><td>Tạo đơn cho khách, hỗ trợ cập nhật thông tin, theo dõi vận chuyển.</td><td>Đơn hàng, Tạo đơn nhanh, Pickup, Tracking, Địa chỉ.</td></tr>
+            <tr><td>OPS / Shipper</td><td>Nhận hàng, pickup, quét kiện, cập nhật vận hành.</td><td>Pickup, Quét kiện hàng, Tải hàng.</td></tr>
+            <tr><td>Kế toán</td><td>Cập nhật giá, tạo công nợ, xác nhận thanh toán, xử lý hóa đơn.</td><td>Công nợ khách hàng, Công nợ đại lý, Hóa đơn thu, Cập nhật giá.</td></tr>
+            <tr><td>Admin / Quản lý</td><td>Quản trị toàn hệ thống, dữ liệu nền, nhân sự, cấu hình và báo cáo.</td><td>Dashboard, Đơn hàng, Dữ liệu, Nhân sự, Cấu hình, Nhật ký.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="quy-trinh">
+        <div class="section-head"><span class="section-kicker">Luồng chuẩn</span><h2>Quy Trình Vận Hành Một Đơn Hàng</h2><p>Đây là luồng làm việc từ lúc chuẩn bị dữ liệu đến khi giao hàng và thanh toán. Người mới nên nắm phần này trước khi thao tác.</p></div>
+        <div class="section-body">
+          <div class="workflow">
+            <div><b>1. Dữ liệu nền</b><span>Tạo dịch vụ, bảng giá, quốc gia, địa chỉ, nhân sự.</span></div>
+            <div><b>2. Tạo đơn</b><span>Nhập sender, receiver, dịch vụ, kiện hàng, invoice.</span></div>
+            <div><b>3. Nhận hàng</b><span>Tạo pickup, phân công, quét kiện, nhận hàng.</span></div>
+            <div><b>4. Xuất và phát</b><span>Gom tải hàng, duyệt xuất, cập nhật tracking.</span></div>
+            <div><b>5. Đối soát</b><span>Chốt giá, tạo công nợ, thu tiền, xác nhận hóa đơn.</span></div>
+          </div>
+          <h3>Trạng thái đơn hàng</h3>
+          <div class="badge-row"><span class="badge">Mới tạo</span><span class="badge">Đã xác nhận</span><span class="badge">Đã nhận hàng</span><span class="badge amber">Duyệt xuất hàng</span><span class="badge violet">Đang phát hàng</span><span class="badge green">Đã giao</span><span class="badge red">Hủy</span><span class="badge amber">Hoàn hàng</span><span class="badge amber">Cảnh báo</span><span class="badge">Thông quan</span></div>
+          <div class="callout good"><strong>Nguyên tắc dễ nhớ:</strong> đơn hàng đi từ tạo mới, xác nhận, nhận hàng, duyệt xuất, phát hàng, giao hàng. Công nợ và hóa đơn nên xử lý sau khi giá đã được kiểm tra kỹ.</div>
+        </div>
+      </section>
+
+      <section class="section" id="tao-don">
+        <div class="section-head"><span class="section-kicker">Đơn hàng</span><h2>Hướng Dẫn Tạo Đơn Từ A-Z</h2><p>Màn tạo đơn là nơi nhập đầy đủ thông tin gửi hàng. Hãy đi theo thứ tự từ trên xuống để tránh thiếu dữ liệu.</p></div>
+        <div class="section-body">
+          <figure><img loading="lazy" src="image/02-create-order.png" alt="Màn hình tạo mới đơn hàng"><figcaption>Tạo mới đơn hàng: màn hình chia thành các nhóm người gửi, người nhận, dịch vụ, kiện hàng, phụ phí, invoice và ghi chú.</figcaption></figure>
+          <ol class="steps">
+            <li><div><b>Chọn sale phụ trách</b><span>Chọn nhân viên sale quản lý khách hàng. Nếu bạn là sale hoặc CTV, hệ thống có thể tự gắn theo tài khoản.</span></div></li>
+            <li><div><b>Nhập người gửi</b><span>Chọn địa chỉ có sẵn hoặc tạo mới. Cần nhập tên công ty, họ tên, số điện thoại và địa chỉ.</span></div></li>
+            <li><div><b>Nhập người nhận</b><span>Nhập công ty nhận, người nhận, số điện thoại, quốc gia, địa chỉ, tỉnh/bang, thành phố và mã bưu chính.</span></div></li>
+            <li><div><b>Chọn dịch vụ</b><span>Chọn dịch vụ chính trước. Sau đó chọn chi tiết dịch vụ, chi nhánh nhận hàng, hình thức gửi, lý do gửi và delivery term nếu cần.</span></div></li>
+            <li><div><b>Khai báo kiện hàng</b><span>Nhập tên sản phẩm, loại kiện, số kiện, dài, rộng, cao và cân nặng thực tế.</span></div></li>
+            <li><div><b>Thêm phụ phí và invoice</b><span>Nếu có phụ phí hải quan hoặc khai báo hàng hóa, nhập từng dòng rõ ràng để kế toán và vận hành kiểm tra.</span></div></li>
+            <li><div><b>Đọc quy định và tạo đơn</b><span>Tích đồng ý quy định tạo đơn, kiểm tra lại các trường bắt buộc, sau đó bấm Tạo đơn.</span></div></li>
+          </ol>
+          <table><thead><tr><th>Nhóm thông tin</th><th>Bắt buộc nhập</th><th>Lưu ý cho người dùng</th></tr></thead><tbody>
+            <tr><td>Người gửi</td><td>Công ty hoặc khách hàng, họ tên, số điện thoại, địa chỉ.</td><td>Nên lưu vào danh bạ để lần sau chọn nhanh.</td></tr>
+            <tr><td>Người nhận</td><td>Công ty nhận, người nhận, số điện thoại, quốc gia, địa chỉ, postcode.</td><td>Postcode sai có thể làm chậm giao hàng hoặc báo giá không chính xác.</td></tr>
+            <tr><td>Dịch vụ</td><td>Dịch vụ chính và tên sản phẩm.</td><td>Nếu không thấy dịch vụ cần chọn, báo admin kiểm tra dữ liệu nền.</td></tr>
+            <tr><td>Kiện hàng</td><td>Số kiện, kích thước, cân nặng.</td><td>Cân tính cước lấy giá trị lớn hơn giữa cân thực và cân quy đổi.</td></tr>
+            <tr><td>Ảnh ghi chú</td><td>Không bắt buộc.</td><td>Tối đa 5 ảnh, mỗi ảnh tối đa 20 MB.</td></tr>
+          </tbody></table>
+          <div class="callout warn"><strong>Trước khi bấm Tạo đơn:</strong> hãy kiểm tra lại người nhận, quốc gia, postcode và cân nặng. Đây là các thông tin dễ gây sai cước hoặc sai hành trình.</div>
+        </div>
+      </section>
+
+      <section class="section" id="quan-ly-don">
+        <div class="section-head"><span class="section-kicker">Theo dõi đơn</span><h2>Quản Lý Danh Sách, Chi Tiết Và Trạng Thái Đơn</h2><p>Sau khi tạo đơn, người dùng theo dõi tại danh sách đơn và mở chi tiết để in chứng từ, tạo pickup, cập nhật giá hoặc nhập tracking.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/03-order-list.png" alt="Danh sách đơn hàng"><figcaption>Danh sách đơn hàng: tìm kiếm, lọc trạng thái, lọc ngày, xuất Excel, in nhiều đơn.</figcaption></figure>
+            <figure><img loading="lazy" src="image/04-order-detail.png" alt="Chi tiết đơn hàng"><figcaption>Chi tiết đơn: xem tiến trình, thông tin kiện, invoice, lịch sử, pickup, nút in label và bill.</figcaption></figure>
+          </div>
+          <h3>Các thao tác thường dùng</h3>
+          <table><thead><tr><th>Thao tác</th><th>Cách làm</th><th>Khi nào dùng</th></tr></thead><tbody>
+            <tr><td>Tìm đơn</td><td>Nhập mã đơn hoặc mã tracking vào ô tìm kiếm.</td><td>Khi khách hỏi tình trạng hoặc cần mở lại đơn cũ.</td></tr>
+            <tr><td>Lọc đơn</td><td>Chọn trạng thái, khoảng ngày, sale, khách hàng hoặc dịch vụ.</td><td>Khi cần xem nhóm đơn đang xử lý, đã nhận hàng hoặc chờ phát.</td></tr>
+            <tr><td>In label / bill</td><td>Mở chi tiết đơn hoặc chọn nhiều đơn rồi xuất PDF.</td><td>Khi cần dán nhãn kiện, gửi bill hoặc in chứng từ.</td></tr>
+            <tr><td>Cập nhật trạng thái</td><td>Bấm nút trạng thái phù hợp trong chi tiết đơn.</td><td>Khi hàng đã xác nhận, đã nhận, đã xuất hoặc đã giao.</td></tr>
+            <tr><td>Khóa đơn</td><td>Admin có thể khóa đơn sau khi dữ liệu đã ổn định.</td><td>Khi cần tránh người khác sửa nhầm dữ liệu quan trọng.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="tai-chinh">
+        <div class="section-head"><span class="section-kicker">Tài chính</span><h2>Cập Nhật Giá, Công Nợ Và Hóa Đơn Thu</h2><p>Phần tài chính giúp kiểm soát cước bán, cước vốn, công nợ khách hàng, công nợ đại lý và xác nhận thanh toán.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/05-price-payment.png" alt="Màn hình cập nhật giá đơn hàng"><figcaption>Cập nhật giá: nhập cước bán, cước vốn, cước gốc, phụ phí, phí chi hộ và hoa hồng.</figcaption></figure>
+            <figure><img loading="lazy" src="image/09-debt.png" alt="Màn hình công nợ khách hàng"><figcaption>Công nợ: gom đơn theo kỳ, chốt công nợ, tạo hóa đơn thanh toán và theo dõi còn lại.</figcaption></figure>
+          </div>
+          <figure><img loading="lazy" src="image/11-income-invoice.png" alt="Màn hình hóa đơn thu"><figcaption>Hóa đơn thu: xem trạng thái, QR thanh toán, chứng từ tiền mặt, xác nhận hoặc từ chối thanh toán.</figcaption></figure>
+          <ol class="steps">
+            <li><div><b>Cập nhật giá cho đơn</b><span>Kế toán hoặc người có quyền mở chi tiết đơn, vào Cập nhật giá, nhập các khoản cước và lưu.</span></div></li>
+            <li><div><b>Chốt giá bán</b><span>Khi giá đã đúng, bấm chốt giá để tránh thay đổi ngoài ý muốn. Đơn đã chốt mới nên đưa vào công nợ.</span></div></li>
+            <li><div><b>Tạo công nợ</b><span>Chọn khách hàng, sale và kỳ ngày. Hệ thống lấy các đơn đủ điều kiện để gom vào công nợ.</span></div></li>
+            <li><div><b>Tạo hóa đơn thu</b><span>Từ công nợ hoặc đơn lẻ, tạo hóa đơn với số tiền cần thu. Có thể thu một phần hoặc toàn bộ.</span></div></li>
+            <li><div><b>Xác nhận thanh toán</b><span>Với tiền mặt, kiểm tra ảnh chứng từ. Với online, kiểm tra giao dịch hoặc QR trước khi xác nhận.</span></div></li>
+          </ol>
+          <div class="callout danger"><strong>Không sửa tùy tiện:</strong> khi đơn đã nằm trong công nợ hoặc hóa đơn đã thanh toán, việc sửa giá có thể làm lệch báo cáo. Hãy hỏi kế toán hoặc quản lý trước khi chỉnh.</div>
+        </div>
+      </section>
+
+      <section class="section" id="van-hanh">
+        <div class="section-head"><span class="section-kicker">Vận hành</span><h2>Pickup, Tải Hàng Và Tracking</h2><p>Đây là nhóm chức năng giúp đội vận hành lấy hàng, gom hàng, duyệt xuất và cập nhật hành trình cho khách.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/07-pickup.png" alt="Màn hình quản lý pickup"><figcaption>Pickup: quản lý lịch lấy hàng, phân công OPS hoặc shipper, cập nhật trạng thái lấy hàng.</figcaption></figure>
+            <figure><img loading="lazy" src="image/08-shipment-load.png" alt="Màn hình quản lý tải hàng"><figcaption>Tải hàng: gom các đơn đã nhận hàng vào một lô, sau đó phê duyệt để chuyển sang duyệt xuất.</figcaption></figure>
+          </div>
+          <figure><img loading="lazy" src="image/06-tracking.png" alt="Màn hình cập nhật tracking"><figcaption>Tracking nội bộ: nhập mã tracking chung hoặc mã tracking theo từng kiện, xem lịch sử hành trình.</figcaption></figure>
+          <table><thead><tr><th>Phân hệ</th><th>Người thường dùng</th><th>Quy trình ngắn</th></tr></thead><tbody>
+            <tr><td>Pickup</td><td>CS, sale, OPS, shipper, quản lý.</td><td>Tạo pickup từ đơn, nhập lịch hẹn, phân công, lấy hàng, hoàn tất.</td></tr>
+            <tr><td>Tải hàng</td><td>OPS, CS, quản lý.</td><td>Chọn đơn đã nhận hàng, tạo lô, kiểm tra tổng cân, phê duyệt xuất.</td></tr>
+            <tr><td>Tracking</td><td>CS, OPS, quản lý.</td><td>Nhập courier, mã tracking, cập nhật trạng thái, kiểm tra timeline.</td></tr>
+            <tr><td>Quét kiện hàng</td><td>OPS, shipper hoặc tài khoản được cấp quyền.</td><td>Quét barcode trên label kiện, kiểm tra thông tin, xác nhận cập nhật trạng thái.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="scan">
+        <div class="section-head"><span class="section-kicker">Scan</span><h2>Hướng Dẫn Quét Đơn Và Quét Kiện Hàng</h2><p>Chức năng scan giúp đội vận hành cập nhật trạng thái nhanh bằng barcode trên label kiện hàng. Người dùng có thể dùng máy quét barcode, nhập mã kiện bằng tay hoặc dùng camera trên thiết bị mobile.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/27-scan-web.png" alt="Màn hình quét kiện hàng trên web"><figcaption>Quét trên web: nhập hoặc quét mã kiện, hệ thống hiển thị thông tin đơn và yêu cầu xác nhận trước khi đổi trạng thái.</figcaption></figure>
+            <figure><img loading="lazy" src="image/28-scan-mobile.png" alt="Màn hình quét kiện hàng trên mobile"><figcaption>Quét trên mobile: dùng camera để đưa barcode vào khung quét. Camera cần chạy trên HTTPS hoặc localhost.</figcaption></figure>
+          </div>
+
+          <ol class="steps">
+            <li><div><b>Vào menu Quét Kiện Hàng</b><span>Trên máy tính, chọn menu Quét Kiện Hàng ở thanh bên trái. Trên thiết bị mobile, mở tab Scan.</span></div></li>
+            <li><div><b>Chuẩn bị mã kiện</b><span>Mã kiện nằm trên label kiện hàng, thường có dạng mã đơn kèm số kiện ở cuối, ví dụ phần cuối là -01 hoặc -02.</span></div></li>
+            <li><div><b>Quét hoặc nhập mã</b><span>Dùng máy quét barcode dạng keyboard, nhập tay vào ô Barcode kiện hàng rồi bấm Enter, hoặc bật camera và đưa barcode vào khung hình.</span></div></li>
+            <li><div><b>Kiểm tra thông tin hiện ra</b><span>Kiểm tra mã kiện, mã đơn, khách hàng, người nhận và trạng thái chuẩn bị chuyển.</span></div></li>
+            <li><div><b>Bấm Xác nhận nếu đúng</b><span>Chỉ bấm Xác nhận khi chắc chắn đang cầm đúng kiện. Nếu quét nhầm, bấm Hủy để không cập nhật trạng thái.</span></div></li>
+            <li><div><b>Tiếp tục quét kiện tiếp theo</b><span>Sau khi xử lý xong một mã, đưa barcode tiếp theo vào máy quét hoặc camera. Hệ thống có nhật ký quét để đối chiếu.</span></div></li>
+          </ol>
+
+          <h3>Trạng thái được cập nhật khi scan</h3>
+          <table><thead><tr><th>Trạng thái hiện tại</th><th>Sau khi quét và xác nhận</th><th>Ý nghĩa nghiệp vụ</th></tr></thead><tbody>
+            <tr><td>Đã xác nhận</td><td>Đã nhận hàng</td><td>Kho hoặc OPS xác nhận kiện đã được nhận vào hệ thống.</td></tr>
+            <tr><td>Duyệt xuất hàng</td><td>Đang phát hàng</td><td>Kiện đã qua bước duyệt xuất và bắt đầu chuyển sang giai đoạn phát.</td></tr>
+            <tr><td>Trạng thái khác</td><td>Không tự đổi trạng thái</td><td>Hệ thống chỉ hiển thị kết quả hoặc báo đơn đã được xử lý để tránh cập nhật sai.</td></tr>
+          </tbody></table>
+
+          <div class="callout warn"><strong>Lưu ý khi quét đơn nhiều kiện:</strong> nếu một đơn có nhiều kiện, hãy kiểm tra số kiện hiển thị trước khi xác nhận. Quét nhầm một kiện có thể làm trạng thái đơn thay đổi trong khi các kiện còn lại chưa sẵn sàng.</div>
+
+          <table><thead><tr><th>Tình huống</th><th>Nguyên nhân thường gặp</th><th>Cách xử lý</th></tr></thead><tbody>
+            <tr><td>Camera không bật</td><td>Trình duyệt chưa được cấp quyền camera hoặc đang dùng địa chỉ không hỗ trợ camera.</td><td>Cấp quyền camera, đóng ứng dụng khác đang dùng camera, hoặc dùng máy quét barcode/nhập tay.</td></tr>
+            <tr><td>Quét không ra đơn</td><td>Mã kiện không tồn tại, nhập sai ký tự hoặc quét nhầm mã không phải label kiện.</td><td>Kiểm tra lại label, nhập đúng mã kiện rồi thử lại.</td></tr>
+            <tr><td>Không có nút xác nhận</td><td>Đơn không nằm ở trạng thái được phép chuyển bằng scan.</td><td>Mở chi tiết đơn để kiểm tra trạng thái hiện tại và xử lý theo quy trình bình thường.</td></tr>
+            <tr><td>Không thấy menu scan</td><td>Tài khoản chưa được cấp quyền quét kiện hàng.</td><td>Liên hệ admin hoặc quản lý để kiểm tra quyền tài khoản.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="crud">
+        <div class="section-head"><span class="section-kicker">CRUD</span><h2>Quy Tắc Thêm, Xem, Sửa, Xóa Dữ Liệu</h2><p>CRUD là cách gọi ngắn cho 4 thao tác cơ bản: thêm mới, xem danh sách, sửa thông tin và xóa dữ liệu. Người dùng không cần biết kỹ thuật, chỉ cần nhớ quy trình dưới đây.</p></div>
+        <div class="section-body">
+          <div class="chapter-grid">
+            <div class="info-card"><h3>Thêm mới</h3><p>Bấm nút Thêm mới, nhập các trường bắt buộc, kiểm tra lại rồi bấm Lưu mới hoặc Lưu bảng giá.</p></div>
+            <div class="info-card"><h3>Xem danh sách</h3><p>Dùng ô tìm kiếm, bộ lọc và phân trang để tìm đúng dữ liệu. Không cần mở từng dòng nếu chỉ kiểm tra nhanh.</p></div>
+            <div class="info-card"><h3>Sửa thông tin</h3><p>Bấm biểu tượng sửa ở dòng cần chỉnh. Chỉ sửa khi chắc chắn dữ liệu mới đúng hơn dữ liệu cũ.</p></div>
+            <div class="info-card"><h3>Xóa dữ liệu</h3><p>Bấm biểu tượng xóa nếu có quyền. Không xóa dữ liệu đã được dùng trong đơn hàng, công nợ hoặc báo cáo nếu chưa kiểm tra.</p></div>
+          </div>
+          <table><thead><tr><th>Trước khi lưu</th><th>Nên kiểm tra</th><th>Ví dụ</th></tr></thead><tbody>
+            <tr><td>Trường bắt buộc</td><td>Các nhãn có chữ Bắt buộc phải được nhập.</td><td>Tên dịch vụ, tên công ty, số điện thoại, quốc gia.</td></tr>
+            <tr><td>Dữ liệu trùng</td><td>Không tạo hai dòng giống nhau nếu chỉ khác cách viết.</td><td>USA và United States nên thống nhất theo một tên.</td></tr>
+            <tr><td>Dữ liệu đang sử dụng</td><td>Không xóa nếu dữ liệu đã xuất hiện trong đơn cũ.</td><td>Dịch vụ chính đã dùng trong đơn hàng.</td></tr>
+            <tr><td>Ảnh hưởng báo giá</td><td>Bảng giá và DIM ảnh hưởng trực tiếp tới tra cước.</td><td>Sửa bảng giá Express US sẽ ảnh hưởng khách tra cước.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="dia-chi">
+        <div class="section-head"><span class="section-kicker">Danh bạ</span><h2>Quản Lý Địa Chỉ Gửi Và Địa Chỉ Nhận</h2><p>Danh bạ giúp tạo đơn nhanh hơn. Khi khách thường xuyên gửi hoặc nhận tại cùng địa chỉ, hãy lưu trước để chọn lại trong form tạo đơn.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/15-sender-list.png" alt="Danh sách địa chỉ gửi"><figcaption>Danh sách địa chỉ gửi: xem công ty, họ tên, email, số điện thoại, sale phụ trách và khách hàng phụ trách.</figcaption></figure>
+            <figure><img loading="lazy" src="image/16-sender-add.png" alt="Form thêm mới địa chỉ gửi"><figcaption>Thêm mới địa chỉ gửi: nhập công ty, họ tên, email, số điện thoại, sale, CTV và địa chỉ.</figcaption></figure>
+            <figure><img loading="lazy" src="image/17-receiver-list.png" alt="Danh sách địa chỉ nhận"><figcaption>Danh sách địa chỉ nhận: dùng để lưu người nhận thường xuyên, đặc biệt với tuyến quốc tế.</figcaption></figure>
+            <figure><img loading="lazy" src="image/18-receiver-add.png" alt="Form thêm mới địa chỉ nhận"><figcaption>Thêm mới địa chỉ nhận: nhập quốc gia, tỉnh/bang, thành phố, postcode và địa chỉ chi tiết.</figcaption></figure>
+          </div>
+          <ol class="steps">
+            <li><div><b>Vào menu Địa Chỉ Gửi hoặc Địa Chỉ Nhận</b><span>Menu nằm trong nhóm Khách hàng ở bên trái.</span></div></li>
+            <li><div><b>Bấm Thêm mới</b><span>Hệ thống mở form nhập thông tin. Các trường có nhãn Bắt buộc cần nhập đầy đủ.</span></div></li>
+            <li><div><b>Gán người phụ trách</b><span>Với địa chỉ gửi, nên chọn sale hoặc CTV phụ trách để lọc dữ liệu về sau dễ hơn.</span></div></li>
+            <li><div><b>Lưu và kiểm tra lại</b><span>Sau khi lưu, quay về danh sách, tìm tên vừa tạo để chắc chắn dữ liệu đã xuất hiện.</span></div></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section" id="ctv">
+        <div class="section-head"><span class="section-kicker">Khách hàng</span><h2>Quản Lý CTV Và Tài Khoản Khách Hàng</h2><p>CTV hoặc khách hàng là nhóm người có thể tự tạo đơn, xem đơn của mình và theo dõi công nợ tùy quyền được cấp.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/14-ctv-list.png" alt="Danh sách CTV"><figcaption>Danh sách CTV: quản lý tài khoản khách hàng/CTV đang sử dụng hệ thống.</figcaption></figure>
+            <figure><img loading="lazy" src="image/26-ctv-add.png" alt="Form thêm mới CTV"><figcaption>Thêm mới CTV: tạo tài khoản, nhập thông tin liên hệ và phân quyền phù hợp.</figcaption></figure>
+          </div>
+          <table><thead><tr><th>Thông tin</th><th>Cách nhập</th><th>Lưu ý</th></tr></thead><tbody>
+            <tr><td>Tên đăng nhập</td><td>Dùng tên dễ nhớ, không trùng tài khoản khác.</td><td>Nên thống nhất quy tắc đặt tên để dễ tìm.</td></tr>
+            <tr><td>Mật khẩu</td><td>Đặt mật khẩu ban đầu và yêu cầu người dùng đổi khi nhận tài khoản.</td><td>Không gửi mật khẩu qua kênh công khai.</td></tr>
+            <tr><td>Thông tin liên hệ</td><td>Nhập họ tên, số điện thoại, email, địa chỉ.</td><td>Dùng cho CS, sale và kế toán liên hệ khi cần.</td></tr>
+            <tr><td>Sale phụ trách</td><td>Gán sale nếu CTV thuộc một nhân viên kinh doanh.</td><td>Giúp lọc đơn và công nợ theo đúng người phụ trách.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="du-lieu-nen">
+        <div class="section-head"><span class="section-kicker">Thiết lập nền</span><h2>Quản Lý Dịch Vụ, Quốc Gia, Phụ Phí Và Bảng Giá</h2><p>Dữ liệu nền là phần admin hoặc quản lý cần chuẩn bị trước. Nếu dữ liệu nền thiếu, người dùng sẽ không chọn được trong form tạo đơn hoặc tra cước không ra kết quả.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/19-service-list.png" alt="Danh sách dịch vụ chính"><figcaption>Dịch vụ chính: danh sách dịch vụ để người dùng chọn khi tạo đơn.</figcaption></figure>
+            <figure><img loading="lazy" src="image/20-service-add.png" alt="Form thêm mới dịch vụ chính"><figcaption>Thêm dịch vụ chính: nhập tên dịch vụ, mã dịch vụ và số ngày giao dự kiến.</figcaption></figure>
+            <figure><img loading="lazy" src="image/23-country-list.png" alt="Danh sách quốc gia"><figcaption>Quốc gia: dùng cho địa chỉ nhận, tạo đơn và tra cước.</figcaption></figure>
+            <figure><img loading="lazy" src="image/25-service-price-add.png" alt="Form thêm bảng giá dịch vụ"><figcaption>Bảng giá dịch vụ: chọn dịch vụ, quốc gia áp dụng và tải file Excel chi tiết giá.</figcaption></figure>
+          </div>
+          <h3>Những dữ liệu nền thường cần CRUD</h3>
+          <table><thead><tr><th>Nhóm dữ liệu</th><th>Dùng để làm gì</th><th>Ví dụ trường cần nhập</th></tr></thead><tbody>
+            <tr><td>Dịch vụ</td><td>Cho người dùng chọn khi tạo đơn và tra cước.</td><td>Tên dịch vụ, mã dịch vụ, số ngày giao dự kiến.</td></tr>
+            <tr><td>Đơn vị</td><td>Quản lý loại kiện, hàng hóa hoặc nhóm đóng gói.</td><td>Tên loại kiện, số thứ tự hiển thị.</td></tr>
+            <tr><td>Phân loại</td><td>Bổ sung thông tin nghiệp vụ khi gửi hàng.</td><td>Loại bưu gửi, lý do gửi, hình thức gửi, delivery term.</td></tr>
+            <tr><td>Địa lý</td><td>Quản lý quốc gia, tỉnh/bang, thành phố.</td><td>Tên quốc gia, tỉnh/bang thuộc quốc gia, thành phố thuộc tỉnh/bang.</td></tr>
+            <tr><td>Đối tác</td><td>Theo dõi đại lý, hãng bay, đối tác chung chuyển.</td><td>Tên đại lý, tên hãng bay, tên đối tác.</td></tr>
+            <tr><td>Phụ phí</td><td>Tính các khoản phụ phí đơn hàng hoặc chi phí liên quan.</td><td>Tên phụ phí, giá phụ phí.</td></tr>
+            <tr><td>Bảng giá</td><td>Phục vụ tra cước và tham khảo giá bán.</td><td>Tên bảng giá, dịch vụ, quốc gia, file Excel chi tiết.</td></tr>
+          </tbody></table>
+          <div class="callout good"><strong>File Excel bảng giá:</strong> cần đủ các cột quy cách, cân nặng từ, cân nặng đến, cước bán, cước vốn, cước gốc. Nên tải file mẫu trong hệ thống rồi nhập theo mẫu đó.</div>
+        </div>
+      </section>
+
+      <section class="section" id="nhan-su">
+        <div class="section-head"><span class="section-kicker">Tài khoản nội bộ</span><h2>Quản Lý Nhân Sự Và Phân Quyền</h2><p>Nhân sự gồm kinh doanh, kế toán, CS, OPS, shipper và quản lý. Mỗi vai trò có phạm vi thao tác khác nhau.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/21-staff-list.png" alt="Danh sách nhân sự kinh doanh"><figcaption>Danh sách nhân sự: xem tài khoản, họ tên, liên hệ và thao tác sửa/xóa.</figcaption></figure>
+            <figure><img loading="lazy" src="image/22-staff-add.png" alt="Form thêm nhân sự"><figcaption>Thêm nhân sự: tạo tài khoản, nhập thông tin cá nhân, gán nhóm quyền phù hợp.</figcaption></figure>
+          </div>
+          <table><thead><tr><th>Nhóm nhân sự</th><th>Nhiệm vụ chính</th><th>Không nên cấp nếu</th></tr></thead><tbody>
+            <tr><td>Kinh doanh</td><td>Quản lý khách, tạo đơn, theo dõi đơn và công nợ khách của mình.</td><td>Người dùng không phụ trách khách hàng.</td></tr>
+            <tr><td>CS</td><td>Hỗ trợ khách, tạo và cập nhật đơn, theo dõi tracking, xử lý pickup.</td><td>Người dùng không tham gia chăm sóc khách.</td></tr>
+            <tr><td>OPS</td><td>Pickup, nhận hàng, quét kiện, tải hàng.</td><td>Người dùng chỉ làm tài chính hoặc sale.</td></tr>
+            <tr><td>Shipper</td><td>Đi lấy hàng và cập nhật pickup trên mobile.</td><td>Người dùng không đi tuyến.</td></tr>
+            <tr><td>Kế toán</td><td>Giá, công nợ, hóa đơn, xác nhận thanh toán.</td><td>Người dùng không xử lý số liệu tài chính.</td></tr>
+            <tr><td>Quản lý / Admin</td><td>Giám sát, cấu hình, xử lý ngoại lệ và phân quyền.</td><td>Không cần quyền quản trị toàn hệ thống.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="cau-hinh">
+        <div class="section-head"><span class="section-kicker">Cài đặt</span><h2>Hướng Dẫn Sử Dụng Toàn Bộ Mục Cài Đặt</h2><p>Nhóm Cài đặt nằm tại địa chỉ /cai-dat, dùng để quản lý thông tin công ty, nhận diện thương hiệu, thông báo, mạng xã hội và các kết nối vận hành quan trọng của hệ thống.</p></div>
+        <div class="section-body">
+          <figure><img loading="lazy" src="image/29-settings-index.png" alt="Trang danh sách cấu hình hệ thống"><figcaption>Trang Cấu hình hệ thống: chọn nhanh Cấu hình hệ thống, Thông tin công ty, Logo, Favicon, Mạng xã hội và Thông báo.</figcaption></figure>
+
+          <table><thead><tr><th>Mục cài đặt</th><th>Dùng để làm gì</th><th>Ai nên thao tác</th></tr></thead><tbody>
+            <tr><td>Cấu hình hệ thống</td><td>Bật/tắt thanh toán, hóa đơn điện tử, API tracking, email đơn hàng và bản đồ.</td><td>Admin hoặc người được giao quản trị vận hành.</td></tr>
+            <tr><td>Thông tin công ty</td><td>Cập nhật tên công ty, địa chỉ, số điện thoại, email, mã số thuế, website và DIM.</td><td>Admin, quản lý hoặc kế toán trưởng.</td></tr>
+            <tr><td>Logo</td><td>Thay logo hiển thị trong hệ thống và nhận diện thương hiệu.</td><td>Admin hoặc nhân sự phụ trách thương hiệu.</td></tr>
+            <tr><td>Favicon</td><td>Thay biểu tượng nhỏ trên tab trình duyệt.</td><td>Admin.</td></tr>
+            <tr><td>Banner</td><td>Thay ảnh banner đăng nhập.</td><td>Admin hoặc nhân sự phụ trách hình ảnh.</td></tr>
+            <tr><td>Mạng xã hội</td><td>Cập nhật Facebook, Zalo, Hotline, Instagram, YouTube, TikTok, Telegram và X.</td><td>Admin, CS hoặc marketing nếu được phân quyền.</td></tr>
+            <tr><td>Thông báo</td><td>Tạo thông báo nội bộ theo từng nhóm quyền như kế toán, vận hành, shipper, kinh doanh, quản lý.</td><td>Admin, quản lý, CS hoặc kế toán tùy quyền.</td></tr>
+          </tbody></table>
+
+          <h3>1. Mở Và Chọn Mục Cài Đặt</h3>
+          <ol class="steps">
+            <li><div><b>Vào menu Cấu hình</b><span>Ở thanh menu bên trái, kéo xuống nhóm Cấu hình và bấm Cấu hình hệ thống.</span></div></li>
+            <li><div><b>Chọn ô cần chỉnh</b><span>Mỗi ô là một nhóm chức năng. Ví dụ cần đổi logo thì bấm Logo, cần sửa email công ty thì bấm Thông tin công ty.</span></div></li>
+            <li><div><b>Kiểm tra quyền tài khoản</b><span>Nếu không thấy một ô nào đó, tài khoản có thể chưa được cấp quyền. Hãy liên hệ admin để kiểm tra.</span></div></li>
+            <li><div><b>Sửa xong phải bấm lưu</b><span>Các thay đổi trong mục cài đặt chỉ có hiệu lực sau khi bấm nút Lưu cấu hình, Lưu thay đổi hoặc Lưu ảnh tùy từng màn hình.</span></div></li>
+          </ol>
+
+          <h3>2. Cấu Hình Hệ Thống</h3>
+          <p>Màn hình Cấu hình hệ thống có 5 tab chính: Thanh toán, Hóa đơn, API, Email và Bản đồ. Đây là phần ảnh hưởng trực tiếp đến việc khách thanh toán, phát hành hóa đơn, gửi email, tra cứu đối tác và hiển thị bản đồ.</p>
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/30-settings-system-payment.png" alt="Tab thanh toán trong cấu hình hệ thống"><figcaption>Thanh toán: bật hoặc tắt từng cổng thanh toán, nhập thông tin tài khoản, mã ngân hàng hoặc khóa kết nối theo nhà cung cấp.</figcaption></figure>
+            <figure><img loading="lazy" src="image/31-settings-system-invoice.png" alt="Tab hóa đơn trong cấu hình hệ thống"><figcaption>Hóa đơn: bật cổng hóa đơn điện tử, nhập thông tin kết nối và mẫu hóa đơn dùng để phát hành cho khách hàng.</figcaption></figure>
+            <figure><img loading="lazy" src="image/32-settings-system-api.png" alt="Tab API tracking trong cấu hình hệ thống"><figcaption>API: cấp khóa cho đối tác tra cứu trạng thái đơn, giới hạn số lần gọi mỗi phút và chặn IP nếu cần.</figcaption></figure>
+            <figure><img loading="lazy" src="image/33-settings-system-email.png" alt="Tab email trong cấu hình hệ thống"><figcaption>Email: bật gửi email thông báo đơn hàng và nhập thông tin máy chủ gửi email.</figcaption></figure>
+            <figure><img loading="lazy" src="image/34-settings-system-map.png" alt="Tab bản đồ trong cấu hình hệ thống"><figcaption>Bản đồ: nhập khóa bản đồ để hệ thống tìm kiếm địa chỉ, hiển thị bản đồ và định vị tuyến lấy hàng.</figcaption></figure>
+          </div>
+          <table><thead><tr><th>Tab</th><th>Cách sử dụng</th><th>Lưu ý quan trọng</th></tr></thead><tbody>
+            <tr><td>Thanh toán</td><td>Bật công tắc của cổng thanh toán cần dùng, nhập thông tin bắt buộc, sau đó bấm Lưu cấu hình.</td><td>Nên kiểm tra lại số tài khoản, mã ngân hàng, môi trường kết nối trước khi cho khách dùng thật.</td></tr>
+            <tr><td>Hóa đơn</td><td>Bật nhà cung cấp hóa đơn điện tử, nhập thông tin được đơn vị hóa đơn cung cấp.</td><td>Sai mẫu hóa đơn hoặc chuỗi hóa đơn có thể làm phát hành lỗi, cần kiểm thử trước.</td></tr>
+            <tr><td>API</td><td>Bật API tracking đơn hàng, tạo khóa mới nếu cần cấp cho đối tác, đặt giới hạn request và IP bị chặn.</td><td>Chỉ gửi khóa API cho đối tác được phép. Khi nghi ngờ lộ khóa, hãy tạo khóa mới.</td></tr>
+            <tr><td>Email</td><td>Bật email đơn hàng, nhập SMTP Host, Port, Username, Password, From Email và From Name.</td><td>Nên gửi thử một đơn sau khi lưu để chắc chắn email đi được.</td></tr>
+            <tr><td>Bản đồ</td><td>Nhập Tile API Key và Geocode API Key của VietMap.</td><td>Nếu bản đồ không hiển thị hoặc không tìm được địa chỉ, hãy kiểm tra lại khóa bản đồ.</td></tr>
+          </tbody></table>
+          <div class="callout warn"><strong>Không chia sẻ khóa kết nối:</strong> các trường như khóa API, mật khẩu SMTP, khóa bản đồ, khóa thanh toán và hóa đơn là thông tin nhạy cảm. Chỉ người có trách nhiệm mới được xem hoặc chỉnh sửa.</div>
+
+          <h3>3. Thông Tin Công Ty</h3>
+          <figure><img loading="lazy" src="image/24-company-settings.png" alt="Màn hình cấu hình thông tin công ty"><figcaption>Thông tin công ty: dữ liệu này có thể xuất hiện trên chứng từ, hóa đơn, trang công khai, email và các nội dung gửi khách.</figcaption></figure>
+          <ol class="steps">
+            <li><div><b>Nhập tên công ty và tên viết tắt</b><span>Dùng đúng tên pháp lý nếu phục vụ hóa đơn, hoặc tên thương hiệu nếu chỉ dùng cho hiển thị nội bộ.</span></div></li>
+            <li><div><b>Nhập người đại diện và thông tin liên hệ</b><span>Cập nhật số điện thoại, email, website để khách và nhân viên liên hệ đúng đầu mối.</span></div></li>
+            <li><div><b>Nhập địa chỉ</b><span>Điền địa chỉ chi tiết, tỉnh/thành phố và phường/xã nếu hệ thống yêu cầu.</span></div></li>
+            <li><div><b>Nhập mã số thuế</b><span>Kế toán nên kiểm tra kỹ mã số thuế trước khi dùng cho hóa đơn hoặc chứng từ.</span></div></li>
+            <li><div><b>Kiểm tra DIM</b><span>DIM ảnh hưởng đến cách tính cân quy đổi khi tạo đơn và tra cước. Không tự ý đổi nếu chưa thống nhất với vận hành và kế toán.</span></div></li>
+          </ol>
+
+          <h3>4. Logo, Favicon Và Banner</h3>
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/37-settings-logo.png" alt="Màn hình upload logo hệ thống"><figcaption>Logo: kéo thả ảnh hoặc bấm chọn file. Hỗ trợ PNG, JPG, SVG, WebP, tối đa 2MB.</figcaption></figure>
+            <figure><img loading="lazy" src="image/38-settings-favicon.png" alt="Màn hình upload favicon hệ thống"><figcaption>Favicon: dùng ảnh nhỏ cho tab trình duyệt. Hỗ trợ PNG, ICO hoặc SVG.</figcaption></figure>
+            <figure><img loading="lazy" src="image/39-settings-banner.png" alt="Màn hình upload banner đăng nhập"><figcaption>Banner đăng nhập: dùng ảnh ngang, khuyến nghị 1920x1080 px, tối đa 5MB.</figcaption></figure>
+          </div>
+          <ol class="steps">
+            <li><div><b>Chuẩn bị ảnh đúng kích thước</b><span>Logo nên rõ nét trên nền sáng. Banner nên đủ rộng để không bị vỡ hình trên màn hình lớn.</span></div></li>
+            <li><div><b>Bấm chọn file hoặc kéo thả</b><span>Chọn ảnh từ máy tính. Nếu ảnh quá nặng hoặc sai định dạng, hệ thống sẽ không cho lưu.</span></div></li>
+            <li><div><b>Lưu và tải lại trang</b><span>Sau khi lưu, tải lại trang đăng nhập hoặc mở tab mới để kiểm tra hình đã đổi chưa.</span></div></li>
+            <li><div><b>Giữ lại file cũ</b><span>Nên lưu bản logo/banner cũ trên máy trước khi thay để có thể khôi phục khi cần.</span></div></li>
+          </ol>
+
+          <h3>5. Mạng Xã Hội Và Kênh Liên Hệ</h3>
+          <figure><img loading="lazy" src="image/36-settings-social.png" alt="Màn hình cài đặt mạng xã hội"><figcaption>Mạng xã hội: nhập đúng liên kết Facebook, Telegram, Zalo, Hotline, Instagram, YouTube, TikTok và X để khách liên hệ đúng kênh.</figcaption></figure>
+          <table><thead><tr><th>Trường</th><th>Cách nhập</th><th>Nên kiểm tra</th></tr></thead><tbody>
+            <tr><td>Facebook, Instagram, YouTube, TikTok, X</td><td>Dán đường dẫn đầy đủ bắt đầu bằng https://.</td><td>Mở thử link sau khi lưu để chắc chắn không sai trang.</td></tr>
+            <tr><td>Zalo</td><td>Dán link Zalo OA hoặc link số điện thoại theo mẫu hệ thống gợi ý.</td><td>Kiểm tra trên điện thoại vì Zalo thường mở tốt nhất trên mobile.</td></tr>
+            <tr><td>Hotline</td><td>Nhập số điện thoại đang dùng để chăm sóc khách.</td><td>Không nhập khoảng trắng hoặc ký tự lạ nếu hệ thống yêu cầu số thuần.</td></tr>
+            <tr><td>Telegram</td><td>Dán link nhóm, kênh hoặc tài khoản hỗ trợ.</td><td>Chỉ dùng kênh chính thức của công ty.</td></tr>
+          </tbody></table>
+
+          <h3>6. Thông Báo Hệ Thống</h3>
+          <figure><img loading="lazy" src="image/35-settings-notification.png" alt="Màn hình danh sách thông báo hệ thống"><figcaption>Thông báo hệ thống: xem danh sách thông báo, trạng thái hiển thị, nhóm quyền nhận thông báo và thao tác xem, sửa, xóa.</figcaption></figure>
+          <ol class="steps">
+            <li><div><b>Bấm Thêm thông báo</b><span>Dùng khi cần thông báo nghỉ lễ, thay đổi quy trình, điều chỉnh bảng giá hoặc nhắc việc vận hành.</span></div></li>
+            <li><div><b>Nhập tiêu đề rõ ràng</b><span>Tiêu đề nên ngắn, nêu đúng nội dung chính. Ví dụ: Thông báo nghỉ lễ 30/4 - 1/5.</span></div></li>
+            <li><div><b>Nhập nội dung chi tiết</b><span>Nêu thời gian áp dụng, việc cần làm, người chịu trách nhiệm và kênh liên hệ khi có thắc mắc.</span></div></li>
+            <li><div><b>Chọn nhóm người nhận</b><span>Chỉ chọn các nhóm liên quan như kế toán, vận hành, shipper, CS, kinh doanh hoặc quản lý.</span></div></li>
+            <li><div><b>Bật hoặc tắt hiển thị</b><span>Nếu thông báo chưa sẵn sàng, có thể tắt hiển thị rồi bật lại khi cần công bố.</span></div></li>
+          </ol>
+
+          <ul class="checklist">
+            <li>Không thay đổi cấu hình thanh toán, hóa đơn, email, API hoặc bản đồ trong giờ cao điểm nếu chưa có người kiểm tra sau khi lưu.</li>
+            <li>Sau khi đổi thông tin công ty, hãy kiểm tra lại chứng từ, hóa đơn, email và trang công khai.</li>
+            <li>Sau khi đổi logo, favicon hoặc banner, hãy tải lại trình duyệt để tránh nhìn thấy ảnh cũ do bộ nhớ đệm.</li>
+            <li>Sau khi tạo thông báo, đăng nhập bằng tài khoản thuộc nhóm nhận để kiểm tra thông báo có hiển thị đúng không.</li>
+          </ul>
+
+          <table><thead><tr><th>Lỗi thường gặp trong Cài đặt</th><th>Nguyên nhân</th><th>Cách xử lý</th></tr></thead><tbody>
+            <tr><td>Không thấy mục Cấu hình hệ thống</td><td>Tài khoản chưa có quyền admin.</td><td>Liên hệ quản trị viên để được cấp quyền phù hợp.</td></tr>
+            <tr><td>Bấm lưu nhưng báo thiếu dữ liệu</td><td>Chưa nhập trường bắt buộc hoặc nhập sai định dạng.</td><td>Kiểm tra các nhãn Bắt buộc, nhập lại đúng mẫu rồi lưu.</td></tr>
+            <tr><td>Ảnh mới chưa hiển thị</td><td>Trình duyệt còn lưu ảnh cũ.</td><td>Tải lại trang, mở tab ẩn danh hoặc xóa bộ nhớ đệm trình duyệt.</td></tr>
+            <tr><td>Email không gửi</td><td>Sai SMTP Host, Port, Username, Password hoặc tài khoản email chưa cho phép gửi.</td><td>Kiểm tra lại cấu hình email và gửi thử một đơn mới.</td></tr>
+            <tr><td>Đối tác không gọi được API tracking</td><td>Sai khóa API, vượt giới hạn request hoặc IP bị chặn.</td><td>Kiểm tra khóa, giới hạn request, danh sách IP bị chặn và trạng thái bật API.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="cong-khai">
+        <div class="section-head"><span class="section-kicker">Cổng khách hàng</span><h2>Tra Cước Và Theo Dõi Vận Đơn Công Khai</h2><p>Khách hàng có thể tự tra cước tham khảo và theo dõi hành trình mà không cần đăng nhập.</p></div>
+        <div class="section-body">
+          <div class="screen-grid">
+            <figure><img loading="lazy" src="image/13-quote.png" alt="Trang tra cước công khai"><figcaption>Tra cước: chọn dịch vụ, quốc gia đến, nhập cân nặng và kích thước để xem giá tham khảo.</figcaption></figure>
+            <figure><img loading="lazy" src="image/12-public-tools.png" alt="Trang theo dõi vận đơn công khai"><figcaption>Theo dõi vận đơn: nhập mã đơn hoặc mã tracking để xem trạng thái và timeline.</figcaption></figure>
+          </div>
+          <table><thead><tr><th>Công cụ</th><th>Khách cần nhập</th><th>Lưu ý</th></tr></thead><tbody>
+            <tr><td>Tra cước</td><td>Dịch vụ, quốc gia, cân nặng, dài, rộng, cao.</td><td>Kết quả là giá tham khảo, có thể chưa bao gồm VAT, hải quan hoặc phụ phí phát sinh.</td></tr>
+            <tr><td>Theo dõi vận đơn</td><td>Mã vận đơn hoặc mã tracking.</td><td>Thông tin cá nhân người nhận được che bớt để bảo vệ riêng tư.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="loi">
+        <div class="section-head"><span class="section-kicker">Hỗ trợ</span><h2>Lỗi Thường Gặp Và Cách Xử Lý</h2><p>Khi gặp lỗi, hãy đọc thông báo trên màn hình trước. Phần lớn lỗi đến từ thiếu trường bắt buộc, sai quyền hoặc dữ liệu nền chưa được tạo.</p></div>
+        <div class="section-body">
+          <table><thead><tr><th>Tình huống</th><th>Nguyên nhân thường gặp</th><th>Cách xử lý</th></tr></thead><tbody>
+            <tr><td>Không đăng nhập được</td><td>Sai tên đăng nhập, sai mật khẩu hoặc tài khoản bị khóa.</td><td>Kiểm tra lại thông tin, sau đó liên hệ quản trị viên nếu vẫn không vào được.</td></tr>
+            <tr><td>Không thấy menu cần dùng</td><td>Tài khoản chưa được cấp quyền phù hợp.</td><td>Báo quản lý hoặc admin kiểm tra vai trò tài khoản.</td></tr>
+            <tr><td>Không tạo được đơn</td><td>Thiếu người gửi, người nhận, dịch vụ, postcode hoặc kích thước kiện.</td><td>Kiểm tra các nhãn Bắt buộc trong form tạo đơn.</td></tr>
+            <tr><td>Tra cước không có kết quả</td><td>Thiếu bảng giá cho dịch vụ, quốc gia hoặc khoảng cân nặng.</td><td>Admin kiểm tra bảng giá dịch vụ và file Excel đã nhập.</td></tr>
+            <tr><td>Không thấy đơn trong tải hàng</td><td>Đơn chưa ở trạng thái Đã nhận hàng hoặc đã thuộc tải hàng khác.</td><td>Kiểm tra trạng thái đơn và lịch sử tải hàng.</td></tr>
+            <tr><td>Không tạo được công nợ</td><td>Đơn chưa chốt giá, đã hủy hoặc đã nằm trong công nợ khác.</td><td>Chốt giá bán và kiểm tra công nợ hiện có trước khi tạo mới.</td></tr>
+            <tr><td>Không xác nhận được thanh toán</td><td>Hóa đơn chưa đúng trạng thái hoặc thiếu chứng từ.</td><td>Kiểm tra trạng thái hóa đơn, ảnh chứng từ và kênh thanh toán.</td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section class="section" id="checklist">
+        <div class="section-head"><span class="section-kicker">Checklist</span><h2>Checklist Vận Hành Hằng Ngày</h2><p>Dùng checklist này để đào tạo nhân viên mới hoặc kiểm tra công việc cuối ngày.</p></div>
+        <div class="section-body">
+          <div class="chapter-grid">
+            <div class="info-card"><h3>Trước khi tạo đơn</h3><ul class="checklist"><li>Dịch vụ và quốc gia đã có trong dữ liệu nền.</li><li>Địa chỉ gửi và nhận được nhập đúng.</li><li>Cân nặng, kích thước và số kiện có đủ.</li><li>Invoice khai báo rõ tên hàng, số lượng và giá trị.</li></ul></div>
+            <div class="info-card"><h3>Trong ngày vận hành</h3><ul class="checklist"><li>Kiểm tra đơn mới tạo và đơn chờ xác nhận.</li><li>Cập nhật pickup theo lịch hẹn.</li><li>Chuyển đơn đã nhận hàng vào tải hàng nếu cần.</li><li>Nhập tracking khi có mã từ đối tác vận chuyển.</li></ul></div>
+            <div class="info-card"><h3>Cuối ngày</h3><ul class="checklist"><li>Kiểm tra đơn đang phát và đơn cảnh báo.</li><li>Rà soát đơn đã chốt giá nhưng chưa vào công nợ.</li><li>Kiểm tra hóa đơn chờ duyệt thanh toán.</li><li>Xuất báo cáo nếu quản lý hoặc kế toán yêu cầu.</li></ul></div>
+            <div class="info-card"><h3>Khi đào tạo người mới</h3><ul class="checklist"><li>Cho xem dashboard và menu theo vai trò.</li><li>Thực hành tạo một địa chỉ gửi, một địa chỉ nhận.</li><li>Thực hành tạo một đơn mẫu và mở chi tiết đơn.</li><li>Giải thích các trạng thái và nơi xem tracking.</li></ul></div>
+          </div>
+        </div>
+      </section>
+    </article>
+  </main>
+
+  <footer class="footer"><div class="wrap">Sổ tay hướng dẫn sử dụng BEE Express. Toàn bộ ảnh minh họa trong tài liệu là ảnh chụp thật từ hệ thống.</div></footer>
+</body>
+</html>

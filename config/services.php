@@ -28,6 +28,13 @@ return [
         'timeout' => (float) env('TRACKINGMORE_TIMEOUT', 20),
     ],
 
+    'zalo' => [
+        'app_id' => env('ZALO_APP_ID'),
+        'app_secret' => env('ZALO_APP_SECRET'),
+        'graph_me_url' => env('ZALO_GRAPH_ME_URL', 'https://graph.zalo.me/v2.0/me'),
+        'timeout' => (float) env('ZALO_HTTP_TIMEOUT', 8),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

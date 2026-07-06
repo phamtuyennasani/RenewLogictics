@@ -1,10 +1,16 @@
 {
   "app": {
     "title": "Hệ Thống Logistics",
-    "textColor": "black",
-    "statusBarColor": "#ffffff",
-    "leftButton": "none"
+    "textColor": {
+      "light": "black",
+      "dark": "white"
+    },
+    "statusBar": "transparent",
+    "actionBarHidden": false,
+    "hideIOSSafeAreaBottom": true,
+    "hideAndroidBottomNavigationBar": false
   },
-  "debug": true,
-  "pages": ["pages/index"]
+  "listCSS": [],
+  "listSyncJS": [],
+  "listAsyncJS": []
 }

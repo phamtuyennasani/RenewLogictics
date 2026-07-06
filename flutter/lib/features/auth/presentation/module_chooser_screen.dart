@@ -123,7 +123,7 @@ class _RolePill extends StatelessWidget {
         style: const TextStyle(
           color: Colors.white,
           fontSize: 12,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );
@@ -150,15 +150,15 @@ class _ModuleCard extends StatelessWidget {
     final theme = Theme.of(context);
     return AppSurface(
       onTap: onTap,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       child: Row(
         children: [
           Container(
-            width: 54,
-            height: 54,
+            width: 58,
+            height: 58,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(18),
               border: Border.all(color: accent.withValues(alpha: 0.14)),
             ),
             child: Icon(icon, size: 28, color: accent),
@@ -174,13 +174,22 @@ class _ModuleCard extends StatelessWidget {
                   subtitle,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 10),
-          Icon(Icons.arrow_forward_rounded, color: accent),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.arrow_forward_rounded, color: accent, size: 20),
+          ),
         ],
       ),
     );

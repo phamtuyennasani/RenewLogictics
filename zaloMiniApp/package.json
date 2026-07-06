@@ -4,22 +4,26 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "zmp start",
-    "start": "zmp start",
-    "build": "zmp build",
-    "vite:build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "start": "vite --host 0.0.0.0 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "zmp:dev": "zmp start",
+    "zmp:build": "zmp build"
   },
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zmp-sdk": "^2.51.6",
-    "zmp-ui": "^1.11.14"
+    "zmp-ui": "^1.11.14",
+    "zmp-vite-plugin": "^1.1.6"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
     "@types/react": "^18.3.27",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
+    "tailwindcss": "^4.3.2",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
     "zmp-cli": "^4.0.3"

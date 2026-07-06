@@ -232,91 +232,83 @@ class _StatusHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final pickup = detail.pickup;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primary,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(
-                Icons.inventory_2_outlined,
-                color: Colors.white,
-              ),
+    return AppHeroPanel(
+      trailingIcon: Icons.inventory_2_outlined,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Phiếu lấy hàng',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.74),
-                            fontWeight: FontWeight.w700,
-                          ),
+            child: const Icon(Icons.inventory_2_outlined, color: Colors.white),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Phiếu lấy hàng',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.74),
+                          fontWeight: FontWeight.w700,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      StatusChip(badge: pickup.status, dense: true),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      pickup.maPickup,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    StatusChip(badge: pickup.status, dense: true),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    pickup.maPickup,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _HeaderMetric(
+                      icon: Icons.inventory_2_outlined,
+                      label: '${pickup.packageCount ?? 0} kiện',
+                    ),
+                    if (pickup.ordersCount != null)
                       _HeaderMetric(
-                        icon: Icons.inventory_2_outlined,
-                        label: '${pickup.packageCount ?? 0} kiện',
+                        icon: Icons.receipt_long_outlined,
+                        label: '${pickup.ordersCount} đơn',
                       ),
-                      if (pickup.ordersCount != null)
-                        _HeaderMetric(
-                          icon: Icons.receipt_long_outlined,
-                          label: '${pickup.ordersCount} đơn',
-                        ),
-                      if (pickup.weightKg != null)
-                        _HeaderMetric(
-                          icon: Icons.scale_outlined,
-                          label: DateFormatters.weight(pickup.weightKg),
-                        ),
-                      if (pickup.scheduledAt != null)
-                        _HeaderMetric(
-                          icon: Icons.schedule_outlined,
-                          label: DateFormatters.dateTime(pickup.scheduledAt),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+                    if (pickup.weightKg != null)
+                      _HeaderMetric(
+                        icon: Icons.scale_outlined,
+                        label: DateFormatters.weight(pickup.weightKg),
+                      ),
+                    if (pickup.scheduledAt != null)
+                      _HeaderMetric(
+                        icon: Icons.schedule_outlined,
+                        label: DateFormatters.dateTime(pickup.scheduledAt),
+                      ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -332,10 +324,10 @@ class _HeaderMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: Row(

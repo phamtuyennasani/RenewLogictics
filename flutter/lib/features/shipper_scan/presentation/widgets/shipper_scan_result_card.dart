@@ -33,11 +33,14 @@ class ShipperScanResultCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: theme.colorScheme.error.withValues(alpha: 0.12),
+                ),
               ),
               child: Icon(
                 Icons.search_off,
@@ -53,7 +56,7 @@ class ShipperScanResultCard extends StatelessWidget {
                   Text(
                     'Không tìm thấy pickup',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -115,8 +118,10 @@ class ShipperScanResultCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.amber.shade100,
-                borderRadius: BorderRadius.circular(12),
+                color: theme.colorScheme.tertiaryContainer.withValues(
+                  alpha: 0.7,
+                ),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.amber.shade300),
               ),
               child: Row(
@@ -166,7 +171,7 @@ class ShipperScanResultCard extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Row(
                 children: [
@@ -243,7 +248,7 @@ class _Shell extends StatelessWidget {
         padding: EdgeInsets.zero,
         child: Stack(
           children: [
-            Padding(padding: const EdgeInsets.all(14), child: child),
+            Padding(padding: const EdgeInsets.all(18), child: child),
             Positioned(
               top: 2,
               right: 2,

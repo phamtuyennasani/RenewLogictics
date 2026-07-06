@@ -50,7 +50,7 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pickup Của Tôi'),
+        title: const Text('Pickup của tôi'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(108),
           child: Column(
@@ -63,6 +63,9 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
                     return TextField(
                       controller: _searchController,
                       textInputAction: TextInputAction.search,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Tìm theo mã pickup, khách...',
                         prefixIcon: const Icon(Icons.search),
@@ -77,8 +80,9 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
                             : null,
                         isDense: true,
                         filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(18),
                           borderSide: BorderSide.none,
                         ),
                       ),
@@ -97,6 +101,9 @@ class _OpsPickupListScreenState extends ConsumerState<OpsPickupListScreen> {
                       ChoiceChip(
                         label: Text(tab.label),
                         selected: state.tab == tab,
+                        avatar: state.tab == tab
+                            ? const Icon(Icons.check_rounded, size: 16)
+                            : null,
                         onSelected: (sel) {
                           if (sel) notifier.setTab(tab);
                         },

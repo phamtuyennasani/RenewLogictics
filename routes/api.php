@@ -12,6 +12,10 @@ use App\Http\Controllers\Api\Mobile\MobileShipperPickupController;
 use App\Http\Controllers\Api\ThirdPartyOrderTrackingController;
 use App\Http\Controllers\Api\VietmapProxyController;
 use App\Http\Controllers\Api\ZaloMiniAppController;
+use App\Http\Controllers\Api\ZaloMiniApp\ZaloMiniAppAuthController;
+use App\Http\Controllers\Api\ZaloMiniApp\ZaloMiniAppOrderController;
+use App\Http\Controllers\Api\ZaloMiniApp\ZaloMiniAppPriceListController;
+use App\Http\Controllers\Api\ZaloMiniApp\ZaloMiniAppTrackingController;
 use App\Http\Controllers\Webhook\MoMoWebhookController;
 use App\Http\Controllers\Webhook\SepayGatewayIpnController;
 use App\Http\Controllers\Webhook\SepayWebhookController;
@@ -42,6 +46,35 @@ Route::prefix('zalo-mini-app')
         Route::get('/countries', [ZaloMiniAppController::class, 'countries'])->name('countries');
         Route::post('/quote', [ZaloMiniAppController::class, 'quote'])->name('quote');
         Route::post('/shipping-requests', [ZaloMiniAppController::class, 'storeShippingRequest'])->name('shipping-requests.store');
+        Route::get('/tracking/{code}', [ZaloMiniAppTrackingController::class, 'show'])
+            ->middleware('throttle:20,1')
+            ->name('tracking.show');
+
+        Route::post('/auth/login', [ZaloMiniAppAuthController::class, 'login'])
+            ->middleware('throttle:mobile-login')
+            ->name('auth.login');
+        Route::post('/auth/zalo', [ZaloMiniAppAuthController::class, 'zalo'])
+            ->middleware('throttle:mobile-login')
+            ->name('auth.zalo');
+
+        Route::middleware('auth:sanctum')->group(function (): void {
+            Route::get('/me', [ZaloMiniAppAuthController::class, 'me'])->name('me');
+            Route::post('/auth/logout', [ZaloMiniAppAuthController::class, 'logout'])->name('auth.logout');
+            Route::post('/auth/zalo-link', [ZaloMiniAppAuthController::class, 'zaloLink'])->name('auth.zalo-link');
+
+            Route::get('/order-form/bootstrap', [ZaloMiniAppOrderController::class, 'formBootstrap'])->name('order-form.bootstrap');
+            Route::get('/orders', [ZaloMiniAppOrderController::class, 'index'])->name('orders.index');
+            Route::post('/orders', [ZaloMiniAppOrderController::class, 'store'])->name('orders.store');
+            Route::get('/orders/{order}', [ZaloMiniAppOrderController::class, 'show'])->name('orders.show');
+
+            Route::get('/price-lists/bootstrap', [ZaloMiniAppPriceListController::class, 'bootstrap'])->name('price-lists.bootstrap');
+            Route::get('/price-lists', [ZaloMiniAppPriceListController::class, 'index'])->name('price-lists.index');
+            Route::post('/price-lists', [ZaloMiniAppPriceListController::class, 'store'])->name('price-lists.store');
+            Route::get('/price-lists/{priceList}', [ZaloMiniAppPriceListController::class, 'show'])->name('price-lists.show');
+            Route::put('/price-lists/{priceList}', [ZaloMiniAppPriceListController::class, 'update'])->name('price-lists.update');
+            Route::put('/price-lists/{priceList}/details', [ZaloMiniAppPriceListController::class, 'updateDetails'])->name('price-lists.details.update');
+            Route::delete('/price-lists/{priceList}', [ZaloMiniAppPriceListController::class, 'destroy'])->name('price-lists.destroy');
+        });
     });
 
 /*

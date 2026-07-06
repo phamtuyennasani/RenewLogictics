@@ -85,6 +85,24 @@ Route::middleware('guest')->group(function () {
    AUTH ROUTES — Đã đăng nhập
    ============================================================ */
 Route::middleware('auth')->group(function () {
+    // --- Hướng dẫn sử dụng hệ thống ---
+    Route::get('/huong-dan', function () {
+        $path = base_path('hướng dẫn/index.html');
+        abort_unless(is_file($path), 404);
+
+        $html = file_get_contents($path);
+        $html = str_replace('src="image/', 'src="/huong-dan/image/', $html);
+
+        return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
+    })->name('guide.index');
+
+    Route::get('/huong-dan/image/{file}', function (string $file) {
+        $path = base_path('hướng dẫn/image/'.$file);
+        abort_unless(is_file($path), 404);
+
+        return response()->file($path);
+    })->where('file', '[A-Za-z0-9._-]+')->name('guide.asset');
+
     // --- Global Search API ---
     Route::get('/api/global-search', GlobalSearchController::class)->name('api.global-search');
     Route::prefix('api/vietmap')->name('api.vietmap.')->middleware('throttle:600,1')->group(function () {

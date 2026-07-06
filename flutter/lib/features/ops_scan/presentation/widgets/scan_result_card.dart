@@ -34,11 +34,14 @@ class ScanResultCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: theme.colorScheme.errorContainer.withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: theme.colorScheme.error.withValues(alpha: 0.12),
+                ),
               ),
               child: Icon(
                 Icons.search_off,
@@ -54,7 +57,7 @@ class ScanResultCard extends StatelessWidget {
                   Text(
                     'Không tìm thấy đơn',
                     style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -83,11 +86,16 @@ class ScanResultCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.62,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Icon(
                   Icons.inventory_2_outlined,
@@ -100,7 +108,7 @@ class ScanResultCard extends StatelessWidget {
                 child: Text(
                   order.primaryCode,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
@@ -166,8 +174,10 @@ class ScanResultCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.amber.shade100,
-                borderRadius: BorderRadius.circular(12),
+                color: theme.colorScheme.tertiaryContainer.withValues(
+                  alpha: 0.7,
+                ),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.amber.shade300),
               ),
               child: Row(
@@ -216,7 +226,7 @@ class ScanResultCard extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.errorContainer.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: theme.colorScheme.error.withValues(alpha: 0.12),
                 ),
@@ -258,7 +268,7 @@ class _Shell extends StatelessWidget {
       padding: EdgeInsets.zero,
       child: Stack(
         children: [
-          Padding(padding: const EdgeInsets.all(16), child: child),
+          Padding(padding: const EdgeInsets.all(18), child: child),
           Positioned(
             top: 6,
             right: 6,

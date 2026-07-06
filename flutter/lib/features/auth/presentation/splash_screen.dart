@@ -32,7 +32,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                theme.colorScheme.primary.withValues(alpha: 0.08),
+                theme.colorScheme.primaryContainer.withValues(alpha: 0.42),
                 theme.colorScheme.surfaceContainerLow,
               ],
             ),
@@ -45,11 +45,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 72,
-                    height: 72,
+                    width: 76,
+                    height: 76,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary,
-                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF073F3B),
+                          theme.colorScheme.primary,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.72),
+                      ),
                     ),
                     child: const Icon(
                       Icons.local_shipping_rounded,

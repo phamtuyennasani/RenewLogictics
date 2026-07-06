@@ -22,6 +22,7 @@ class PickupCard extends StatelessWidget {
     return AppSurface(
       margin: const EdgeInsets.only(bottom: 10),
       onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -31,7 +32,8 @@ class PickupCard extends StatelessWidget {
                 child: Text(
                   pickup.maPickup,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w900,
+                    height: 1.08,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -45,11 +47,16 @@ class PickupCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.58,
+                  ),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.12),
+                  ),
                 ),
                 child: Icon(
                   Icons.business_outlined,
@@ -138,8 +145,8 @@ class _Meta extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(999),
+        color: theme.colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
       child: Row(
