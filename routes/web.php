@@ -16,65 +16,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-if (! app()->environment('production')) {
-    Route::get('/dev/sepay-gateway-test', function (Request $request, SepayPaymentService $sepay) {
-        $amount = max(1000, (int) $request->integer('amount', 10000));
-        $invoiceNumber = (string) $request->query('invoice', 'TESTINV'.now()->format('YmdHis'));
-        $description = (string) $request->query('description', 'Test thanh toan sandbox');
-        $autoSubmit = $request->boolean('auto_submit', true);
-
-        $data = $sepay->makeGatewayPaymentData($amount, $invoiceNumber, $description, [
-            'success_url' => route('dev.sepay-gateway-return', ['status' => 'success']),
-            'error_url' => route('dev.sepay-gateway-return', ['status' => 'error']),
-            'cancel_url' => route('dev.sepay-gateway-return', ['status' => 'cancel']),
-        ]);
-
-        $inputs = collect($data['fields'])
-            ->map(fn ($value, $key) => sprintf(
-                '<input type="hidden" name="%s" value="%s">',
-                e((string) $key),
-                e((string) $value),
-            ))
-            ->implode(PHP_EOL);
-
-        $jsonFields = e(json_encode($data['fields'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $autoSubmitScript = $autoSubmit ? '<script>document.getElementById("sepay-checkout-form").submit();</script>' : '';
-
-        return response(<<<HTML
-<!doctype html>
-<html lang="vi">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SePay Gateway Test</title>
-    <style>
-        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 32px; color: #111827; }
-        code, pre { background: #f3f4f6; border-radius: 8px; padding: 12px; }
-        pre { overflow: auto; }
-        button { height: 40px; border: 0; border-radius: 8px; background: #2563eb; color: #fff; padding: 0 16px; font-weight: 700; cursor: pointer; }
-    </style>
-</head>
-<body>
-    <h1>SePay Gateway Test</h1>
-    <p>Đang chuyển sang cổng thanh toán sandbox. Nếu trình duyệt không tự chuyển, bấm nút bên dưới.</p>
-    <p>Checkout endpoint: <code>{$data['checkout_url']}</code></p>
-    <form id="sepay-checkout-form" method="POST" action="{$data['checkout_url']}">
-        {$inputs}
-        <button type="submit">Mở trang thanh toán SePay</button>
-    </form>
-    <h2>Signed fields</h2>
-    <pre>{$jsonFields}</pre>
-    {$autoSubmitScript}
-</body>
-</html>
-HTML);
-    })->name('dev.sepay-gateway-test');
-
-    Route::get('/dev/sepay-gateway-return/{status}', function (string $status) {
-        return response("SePay gateway returned: {$status}");
-    })->name('dev.sepay-gateway-return');
-}
-
 /* ============================================================
    GUEST ROUTES — Chưa đăng nhập
    ============================================================ */
@@ -85,24 +26,6 @@ Route::middleware('guest')->group(function () {
    AUTH ROUTES — Đã đăng nhập
    ============================================================ */
 Route::middleware('auth')->group(function () {
-    // --- Hướng dẫn sử dụng hệ thống ---
-    Route::get('/huong-dan', function () {
-        $path = base_path('hướng dẫn/index.html');
-        abort_unless(is_file($path), 404);
-
-        $html = file_get_contents($path);
-        $html = str_replace('src="image/', 'src="/huong-dan/image/', $html);
-
-        return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
-    })->name('guide.index');
-
-    Route::get('/huong-dan/image/{file}', function (string $file) {
-        $path = base_path('hướng dẫn/image/'.$file);
-        abort_unless(is_file($path), 404);
-
-        return response()->file($path);
-    })->where('file', '[A-Za-z0-9._-]+')->name('guide.asset');
-
     // --- Global Search API ---
     Route::get('/api/global-search', GlobalSearchController::class)->name('api.global-search');
     Route::prefix('api/vietmap')->name('api.vietmap.')->middleware('throttle:600,1')->group(function () {
@@ -401,6 +324,23 @@ Route::middleware('auth')->group(function () {
 /* ============================================================
    PUBLIC ROUTES — Không cần đăng nhập
    ============================================================ */
+// --- Hướng dẫn sử dụng hệ thống ---
+Route::get('/huong-dan', function () {
+    $path = base_path('hướng dẫn/index.html');
+    abort_unless(is_file($path), 404);
+
+    $html = file_get_contents($path);
+    $html = str_replace('src="image/', 'src="/huong-dan/image/', $html);
+
+    return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
+})->name('guide.index');
+
+Route::get('/huong-dan/image/{file}', function (string $file) {
+    $path = base_path('hướng dẫn/image/'.$file);
+    abort_unless(is_file($path), 404);
+
+    return response()->file($path);
+})->where('file', '[A-Za-z0-9._-]+')->name('guide.asset');
 Route::get('/thanh-toan/{provider}/return', PaymentReturnController::class)
     ->whereIn('provider', ['vnpay', 'momo'])
     ->name('payment.return')
